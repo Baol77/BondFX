@@ -93,20 +93,101 @@ public class BondService {
      */
     public List<Bond> search(String query) throws Exception {
         ensureCacheLoaded();
-        if (query == null || query.isBlank()) return List.of();
+
+        if (query == null || query.isBlank()) {
+            return List.of();
+        }
 
         String q = query.toLowerCase().trim();
+
+        // --- split tokens ---
+        List<String> tokens = Arrays.stream(q.split("\\s+"))
+            .map(String::trim)
+            .filter(t -> !t.isEmpty())
+            .toList();
+
+        List<Double> percentTokens = new ArrayList<>();
+        List<String> textTokens = new ArrayList<>();
+
+        // --- classify tokens ---
+        for (String t : tokens) {
+            String normalized = t.replace(",", ".");
+
+            if (normalized.matches("^\\d+(\\.\\d*)?%?$")) {
+                percentTokens.add(Double.parseDouble(normalized.replace("%", "")));
+            } else {
+                textTokens.add(normalize(t));
+            }
+        }
+
         List<Bond> results = new ArrayList<>();
 
-        for (Bond b : bondIndex.values()) {
-            if (b.getIsin().toLowerCase().contains(q) ||
-                b.getIssuer().toLowerCase().contains(q)) {
-                results.add(b);
+        for (Bond bond : bondIndex.values()) {
+
+            double coupon = bond.getCouponPct();
+
+            // --- coupon match ---
+            boolean couponMatch = true;
+            if (!percentTokens.isEmpty()) {
+                for (double p : percentTokens) {
+
+                    if (Math.floor(p) == p) {
+                        if (Math.floor(coupon) != p) {
+                            couponMatch = false;
+                            break;
+                        }
+                    } else {
+                        int decimals = getDecimals(p);
+                        double factor = Math.pow(10, decimals);
+
+                        if (Math.floor(coupon * factor) != Math.floor(p * factor)) {
+                            couponMatch = false;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (!couponMatch) continue;
+
+            // --- text match ---
+            boolean textMatch = true;
+            if (!textTokens.isEmpty()) {
+                String searchable = normalize(
+                    bond.getIsin() + " " + bond.getIssuer()
+                );
+
+                for (String t : textTokens) {
+                    if (!searchable.contains(t)) {
+                        textMatch = false;
+                        break;
+                    }
+                }
+            }
+
+            if (textMatch) {
+                results.add(bond);
                 if (results.size() >= 20) break;
             }
         }
+
         return results;
     }
+
+    private String normalize(String s) {
+        return s == null ? "" :
+            s.toLowerCase()
+                .replace(",", ".")
+                .replace("%", "")
+                .trim();
+    }
+
+    private int getDecimals(double value) {
+        String text = Double.toString(value);
+        int index = text.indexOf('.');
+        return index < 0 ? 0 : text.length() - index - 1;
+    }
+
 
     /**
      * Returns all bonds from cache (ordered as last refreshed).
