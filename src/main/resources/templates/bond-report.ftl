@@ -20,7 +20,7 @@
 </div>
 
 <h2>
-    Bond Yield Ranking (EUR)
+    BondFX (EUR)
     <span style="font-size:12px;color:#666;">
         — 📅 ${generatedAt}
     </span>
