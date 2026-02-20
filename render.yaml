@@ -1,7 +1,5 @@
 services:
   - type: web
     name: BondFX
-    env: java
+    env: docker
     plan: free
-    buildCommand: ./mvnw clean package -DskipTests
-    startCommand: java -jar target/BondFX-5.0.jar
