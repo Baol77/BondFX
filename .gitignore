@@ -1,0 +1,16 @@
+# Maven
+/target/
+
+# IntelliJ
+.idea/
+*.iml
+
+# Build tools
+/build/
+.gradle/
+
+# OS
+.DS_Store
+
+# Logs
+*.log

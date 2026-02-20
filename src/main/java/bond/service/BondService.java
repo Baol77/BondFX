@@ -1,0 +1,132 @@
+package bond.service;
+
+import bond.calc.BondCalculator;
+import bond.fx.FxService;
+import bond.model.Bond;
+import bond.scrape.BondScraper;
+import bond.scoring.BondScoreEngine;
+import org.springframework.stereotype.Service;
+
+import java.time.Instant;
+import java.util.*;
+import java.util.concurrent.locks.ReentrantLock;
+
+/**
+ * Spring singleton service that holds the scraped bond list in memory.
+ * <p>
+ * Shared between:
+ * - BondController  (MVC page render)
+ * - BondApiController (REST API for Portfolio Analyzer)
+ * <p>
+ * Cache strategy: bonds are refreshed on every page load (triggered by BondController).
+ * The API endpoints always read the latest cached list — no re-scraping per API call.
+ * If the cache is empty (e.g. first API call before page load), it will scrape on demand.
+ */
+@Service
+public class BondService {
+
+    private final BondCalculator calculator = new BondCalculator();
+    private final BondScraper scraper = new BondScraper(calculator);
+    private final BondScoreEngine scoreEngine = new BondScoreEngine();
+
+    /** In-memory bond list indexed by ISIN for O(1) lookup. */
+    private final Map<String, Bond> bondIndex = new LinkedHashMap<>();
+
+    /** FX rates cached alongside the bonds. */
+    private Map<String, Double> fxRates = new HashMap<>();
+
+    /** Timestamp of last scrape (for logging). */
+    private Instant lastRefresh = null;
+
+    private final ReentrantLock lock = new ReentrantLock();
+
+    // ─── Public API ────────────────────────────────────────────────────────────
+
+    /**
+     * Scrape all sources fresh, score bonds, and update the in-memory cache.
+     * Called by BondController on every page load.
+     *
+     * @return fresh list of all bonds sorted by SAY descending
+     */
+    public List<Bond> refreshAndGet() throws Exception {
+        lock.lock();
+        try {
+            FxService fxService = FxService.getInstance();
+            fxRates = fxService.loadFxRates();
+
+            List<Bond> bonds = scraper.scrape(fxRates);
+            bonds.removeIf(Objects::isNull);
+            scoreEngine.calculateBondScores(bonds, "EUR");
+            bonds.sort(Comparator.comparingDouble(Bond::getSimpleAnnualYield).reversed());
+
+            bondIndex.clear();
+            for (Bond b : bonds) {
+                bondIndex.put(b.getIsin(), b);
+            }
+
+            lastRefresh = Instant.now();
+            System.out.println("✅ Cache refreshed: " + bonds.size() + " bonds at " + lastRefresh);
+            return bonds;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /**
+     * Find a bond by ISIN from the cache.
+     * If cache is empty (server just restarted), triggers a fresh scrape first.
+     *
+     * @param isin the bond ISIN
+     * @return Optional containing the bond, or empty if not found
+     */
+    public Optional<Bond> findByIsin(String isin) throws Exception {
+        ensureCacheLoaded();
+        return Optional.ofNullable(bondIndex.get(isin.toUpperCase().trim()));
+    }
+
+    /**
+     * Search bonds by ISIN or issuer (case-insensitive, partial match).
+     * If cache is empty, triggers a fresh scrape first.
+     *
+     * @param query search string
+     * @return list of matching bonds (max 20)
+     */
+    public List<Bond> search(String query) throws Exception {
+        ensureCacheLoaded();
+        if (query == null || query.isBlank()) return List.of();
+
+        String q = query.toLowerCase().trim();
+        List<Bond> results = new ArrayList<>();
+
+        for (Bond b : bondIndex.values()) {
+            if (b.getIsin().toLowerCase().contains(q) ||
+                b.getIssuer().toLowerCase().contains(q)) {
+                results.add(b);
+                if (results.size() >= 20) break;
+            }
+        }
+        return results;
+    }
+
+    /**
+     * Returns all bonds from cache (ordered as last refreshed).
+     */
+    public List<Bond> getAll() throws Exception {
+        ensureCacheLoaded();
+        return new ArrayList<>(bondIndex.values());
+    }
+
+    public Map<String, Double> getFxRates() throws Exception {
+        ensureCacheLoaded();
+        return Collections.unmodifiableMap(fxRates);
+    }
+
+    // ─── Private helpers ───────────────────────────────────────────────────────
+
+    private void ensureCacheLoaded() throws Exception {
+        if (bondIndex.isEmpty()) {
+            System.out.println("⚠️  Cache empty — scraping on demand (API call before page load)");
+            refreshAndGet();
+        }
+    }
+}

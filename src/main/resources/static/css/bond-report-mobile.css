@@ -1,0 +1,230 @@
+/* ========================================
+   GLOBAL DEFAULT (Desktop First)
+======================================== */
+
+.maturity-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 10px;
+}
+
+.maturity-row > div {
+    display: flex;
+    align-items: center;
+}
+
+.maturity-row input {
+    margin-left: 6px;
+}
+
+/* ========================================
+   MOBILE (≤768px)
+======================================== */
+
+@media (max-width: 768px) {
+
+   body {
+       margin: 10px;
+   }
+
+   h2 {
+       font-size: 18px;
+       margin: 8px 0;
+   }
+
+   /* Controls stacked and LEFT aligned */
+   .controls {
+       display: flex;
+       flex-direction: column;
+       align-items: flex-start;   /* 🔥 force left alignment */
+       gap: 10px;
+       padding: 10px;
+   }
+
+   .controls label {
+       display: flex;
+       flex-direction: column;
+       font-size: 13px;
+       gap: 4px;
+       width: 100%;
+   }
+
+   .controls input,
+   .controls select {
+       width: 100%;
+       padding: 8px;
+       font-size: 14px;
+       box-sizing: border-box;
+   }
+
+   /* Buttons LEFT (not full width anymore) */
+   .control-group-actions {
+       display: flex;
+       flex-direction: column;
+       align-items: flex-start;   /* 🔥 left */
+       gap: 8px;
+       width: 100%;
+       margin-left: 0;           /* remove desktop push */
+   }
+
+   .control-group-actions button {
+       width: auto;              /* 🔥 no full width */
+       padding: 8px 12px;
+       font-size: 13px;
+       min-height: 36px;
+   }
+
+   /* Maturity stacked and LEFT */
+   .maturity-row {
+       display: flex;
+       flex-direction: column;
+       align-items: flex-start;   /* 🔥 left */
+       gap: 8px;
+       width: 100%;
+   }
+
+   .maturity-row > div {
+       width: 100%;
+   }
+
+   .maturity-row input {
+       width: 100%;
+       margin-left: 0;
+   }
+
+    /* Hide less important columns */
+    #bondTable th:nth-child(2),  #bondTable td:nth-child(2),
+    #bondTable th:nth-child(5),  #bondTable td:nth-child(5),
+    #bondTable th:nth-child(6),  #bondTable td:nth-child(6),
+    #bondTable th:nth-child(7),  #bondTable td:nth-child(7),
+    #bondTable th:nth-child(10), #bondTable td:nth-child(10) {
+        display: none !important;
+    }
+
+    table {
+        font-size: 10px;
+    }
+
+    #bondTable th, #bondTable td {
+        padding: 6px 4px;
+    }
+
+    #bondTable th:nth-child(1),
+    #bondTable td:nth-child(1) {
+        max-width: 100px;
+    }
+    #bondTable th:nth-child(3),
+    #bondTable td:nth-child(3){
+        max-width: 50px;
+    }
+    #bondTable th:nth-child(4),
+    #bondTable td:nth-child(4){
+        max-width: 35px;
+    }
+    #bondTable th:nth-child(8),
+    #bondTable td:nth-child(8),
+    #bondTable th:nth-child(9),
+    #bondTable td:nth-child(9),{
+        max-width; 30px;
+    }
+
+    #bondTable th input[type="text"] {
+        display:none;
+    }
+    #bondTable th:nth-child(1) input[type="text"] {
+        display:inline;
+        max-width: 60px;
+        font-size: 10px;
+    }
+    #bondTable th input[type="number"] {
+       display:none;
+    }
+
+    /* Target only the select in the currency column */
+    #bondTable select {
+      /* 1. Remove default browser styling (removes the default arrow) */
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+
+      /* 2. Set the desired smaller width */
+      width: 35px;
+
+      /* 3. Adjust padding and alignment */
+      padding: 2px 5px;
+      font-size: 8px;
+
+      /* 4. Optional: Add a custom background color or border to make it look clean */
+      background-color: white;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+
+    .legend {
+        display: none !important;
+    }
+}
+
+/* ========================================
+   TABLET (769px - 1023px)
+======================================== */
+
+@media (min-width: 769px) and (max-width: 1023px) {
+
+    .controls {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
+
+    .controls button {
+        min-height: 40px;
+    }
+
+    #bondTable th:nth-child(2),  #bondTable td:nth-child(2),
+    #bondTable th:nth-child(6),  #bondTable td:nth-child(6),
+    #bondTable th:nth-child(7),  #bondTable td:nth-child(7),
+    #bondTable th:nth-child(10), #bondTable td:nth-child(10) {
+        display: none !important;
+    }
+
+    #bondTable th:nth-child(1), td:nth-child(1){
+        max-width: 150px;
+    }
+    #bondTable th input[type="text"] {
+        max-width: 140px;
+    }
+}
+
+/* ========================================
+   DESKTOP (≥1024px)
+======================================== */
+
+@media (min-width: 1024px) {
+
+    .profile-presets {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: center;
+    }
+
+    .controls .spacer {
+        margin-left: auto;
+    }
+
+    button {
+        padding: 8px 16px;
+    }
+
+    #bondTable th, td {
+        display: table-cell !important;
+    }
+}

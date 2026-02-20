@@ -1,0 +1,302 @@
+/* --- 1. Modal Container & Layout --- */
+.portfolio-modal {
+  display: none; /* toggled via JS */
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+
+  /* centrer la modale */
+  justify-content: center;
+  align-items: flex-start;
+  padding: 20px;
+  box-sizing: border-box;
+
+  /* IMPORTANT → laisse passer les clics */
+  pointer-events: none;
+}
+
+/* visible only when open */
+.portfolio-modal.open {
+  display: flex;
+}
+
+.portfolio-modal-content {
+pointer-events: auto;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  max-width: 1000px;
+  width: 90%;
+  margin: 20px auto;
+
+  display: flex;
+  flex-direction: column;
+
+  max-height: 90vh;   /* IMPORTANT → limite hauteur modale */
+}
+
+.portfolio-modal-header {
+  background: linear-gradient(135deg, #2196F3, #1976D2);
+  color: white;
+  padding: 20px;
+  border-radius: 8px 8px 0 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: move;
+  user-select: none;
+}
+
+.portfolio-modal-header h2 {
+  margin: 0;
+}
+
+.portfolio-modal-close-btn {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 28px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.portfolio-modal-body {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+  min-height: 0;      /* CRUCIAL en flexbox sinon pas de scroll */
+  padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)); /* espace pour voir le dernier bouton */
+}
+
+/* --- 2. Search Section --- */
+.search-section {
+  margin-bottom: 30px;
+}
+
+.search-bar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 5px;
+  position: relative;   /* search box must be attached to search bar */
+}
+
+.search-input {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.search-results {
+    position: absolute;
+
+    top: calc(100% + 4px);   /* directly under input */
+    left: 0;                  /* align left edge */
+    width: 100%;              /* same width as search bar */
+    max-width: 300px;         /* your desired constraint */
+
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+
+    max-height: 260px;
+    overflow-y: auto;
+
+    z-index: 9999;
+}
+
+/* --- 3. Add Bond Form --- */
+.add-bond-form {
+  display: none; /* Toggled via JS */
+  background: #f9f9f9;
+  padding: 15px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+  border-left: 4px solid #2196F3;
+}
+
+.add-bond-form h4 {
+  margin-top: 0;
+}
+
+.bond-details-box {
+  background: white;
+  padding: 10px;
+  border-radius: 4px;
+  margin-bottom: 15px;
+  font-size: 13px;
+}
+
+.input-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+  margin-bottom: 15px;
+  align-items: start;
+}
+
+.input-column {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.input-label {
+  display: flex;
+  flex-direction: column;
+  font-weight: 500;
+  gap: 5px;
+}
+
+.form-input {
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+/* --- 4. Portfolio Table --- */
+.portfolio-table-wrapper {
+  margin-bottom: 30px;
+  overflow-x: auto;
+}
+
+.portfolio-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  margin-top: 10px;
+  font-size: 12px;
+}
+
+.portfolio-table th {
+  padding: 10px;
+  text-align: left;
+  font-weight: bold;
+  border-bottom: 2px solid #ddd;
+  font-size: 12px;
+  background: #f0f0f0;
+}
+
+.portfolio-table-header-flex {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.empty-portfolio-msg {
+  text-align: center;
+  color: #999;
+  padding: 20px;
+}
+
+/* --- 5. Statistics Section --- */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.stat-card {
+  background: white;
+  padding: 12px;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border-left: 4px solid #2196F3; /* Default Blue */
+}
+
+/* Statistic Card Colors */
+.stat-card.orange { border-left-color: #FF9800; }
+.stat-card.purple { border-left-color: #9C27B0; }
+.stat-card.green  { border-left-color: #4CAF50; }
+.stat-card.deep-purple { border-left-color: #673AB7; }
+
+.stat-label {
+  font-size: 11px;
+  color: #666;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.stat-value {
+  margin: 0;
+  font-size: 16px;
+  font-weight: bold;
+  color: #2196F3; /* Default Blue Text */
+}
+
+/* Text Color Modifiers matching borders */
+.stat-card.orange .stat-value { color: #FF9800; }
+.stat-card.purple .stat-value { color: #9C27B0; }
+.stat-card.green .stat-value  { color: #4CAF50; }
+.stat-card.deep-purple .stat-value { color: #673AB7; }
+
+/* Currency Breakdown */
+.currency-breakdown {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+/* --- 6. Buttons & Actions --- */
+.btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  color: white;
+}
+
+.btn-search { background: #2196F3; }
+.btn-add    { background: #2196F3; width: 100%; padding: 12px; }
+.btn-export { background: #4CAF50; }
+.btn-import { background: #FF9800; }
+.btn-clear  { background: #f44336; }
+
+.actions-footer {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #eee;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.search-result {
+    padding: 8px 10px;
+    cursor: pointer;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.search-result.active {
+    background: #e3f2fd;
+}
+
+.search-result:hover {
+    background: #f5f7fb;
+}
+
+.sr-main {
+    font-size: 14px;
+}
+
+.sr-meta {
+    font-size: 12px;
+    color: #777;
+}
+
+.search-no-results {
+    padding: 10px;
+    color: #999;
+    font-style: italic;
+}
+
+.search-results-more {
+    margin-top: 8px;
+    font-size: 13px;
+    color: #777;
+    font-style: italic;
+}

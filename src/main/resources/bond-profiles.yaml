@@ -1,0 +1,122 @@
+# My Bond Profiles - Optimized Set
+# 8 profiles covering all major investment strategies
+# Calibrated for EUR investor with VaR-5% OU FX model
+
+profiles:
+
+  # 1. LIQUIDITY / SAFETY — "Bank Replacement"
+  # Short term, investment grade. Safe place to park cash.
+  - id: cashParking
+    label: Cash Parking
+    emoji: "🅿️🛡️"
+    description: Short (<2.5y) investment grade bonds for liquidity management
+    profileType: SAY
+    sortedBy: SAY
+    filters:
+      maxMatYears: 2.5
+      minRating: BBB+
+      minYield: 2
+
+  # 2. SHORT-TERM AGGRESSIVE — "High Yield Sprint"
+  # Taking credit risk for high short-term returns (1-3y).
+  - id: ultraShortHigh
+    label: Ultra Short High
+    emoji: "⚡💰"
+    description: Short-term (1-3y) high yield bonds (6%+), accepts sub-IG risk
+    profileType: SAY
+    sortedBy: SAY
+    filters:
+      minMatYears: 1
+      maxMatYears: 3
+      minYield: 6.0
+
+  # 3. BALANCED CORE — "Sleep Well"
+  # The main workhorse profile: mid-term, investment grade, dual yield+SAY filter.
+  # Double filter (minYield + minSAY) protects against bonds with high coupon
+  # but poor SAY due to FX risk (e.g. long-dated USD bonds).
+  - id: balancedCore
+    label: Balanced Core
+    emoji: "⚖️🌲"
+    description: Mid-term (5-15y), Investment Grade, 3.5%+ yield AND 3.5%+ SAY
+    profileType: SAY
+    sortedBy: SAY
+    filters:
+      minMatYears: 5
+      maxMatYears: 15
+      minYield: 3.5
+      minSAY: 3.5
+      minRating: BBB+
+
+  # 4. DEEP DISCOUNT — "Capital Builder"
+  # Targets bonds trading well below par. Return comes from pull-to-par effect.
+  # Price <90 ensures meaningful discount; SAY filter weeds out distressed junk.
+  - id: deepDiscount
+    label: Deep Discount
+    emoji: "📉🚀"
+    description: Below-par bonds (<90) with strong SAY (5%+). Profit from pull-to-par (<20y).
+    profileType: SAY
+    sortedBy: SAY
+    filters:
+      maxPrice: 90
+      minMatYears: 3
+      maxMatYears: 20
+      minSAY: 5.0
+
+  # 5. MAX INCOME — "Cashflow Machine"
+  # High current yield for investors living on coupons.
+  # Rating raised to BBB- to avoid default risk on long maturities.
+  - id: maxIncome
+    label: Max Income
+    emoji: "💵🔥"
+    description: High current yield (6%+) with price protection (<110) and min BBB- rating
+    profileType: income
+    sortedBy: CURR_YIELD
+    filters:
+      maxPrice: 110
+      minMatYears: 15
+      minYield: 6.0
+      minRating: BBB-
+
+  # 6. AAA/AA FORTRESS — "Crisis Hedge"
+  # Top-tier sovereigns only. Essential allocation during market stress.
+  - id: fortressSafe
+    label: AAA/AA Fortress
+    emoji: "🏰🛡️"
+    description: Top-tier sovereigns (AA- minimum) with 3%+ SAY, 5-30y horizon
+    profileType: SAY
+    sortedBy: SAY
+    filters:
+      minRating: AA-
+      minSAY: 3.0
+      minMatYears: 5
+      maxMatYears: 30
+
+  # 7. LONG QUALITY — "Rate Lock"
+  # Lock in today's rates on long-dated high-quality bonds.
+  # Strategy benefits from rate cuts: capital gains + locked high coupon.
+  - id: longQuality
+    label: Long Quality
+    emoji: "🏛️📈"
+    description: Long-term (20-40y) A- rated bonds with 4%+ yield. Benefits from rate cuts.
+    profileType: income
+    sortedBy: CURR_YIELD
+    filters:
+      minMatYears: 20
+      maxMatYears: 40
+      minYield: 4.0
+      minRating: A-
+
+  # 8. RETIREMENT INCOME — "Pension Builder"
+  # Long-term income focus (20-35y), investment grade minimum.
+  # Different from maxIncome: lower yield threshold, higher rating, longer horizon.
+  - id: retirementIncome
+    label: Retirement Income
+    emoji: "🏖️💵"
+    description: Long-term stable income (20-35y) with 4%+ yield and BBB+ minimum rating
+    profileType: income
+    sortedBy: CURR_YIELD
+    filters:
+      minMatYears: 20
+      maxMatYears: 35
+      minYield: 4.0
+      minRating: BBB+
