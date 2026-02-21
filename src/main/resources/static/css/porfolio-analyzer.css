@@ -411,3 +411,17 @@ pointer-events: auto;
     .mat-info { grid-column: 1 / -1; }
     .mat-face { grid-column: 1 / -1; text-align: left; }
 }
+
+/* ─── TAX RATE ───────────────────────────────────────────────────────────────── */
+.stat-card.tax-card {
+    border-left: 4px solid #ff9800;
+    background: #fff8f0;
+}
+
+.stat-card.tax-card .stat-label {
+    color: #e65100;
+}
+
+.stat-card.tax-card .stat-value {
+    color: #e65100;
+}

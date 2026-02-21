@@ -1,0 +1,75 @@
+# Withholding Tax Configuration
+# ─────────────────────────────────────────────────────────────────────────────
+# Resolution order (highest priority first):
+#   1. exceptions — exact ISIN match (or comma-separated ISINs)
+#   2. countries  — matched against the normalized issuer name (case-insensitive)
+#   3. defaultRate — fallback for anything else
+#
+# Country names must match CountryNormalizer output (Italian names used internally).
+# Rates are percentages on coupon income only (e.g. 12.5 = 12.5%).
+# Capital gains taxation depends on your country of residence — not modelled here.
+# ─────────────────────────────────────────────────────────────────────────────
+
+defaultRate: 0.0
+
+countries:
+  - country: "ITALIA"
+    rate: 12.5
+  - country: "USA"
+    rate: 15.0
+  - country: "SPAGNA"
+    rate: 19.0
+  - country: "GRECIA"
+    rate: 15.0
+  - country: "BELGIO"
+    rate: 30.0
+  - country: "IRLANDA"
+    rate: 20.0
+  - country: "ROMANIA"
+    rate: 10.0
+  - country: "UNGHERIA"
+    rate: 15.0
+  - country: "TURCHIA"
+    rate: 10.0
+  - country: "BRASILE"
+    rate: 15.0
+  - country: "MESSICO"
+    rate: 10.0
+  - country: "CILE"
+    rate: 35.0
+  - country: "SUDAFRICA"
+    rate: 15.0
+  - country: "GERMANIA"
+    rate: 0.0
+  - country: "FRANCIA"
+    rate: 0.0
+  - country: "AUSTRIA"
+    rate: 0.0
+  - country: "OLANDA"
+    rate: 0.0
+  - country: "PORTOGALLO"
+    rate: 0.0
+  - country: "FINLANDIA"
+    rate: 0.0
+  - country: "SVEZIA"
+    rate: 0.0
+  - country: "DANIMARCA"
+    rate: 0.0
+  - country: "NORVEGIA"
+    rate: 0.0
+  - country: "SVIZZERA"
+    rate: 0.0
+  - country: "REGNO UNITO"
+    rate: 0.0
+  - country: "POLONIA"
+    rate: 0.0
+  - country: "GIAPPONE"
+    rate: 0.0
+
+# Per-ISIN exceptions — override country rule (highest priority)
+# Supports single or comma-separated ISINs:
+# - isin: "XS1234567890"          # single
+#   rate: 12.5
+# - isin: "XS1111111111,XS2222222222"   # multiple
+#   rate: 0.0
+exceptions: []

@@ -58,24 +58,25 @@
                         <thead>
                         <tr>
                             <th>ISIN</th>
-                            <th>Issuer</th>
-                            <th>Price (€)</th>
-                            <th>Currency</th>
-                            <th>Rating</th>
-                            <th>Qty</th>
-                            <th>Investment</th>
-                            <th>Maturity</th>
-                            <th>Curr. Yield</th>
-                            <th>SAY</th>
-                            <th>Profit (€)</th>
-                            <th>
+                            <th style="text-align:center;">Issuer</th>
+                            <th style="text-align:center;">Price (€)</th>
+                            <th style="text-align:center;">Currency</th>
+                            <th style="text-align:center;">Rating</th>
+                            <th style="text-align:center;">Qty</th>
+                            <th style="text-align:center;">Invest.(€)</th>
+                            <th style="text-align:center;">Maturity</th>
+                            <th style="text-align:center;">Yield (net%)</th>
+                            <th style="text-align:center;">SAY (net%)</th>
+                            <th style="text-align:center;" title="Withholding tax at source. Editable per bond.">Tax %</th>
+                            <th style="text-align:center;">Profit (€)</th>
+                            <th style="text-align:center;">
                                 <div class="portfolio-table-header-flex" title="Toggle to include/exclude all bonds">
                                     <span>Σ</span>
                                     <input type="checkbox" id="toggleAllStatistics" checked
                                            onchange="window.portfolioAnalyzer.toggleAllStatistics(this.checked)">
                                 </div>
                             </th>
-                            <th>Action</th>
+                            <th style="text-align:center;">Action</th>
                         </tr>
                         </thead>
                         <tbody id="portfolioTableBody"></tbody>
@@ -97,12 +98,20 @@
                         <p id="statAvgPrice" class="stat-value">€0.00</p>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-label">Weighted SAY</div>
+                        <div class="stat-label">Weighted SAY (gross)</div>
                         <p id="statWeightedSAY" class="stat-value">0.00%</p>
                     </div>
+                    <div class="stat-card tax-card">
+                        <div class="stat-label">Weighted SAY (net)</div>
+                        <p id="statWeightedSAYNet" class="stat-value">0.00%</p>
+                    </div>
                     <div class="stat-card">
-                        <div class="stat-label">Weighted Yield</div>
+                        <div class="stat-label">Weighted Yield (gross)</div>
                         <p id="statWeightedYield" class="stat-value">0.00%</p>
+                    </div>
+                    <div class="stat-card tax-card">
+                        <div class="stat-label">Weighted Yield (net)</div>
+                        <p id="statWeightedYieldNet" class="stat-value">0.00%</p>
                     </div>
                     <div class="stat-card">
                         <div class="stat-label">Avg Coupon</div>
@@ -129,6 +138,12 @@
                         <p id="statTotalCouponIncome" class="stat-value">€0.00</p>
                     </div>
                 </div>
+
+                <p style="font-size:11px;color:#999;margin:8px 0 0;">
+                    ⚠️ Net values reflect withholding tax at source on coupon income only.
+                    Capital gains taxation depends on your country of residence and is not modelled here.
+                    Default rates are configured in <code>tax-rates.yaml</code> and can be overridden per bond.
+                </p>
 
                 <div style="margin-top:20px;">
                     <h4 style="margin-top:0;margin-bottom:10px;">Currency Breakdown (by Investment %)</h4>

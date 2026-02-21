@@ -418,6 +418,19 @@ class PortfolioAnalyzer {
         this.updateStatistics();
     }
 
+    updateTaxRate(index, value) {
+        const rate = parseFloat(value);
+        if (isNaN(rate) || rate < 0 || rate > 100) {
+            alert('Tax rate must be between 0 and 100');
+            this.updatePortfolioTable();
+            return;
+        }
+        this.portfolio[index].taxRate = rate;
+        this.savePortfolio();
+        this.updatePortfolioTable();  // redraw Yield/SAY cells immediately
+        this.updateStatistics();
+    }
+
     mergeBond(isin) {
         const matches = this.portfolio.filter(b => b.isin === isin);
         if (matches.length < 2) return;
@@ -486,6 +499,23 @@ class PortfolioAnalyzer {
         return bond.priceEur > 0 ? (couponEur / bond.priceEur) * 100 : 0;
     }
 
+    computeSAYNet(bond) {
+        const today      = new Date();
+        const matDate    = new Date(bond.maturity);
+        const years      = Math.max(0.01, (matDate - today) / (365.25 * 24 * 60 * 60 * 1000));
+        const nominal    = bond.nominal || 100;
+        const fxRate     = bond.currency !== 'EUR' ? (bond.priceEur / bond.price) : 1;
+        const nominalEur = nominal * fxRate;
+        const couponEur  = (bond.coupon / 100) * nominalEur;
+        const couponNet  = couponEur * (1 - (bond.taxRate || 0) / 100); // withholding on coupon only
+        const capitalGain = nominalEur - bond.priceEur;                  // capital gain untaxed
+        return ((couponNet + capitalGain / years) / bond.priceEur) * 100;
+    }
+
+    computeCurrentYieldNet(bond) {
+        return this.computeCurrentYield(bond) * (1 - (bond.taxRate || 0) / 100);
+    }
+
     updatePortfolioTable() {
         const tbody = document.getElementById('portfolioTableBody');
         const empty = document.getElementById('emptyPortfolioMsg');
@@ -511,33 +541,37 @@ class PortfolioAnalyzer {
 
             return `<tr style="border-bottom:1px solid #eee;">
                 <td>${bond.isin}</td>
-                <td>${bond.issuer}</td>
-                <td>€${bond.priceEur.toFixed(2)}</td>
-                <td>${bond.currency}</td>
-                <td>${bond.rating}</td>
-                <td>
+                <td style="text-align:center;">${bond.issuer}</td>
+                <td style="text-align:right;">${bond.priceEur.toFixed(2)}</td>
+                <td style="text-align:center;">${bond.currency}</td>
+                <td style="text-align:center;">${bond.rating}</td>
+                <td style="text-align:center;">
                     <input type="number"
-                           value="${bond.quantity}"
+                           value="${bond.quantity.toFixed(2)}"
                            min="0.01"
                            step="0.01"
                            onchange="window.portfolioAnalyzer.updateQuantityInPortfolio(${idx}, this.value)"
-                           style="width:45px;padding:4px;font-size:12px;">
+                           style="width:58px;padding:4px;font-size:12px;">
                 </td>
-
-                <td>€${(bond.totalEur ?? 0).toFixed(2)}</td>
-                <td style="white-space: nowrap;">${bond.maturity}</td>
-                <td>${this.computeCurrentYield(bond).toFixed(2)}%</td>
-                <td>${this.computeSAY(bond).toFixed(2)}%</td>
-                <td class="${gainLoss >= 0 ? 'good' : 'bad'}">
-                    ${gainLoss}
+                <td style="text-align:center;">${(bond.totalEur ?? 0).toFixed(2)}</td>
+                <td style="white-space:nowrap;">${bond.maturity}</td>
+                <td style="text-align:right;">${this.computeCurrentYieldNet(bond).toFixed(2)}</td>
+                <td style="text-align:right;">${this.computeSAYNet(bond).toFixed(2)}</td>
+                <td style="text-align:center;">
+                    <input type="number" min="0" max="100" step="0.5"
+                           value="${(bond.taxRate ?? 0).toFixed(1)}"
+                           style="width:48px;padding:3px;font-size:12px;text-align:right;"
+                           title="Withholding tax % on coupon income"
+                           onchange="window.portfolioAnalyzer.updateTaxRate(${idx}, this.value)">
                 </td>
-                <td>
+                <td style="text-align:right;" class="${gainLoss >= 0 ? 'good' : 'bad'}">${gainLoss}</td>
+                <td style="text-align:center;">
                     <input type="checkbox" title="Toggle to include/exclude this bond from statistics calculations"
                            ${bond.includeInStatistics ? 'checked' : ''}
                            onchange="window.portfolioAnalyzer.toggleStatistics(${idx})">
                 </td>
-                <td>
-                   <div style="display:flex;justify-content:flex-end;align-items:center;gap:10px;width:100%;">
+                <td style="text-align:center;">
+                   <div style="display:flex;justify-content:center;align-items:center;gap:10px;">
                        ${hasDuplicates ? `<span onclick="window.portfolioAnalyzer.mergeBond('${bond.isin}')" title="Merge duplicates" style="cursor:pointer;font-size:18px;transition:opacity 0.15s ease;" onmouseover="this.style.opacity='0.6'" onmouseout="this.style.opacity='1'">🔄</span>` : ''}
                        <span onclick="window.portfolioAnalyzer.removeBond(${idx})" title="Delete bond" style="cursor:pointer;font-size:18px;transition:opacity 0.15s ease;" onmouseover="this.style.opacity='0.6'" onmouseout="this.style.opacity='1'">❌</span>
                    </div>
@@ -569,7 +603,9 @@ class PortfolioAnalyzer {
             document.getElementById('statTotalInvestment').textContent = '€0.00';
             document.getElementById('statAvgPrice').textContent = '€0.00';
             document.getElementById('statWeightedSAY').textContent = '0.00%';
+            document.getElementById('statWeightedSAYNet').textContent = '0.00%';
             document.getElementById('statWeightedYield').textContent = '0.00%';
+            document.getElementById('statWeightedYieldNet').textContent = '0.00%';
             document.getElementById('statAvgCoupon').textContent = '0.00%';
             document.getElementById('statBondCount').textContent = '0';
             document.getElementById('statWeightedRisk').textContent = '0.00 yrs';
@@ -584,7 +620,9 @@ class PortfolioAnalyzer {
         let totalInvestment = 0;
         let totalInvestment1 = 0;
         let weightedSAY = 0;
+        let weightedSAYNet = 0;
         let weightedYield = 0;
+        let weightedYieldNet = 0;
         let weightedCoupon = 0;
         let weightedRisk = 0;
         let currencyTotals = {}; // Track investment by currency
@@ -600,8 +638,10 @@ class PortfolioAnalyzer {
             totalInvestment += investedAmount;
             totalInvestment1 += currentValue;
 
-            weightedSAY += (this.computeSAY(bond) * currentValue);
-            weightedYield += (this.computeCurrentYield(bond) * currentValue);
+            weightedSAY    += (this.computeSAY(bond) * currentValue);
+            weightedSAYNet += (this.computeSAYNet(bond) * currentValue);
+            weightedYield    += (this.computeCurrentYield(bond) * currentValue);
+            weightedYieldNet += (this.computeCurrentYieldNet(bond) * currentValue);
             weightedCoupon += (bond.coupon * currentValue);
 
             // TOTAL PROFIT (correct now)
@@ -636,8 +676,10 @@ class PortfolioAnalyzer {
         const totalQty = bonds.reduce((sum, b) => sum + b.quantity, 0);
         const avgPrice = totalInvestment / totalQty;
 
-        const weightedSAYPercent = (weightedSAY / totalInvestment1);
-        const weightedYieldPercent = (weightedYield / totalInvestment1);
+        const weightedSAYPercent    = (weightedSAY / totalInvestment1);
+        const weightedSAYNetPercent = (weightedSAYNet / totalInvestment1);
+        const weightedYieldPercent    = (weightedYield / totalInvestment1);
+        const weightedYieldNetPercent = (weightedYieldNet / totalInvestment1);
         const weightedCouponPercent = (weightedCoupon / totalInvestment1);
         const weightedRiskYears = (weightedRisk / totalInvestment1);
 
@@ -657,7 +699,9 @@ class PortfolioAnalyzer {
         document.getElementById('statTotalInvestment').textContent = `€${totalInvestment}`;
         document.getElementById('statAvgPrice').textContent = `€${avgPrice.toFixed(2)}`;
         document.getElementById('statWeightedSAY').textContent = `${weightedSAYPercent.toFixed(2)}%`;
+        document.getElementById('statWeightedSAYNet').textContent = `${weightedSAYNetPercent.toFixed(2)}%`;
         document.getElementById('statWeightedYield').textContent = `${weightedYieldPercent.toFixed(2)}%`;
+        document.getElementById('statWeightedYieldNet').textContent = `${weightedYieldNetPercent.toFixed(2)}%`;
         document.getElementById('statAvgCoupon').textContent = `${weightedCouponPercent.toFixed(2)}%`;
         const uniqueISINs = new Set(bonds.map(b => b.isin));
         document.getElementById('statBondCount').textContent = uniqueISINs.size;
@@ -734,7 +778,8 @@ class PortfolioAnalyzer {
             const fxRate   = bond.currency !== 'EUR' ? (bond.priceEur / bond.price) : 1;
             const nomEur   = nominal * fxRate;
             // annual coupon in EUR per unit * quantity
-            const annualCouponTotal = (bond.coupon / 100) * nomEur * bond.quantity;
+            const annualCouponGross = (bond.coupon / 100) * nomEur * bond.quantity;
+            const annualCouponTotal  = annualCouponGross * (1 - (bond.taxRate || 0) / 100);
 
             // payments per year from backend (1=annual, 2=semi-annual, 4=quarterly)
             const freq = bond.couponFrequency || 1;
@@ -850,12 +895,12 @@ class PortfolioAnalyzer {
         }
 
         // New reduced header
-        let csv = 'ISIN,Issuer,Quantity,Investment EUR,Coupon %,Rating,Currency,Maturity\n';
+        let csv = 'ISIN,Issuer,Quantity,Investment EUR,Coupon %,Rating,Currency,Maturity,TaxRate %\n';
 
         this.portfolio.forEach(bond => {
             const investment = bond.totalEur ?? 0;
 
-            csv += `${bond.isin},"${bond.issuer}",${bond.quantity},${investment.toFixed(2)},${bond.coupon},"${bond.rating}",${bond.currency},${bond.maturity}\n`;
+            csv += `${bond.isin},"${bond.issuer}",${bond.quantity},${investment.toFixed(2)},${bond.coupon},"${bond.rating}",${bond.currency},${bond.maturity},${(bond.taxRate ?? 0).toFixed(1)}\n`;
         });
 
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -893,7 +938,8 @@ class PortfolioAnalyzer {
                     const isin     = parts[0].trim();
                     const quantity = parseFloat(parts[2]) || 0;
                     const totalEur = parseFloat((parts[3] || '0').replace(/[^\d.-]/g, '')) || 0;
-                    if (isin && quantity > 0) rows.push({ isin, quantity, totalEur });
+                    const taxRate  = parseFloat(parts[8]) || null; // null = use backend default
+                    if (isin && quantity > 0) rows.push({ isin, quantity, totalEur, taxRate });
                 }
 
                 if (rows.length === 0) {
@@ -935,8 +981,9 @@ class PortfolioAnalyzer {
 
                         imported.push({
                             ...bond,
-                            quantity: row.quantity,
-                            totalEur: row.totalEur,
+                            quantity:  row.quantity,
+                            totalEur:  row.totalEur,
+                            taxRate:   row.taxRate !== null ? row.taxRate : bond.taxRate,
                             includeInStatistics: true
                         });
                     } catch (err) {
