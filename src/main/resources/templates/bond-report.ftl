@@ -19,16 +19,24 @@
     </div>
 </div>
 
-<h2>
-    BondFX (EUR)
-    <span style="font-size:12px;color:#666;">
-        — 📅 ${generatedAt}
-    </span>
+<h2 class="page-title">
+    <span class="page-title__text">BondFX <span class="page-title__currency">(EUR)</span></span>
+    <span class="page-title__meta">— 📅 ${generatedAt}</span>
+    <button class="info-icon-btn" onclick="openInfoModal()" title="How to use BondFX" aria-label="Help">ℹ</button>
 </h2>
 
-<!-- =======================
-     PROFILE PRESETS UI
-======================= -->
+<!-- README MODAL -->
+<div class="info-modal-backdrop" id="infoModalBackdrop" onclick="closeInfoModal()"></div>
+<div class="info-modal" id="infoModal" role="dialog" aria-modal="true" aria-label="How to use BondFX">
+    <div class="info-modal__header">
+        <span class="info-modal__title">ℹ How to use BondFX</span>
+        <button class="info-modal__close" onclick="closeInfoModal()" aria-label="Close">✕</button>
+    </div>
+    <div class="info-modal__body">
+        ${readmeHtml}
+    </div>
+</div>
+
 <div class="profile-presets">
     <label>Investor profiles:</label>
     <#list presets as p>

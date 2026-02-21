@@ -48,6 +48,20 @@
       <artifactId>snakeyaml</artifactId>
     </dependency>
 
+    <!-- CommonMark (Markdown → HTML for README info box) -->
+    <dependency>
+      <groupId>org.commonmark</groupId>
+      <artifactId>commonmark</artifactId>
+      <version>0.22.0</version>
+    </dependency>
+
+    <!-- CommonMark GFM Tables extension -->
+    <dependency>
+      <groupId>org.commonmark</groupId>
+      <artifactId>commonmark-ext-gfm-tables</artifactId>
+      <version>0.22.0</version>
+    </dependency>
+
     <!-- Lombok -->
     <dependency>
       <groupId>org.projectlombok</groupId>

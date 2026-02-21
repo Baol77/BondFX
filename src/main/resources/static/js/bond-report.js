@@ -373,7 +373,7 @@ function setDefaultMaturityFilters() {
     document.getElementById("filterMaxMat").value = formatDate(max);
 }
 
-        
+
 /* =======================
    YAML IMPORT
 ======================= */
@@ -650,4 +650,21 @@ function updatePresetButtons(activePreset) {
 document.addEventListener("DOMContentLoaded", () => {
     setDefaultMaturityFilters();
     applyPreset("cashParking");
+});
+// ─── INFO MODAL ──────────────────────────────────────────────────────────────
+function openInfoModal() {
+    document.getElementById('infoModal').classList.add('open');
+    document.getElementById('infoModalBackdrop').classList.add('open');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeInfoModal() {
+    document.getElementById('infoModal').classList.remove('open');
+    document.getElementById('infoModalBackdrop').classList.remove('open');
+    document.body.style.overflow = '';
+}
+
+// Close on Escape key
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeInfoModal();
 });
