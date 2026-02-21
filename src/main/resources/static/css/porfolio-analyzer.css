@@ -137,6 +137,12 @@ pointer-events: auto;
   align-items: start;
 }
 
+@media (max-width: 500px) {
+  .input-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .input-column {
   display: flex;
   flex-direction: column;
@@ -154,6 +160,9 @@ pointer-events: auto;
   padding: 8px;
   border: 1px solid #ddd;
   border-radius: 4px;
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
 }
 
 /* --- 4. Portfolio Table --- */
@@ -299,4 +308,106 @@ pointer-events: auto;
     font-size: 13px;
     color: #777;
     font-style: italic;
+}
+
+/* ─── DIVIDEND CALENDAR ─────────────────────────────────────────────────────── */
+.calendar-grid {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+}
+
+.cal-month {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 52px;
+}
+
+.cal-bar-wrap {
+    display: flex;
+    align-items: flex-end;
+    height: 88px;
+}
+
+.cal-bar {
+    width: 28px;
+    border-radius: 4px 4px 0 0;
+    transition: height 0.3s ease;
+    cursor: default;
+}
+
+.cal-amount {
+    font-size: 10px;
+    font-weight: 600;
+    color: #333;
+    margin-top: 4px;
+    text-align: center;
+}
+
+.cal-label {
+    font-size: 10px;
+    color: #888;
+    text-align: center;
+    margin-top: 2px;
+}
+
+/* ─── MATURITY CALENDAR ─────────────────────────────────────────────────────── */
+.maturity-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.maturity-row-item {
+    display: grid;
+    grid-template-columns: 110px 1fr auto auto;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    background: #f9f9f9;
+    border-radius: 6px;
+    border-left: 4px solid #2196F3;
+    font-size: 13px;
+}
+
+.mat-date {
+    font-weight: 600;
+    color: #555;
+    white-space: nowrap;
+}
+
+.mat-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.mat-face {
+    font-weight: 600;
+    color: #333;
+    white-space: nowrap;
+    text-align: right;
+}
+
+.mat-gain {
+    font-weight: 700;
+    white-space: nowrap;
+    text-align: right;
+    min-width: 70px;
+}
+
+@media (max-width: 600px) {
+    .calendar-grid { gap: 4px; }
+    .cal-month { min-width: 40px; }
+    .cal-bar { width: 22px; }
+    .maturity-row-item {
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: auto auto;
+    }
+    .mat-date { grid-column: 1; }
+    .mat-gain { grid-column: 2; }
+    .mat-info { grid-column: 1 / -1; }
+    .mat-face { grid-column: 1 / -1; text-align: left; }
 }

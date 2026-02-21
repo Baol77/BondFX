@@ -1,5 +1,6 @@
 package bond.controller;
 
+import bond.config.CouponFrequencyConfig;
 import bond.model.Bond;
 import bond.service.BondService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,6 +25,8 @@ public class BondApiController {
 
     @Autowired
     private BondService bondService;
+
+    private static final CouponFrequencyConfig FREQ_CONFIG = CouponFrequencyConfig.load();
 
     /**
      * Returns live data for a single bond by ISIN.
@@ -82,6 +85,7 @@ public class BondApiController {
         m.put("currentYield", round2(b.getCurrentYield()));
         m.put("capitalAtMat", Math.round(b.getFinalCapitalToMat()));
         m.put("say",          round2(b.getSimpleAnnualYield()));
+        m.put("couponFrequency", FREQ_CONFIG.paymentsPerYear(b.getIsin()));
         return m;
     }
 

@@ -14,7 +14,7 @@
 
   <groupId>bond</groupId>
   <artifactId>BondFX</artifactId>
-  <version>5.0</version>
+  <version>2.0</version>
   <packaging>jar</packaging>
 
   <properties>

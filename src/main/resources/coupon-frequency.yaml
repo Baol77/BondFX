@@ -1,0 +1,32 @@
+# Coupon Frequency Configuration
+# ─────────────────────────────────────────────────────────────────────────────
+# Rules are applied in this order:
+#   1. exceptions (exact ISIN match) — highest priority
+#   2. prefixes (ISIN prefix match, longest prefix wins)
+#   3. defaultFrequency — fallback for everything else
+#
+# Supported values: ANNUAL, SEMI_ANNUAL, QUARTERLY
+# ─────────────────────────────────────────────────────────────────────────────
+
+defaultFrequency: ANNUAL
+
+# Prefix rules — longest match wins
+prefixes:
+  - prefix: "IT"
+    frequency: SEMI_ANNUAL
+  - prefix: "US"
+    frequency: SEMI_ANNUAL
+
+# Per-ISIN exceptions — override any prefix rule
+# Example: an IT bond that pays annually, or a US bond that pays quarterly
+exceptions:
+  # Single ISIN:
+  # - isin: "IT0005534060"
+  #   frequency: ANNUAL
+  #
+  # Multiple ISINs in one entry (comma-separated):
+  # - isin: "IT0005534060,IT0005534061,IT0005534062"
+  #   frequency: ANNUAL
+  #
+  # - isin: "US912828ZT91"
+  #   frequency: QUARTERLY

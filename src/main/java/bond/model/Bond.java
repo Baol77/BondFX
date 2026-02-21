@@ -19,6 +19,7 @@ public class Bond {
     double finalCapitalToMat;
     double simpleAnnualYield;
     String rating;  // Rating based on issuer
+    int couponFrequency = 1; // Payments per year: 1=annual, 2=semi-annual, 4=quarterly
 
     public Bond(String isin, String issuer, double price, String currency,
                 double priceEur, double couponPct,

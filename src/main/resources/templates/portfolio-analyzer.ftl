@@ -23,8 +23,7 @@
             <div id="addBondForm" class="add-bond-form">
                 <h4>Bond Details</h4>
 
-                <div id="bondDetails" class="bond-details-box">
-                </div>
+                <div id="bondDetails" class="bond-details-box"></div>
 
                 <div class="input-grid">
                     <div class="input-column">
@@ -42,7 +41,7 @@
                     <div class="input-column">
                         <label class="input-label">
                             Quantity:
-                            <label id="quantity" class="form-input"></label>
+                            <input type="number" id="quantity" min="0.01" step="0.01" class="form-input" placeholder="auto">
                         </label>
                     </div>
                 </div>
@@ -52,7 +51,6 @@
                 </button>
             </div>
 
-
             <div class="portfolio-table-wrapper">
                 <h3>2️⃣ Your Portfolio</h3>
                 <div style="overflow-x:auto;">
@@ -61,7 +59,7 @@
                         <tr>
                             <th>ISIN</th>
                             <th>Issuer</th>
-                            <th>Price</th>
+                            <th>Price (€)</th>
                             <th>Currency</th>
                             <th>Rating</th>
                             <th>Qty</th>
@@ -80,8 +78,7 @@
                             <th>Action</th>
                         </tr>
                         </thead>
-                        <tbody id="portfolioTableBody">
-                        </tbody>
+                        <tbody id="portfolioTableBody"></tbody>
                     </table>
                 </div>
                 <p id="emptyPortfolioMsg" class="empty-portfolio-msg">Portfolio is empty. Add bonds above.</p>
@@ -115,22 +112,18 @@
                         <div class="stat-label">Bond Count</div>
                         <p id="statBondCount" class="stat-value">0</p>
                     </div>
-
                     <div class="stat-card orange">
                         <div class="stat-label">Avg Risk (Maturity)</div>
                         <p id="statWeightedRisk" class="stat-value">0.00 yrs</p>
                     </div>
-
                     <div class="stat-card purple">
                         <div class="stat-label">Weighted Rating</div>
                         <p id="statWeightedRating" class="stat-value">-</p>
                     </div>
-
                     <div class="stat-card green">
                         <div class="stat-label">Total Profit</div>
                         <p id="statTotalProfit" class="stat-value">€0.00</p>
                     </div>
-
                     <div class="stat-card deep-purple">
                         <div class="stat-label">Coupon Income (Current Year)</div>
                         <p id="statTotalCouponIncome" class="stat-value">€0.00</p>
@@ -139,22 +132,33 @@
 
                 <div style="margin-top:20px;">
                     <h4 style="margin-top:0;margin-bottom:10px;">Currency Breakdown (by Investment %)</h4>
-                    <div id="currencyBreakdown" class="currency-breakdown">
-                    </div>
+                    <div id="currencyBreakdown" class="currency-breakdown"></div>
                 </div>
+            </div>
+
+            <!-- 4️⃣ DIVIDEND CALENDAR -->
+            <div style="margin-bottom:30px;">
+                <h3>4️⃣ Dividend Calendar — Next 12 Months</h3>
+                <p style="font-size:12px;color:#888;margin:0 0 10px;">Estimated coupon income per month (EUR equivalent). Assumes semi-annual coupons paid at coupon date each year.</p>
+                <div id="dividendCalendar" class="calendar-grid"></div>
+            </div>
+
+            <!-- 5️⃣ MATURITY CALENDAR -->
+            <div style="margin-bottom:30px;">
+                <h3>5️⃣ Maturity Calendar</h3>
+                <p style="font-size:12px;color:#888;margin:0 0 10px;">Capital returned at maturity per bond. Non-EUR bonds shown in original currency.</p>
+                <div id="maturityCalendar" class="maturity-list"></div>
             </div>
 
             <div class="actions-footer">
                 <button onclick="window.portfolioAnalyzer.exportPortfolio()" class="btn btn-export">
                     📥 Export CSV
                 </button>
-
                 <button onclick="document.getElementById('csvFileInput').click()" class="btn btn-import">
                     📤 Import CSV
                 </button>
                 <input type="file" id="csvFileInput" accept=".csv" style="display:none;"
                        onchange="window.portfolioAnalyzer.importPortfolio(event)">
-
                 <button onclick="window.portfolioAnalyzer.clearPortfolio()" class="btn btn-clear">
                     🗑️ Clear Portfolio
                 </button>

@@ -93,6 +93,7 @@ class PortfolioAnalyzer {
             this.modal.classList.add('open');
             this.updatePortfolioTable();
             this.updateStatistics();
+            this.updateCalendars();
             document.getElementById('searchResults').style.display = "none";
         }
     }
@@ -294,17 +295,22 @@ class PortfolioAnalyzer {
     showAddBondForm(bond) {
         this.currentBond = bond;
 
+        const say = this.computeSAY(bond);
+        const currentYield = bond.priceEur > 0
+            ? (bond.coupon / bond.priceEur) * 100
+            : 0;
+
         const detailsDiv = document.getElementById('bondDetails');
         detailsDiv.innerHTML = `
             <strong>${bond.issuer}</strong><br>
             ISIN: <i>${bond.isin}</i><br>
             Maturity: <i>${bond.maturity}</i><br>
             Price: <i>${bond.currency} ${bond.price.toFixed(2)}${bond.currency !== 'EUR' ? ` (€ ${bond.priceEur.toFixed(2)})` : ''}</i><br>
-            Rating: <i>${bond.rating}</i> | Coupon: <i>${bond.coupon.toFixed(2)}%</i> | SAY: <i>${bond.say.toFixed(2)}%</i>
+            Rating: <i>${bond.rating}</i> | Coupon: <i>${bond.coupon.toFixed(2)}%</i> | SAY: <i>${say.toFixed(2)}%</i>
         `;
 
         // Reset fields
-        document.getElementById('quantity').innerText = '0';
+        document.getElementById('quantity').value = '';
         document.getElementById('amount').value = '';
 
         const originalWrapper = document.getElementById('originalCurrencyWrapper');
@@ -320,102 +326,59 @@ class PortfolioAnalyzer {
             originalInput.value = '';
         }
 
-        // Update displayed total live (only EUR total shown)
-        document.getElementById('amount').addEventListener('input', () => {
-            const eur = parseFloat(document.getElementById('amount').value.replace(",",".")) || 0;
-            this.updateGrossQuantity();
-        });
-
-       // Call alignment logic
-       this.alignTotalAmounts();
-
-       document.getElementById('addBondForm').style.display = 'block';
+        this.alignTotalAmounts();
+        document.getElementById('addBondForm').style.display = 'block';
     }
 
     alignTotalAmounts() {
         if (!this.currentBond) return;
 
-        const eurInput = document.getElementById('amount');
-        const originalInput = document.getElementById('amountOriginal');
+        const eurInput  = document.getElementById('amount');
+        const qtyInput  = document.getElementById('quantity');
+        const origInput = document.getElementById('amountOriginal');
+        if (!eurInput || !qtyInput) return;
 
-        if (!eurInput) return;
+        const bond    = this.currentBond;
+        const fxRate  = bond.currency !== 'EUR' ? (bond.priceEur / bond.price) : 1;
 
-        const bond = this.currentBond;
-
-        // If EUR bond → only update total display
-        if (bond.currency === 'EUR') {
-            eurInput.oninput = () => {
-                const eur = parseFloat(eurInput.value) || 0;
-                 this.updateGrossQuantity();
-            };
-            return;
-        }
-
-        const fxRate = bond.priceEur / bond.price;
-
-        // EUR → Original
+        // EUR amount → quantity + original currency
         eurInput.oninput = () => {
             const eur = parseFloat(eurInput.value) || 0;
-            const original = eur / fxRate;
-
-            originalInput.value = original.toFixed(2);
-
-            this.updateGrossQuantity();
+            qtyInput.value = eur > 0 ? (eur / bond.priceEur).toFixed(4) : '';
+            if (bond.currency !== 'EUR' && origInput)
+                origInput.value = eur > 0 ? (eur / fxRate).toFixed(2) : '';
         };
 
-        // Original → EUR
-        originalInput.oninput = () => {
-            const original = parseFloat(originalInput.value) || 0;
-            const eur = original * fxRate;
-
-            eurInput.value = eur.toFixed(2);
-
-            this.updateGrossQuantity();
-        };
-    }
-
-    updateGrossQuantity() {
-        if (!this.currentBond) return;
-
-        const eurInput = document.getElementById('amount');
-        const grossInfo = document.getElementById('quantity');
-
-        const eur = parseFloat(eurInput.value) || 0;
-
-        if (eur === 0) {
-            grossInfo.innerText = '0';
-            return;
+        // Original currency → EUR + quantity
+        if (bond.currency !== 'EUR' && origInput) {
+            origInput.oninput = () => {
+                const orig = parseFloat(origInput.value) || 0;
+                const eur  = orig * fxRate;
+                eurInput.value = orig > 0 ? eur.toFixed(2) : '';
+                qtyInput.value = orig > 0 ? (eur / bond.priceEur).toFixed(4) : '';
+            };
         }
-
-        const grossQty = eur / this.currentBond.priceEur;
-
-        grossInfo.innerText = `${grossQty.toFixed(2)}`;
     }
 
     addBondToPortfolio() {
         if (!this.currentBond) return;
 
-        const qty = parseFloat(document.getElementById('quantity').innerText.replace(",",".")) || 1;
+        const qty = parseFloat(document.getElementById('quantity').value) || 0;
+        const totalEur = parseFloat(document.getElementById('amount').value.replace(/[^\d.-]/g, '')) || 0;
 
-        // Get invested EUR
-        const totalEur = parseFloat(
-            document.getElementById('amount')
-                .value
-                .replace(/[^\d.-]/g, '')
-        ) || 0;
+        if (qty <= 0 && totalEur <= 0) {
+            alert('Please enter either a quantity or an investment amount.');
+            return;
+        }
 
-        // Get original currency total (if exists)
-        const totalOriginalField = document.getElementById('totalOriginal');
-        const totalOriginal = totalOriginalField
-            ? parseFloat(totalOriginalField.value) || 0
-            : totalEur;
+        // If only qty given, compute totalEur; if only totalEur given, qty already computed by align
+        const finalQty    = qty > 0 ? qty : totalEur / this.currentBond.priceEur;
+        const finalEur    = totalEur > 0 ? totalEur : finalQty * this.currentBond.priceEur;
 
-        // Keep it simple
         this.portfolio.push({
             ...this.currentBond,
-            quantity: qty,
-            totalEur: totalEur,
-            totalOriginal: totalOriginal,
+            quantity: finalQty,
+            totalEur: finalEur,
             includeInStatistics: true
         });
 
@@ -426,10 +389,9 @@ class PortfolioAnalyzer {
         document.getElementById('isinSearch').value = '';
         document.getElementById('addBondForm').style.display = 'none';
         document.getElementById('searchResults').innerHTML = '';
-
         this.currentBond = null;
 
-        alert(`✅ Bond added! Quantity added: ${qty}`);
+        alert(`✅ Bond added! Quantity: ${finalQty.toFixed(4)}`);
     }
 
     removeBond(index) {
@@ -442,22 +404,14 @@ class PortfolioAnalyzer {
     updateQuantityInPortfolio(index, newQuantity) {
         const qty = parseFloat(newQuantity);
 
-        if (isNaN(qty) || qty < 1) {
-            alert('Quantity must be at least 1');
+        if (isNaN(qty) || qty <= 0) {
+            alert('Quantity must be greater than 0');
             this.updatePortfolioTable();
             return;
         }
 
-        const bond = this.portfolio[index];
-
-        // Calculate unit cost BEFORE changing quantity
-        const unitCost = bond.totalEur / bond.quantity;
-
-        // Update quantity
-        bond.quantity = qty;
-
-        // Scale invested proportionally
-        bond.totalEur = unitCost * qty;
+        // Update quantity only — totalEur (cost basis) stays unchanged
+        this.portfolio[index].quantity = qty;
 
         this.savePortfolio();
         this.updatePortfolioTable();
@@ -509,6 +463,29 @@ class PortfolioAnalyzer {
         );
     }
 
+    // ── Dynamic calculations ─────────────────────────────────────────────────
+
+    computeSAY(bond) {
+        // SAY = (Annual Coupon % + Capital Gain % per year) / Purchase Price EUR
+        const today     = new Date();
+        const matDate   = new Date(bond.maturity);
+        const years     = Math.max(0.01, (matDate - today) / (365.25 * 24 * 60 * 60 * 1000));
+        const nominal   = bond.nominal || 100;
+        const fxRate    = bond.currency !== 'EUR' ? (bond.priceEur / bond.price) : 1;
+        const nominalEur = nominal * fxRate;
+        const couponEur  = (bond.coupon / 100) * nominalEur;
+        const capitalGain = nominalEur - bond.priceEur;
+        return ((couponEur + capitalGain / years) / bond.priceEur) * 100;
+    }
+
+    computeCurrentYield(bond) {
+        const nominal   = bond.nominal || 100;
+        const fxRate    = bond.currency !== 'EUR' ? (bond.priceEur / bond.price) : 1;
+        const nominalEur = nominal * fxRate;
+        const couponEur  = (bond.coupon / 100) * nominalEur;
+        return bond.priceEur > 0 ? (couponEur / bond.priceEur) * 100 : 0;
+    }
+
     updatePortfolioTable() {
         const tbody = document.getElementById('portfolioTableBody');
         const empty = document.getElementById('emptyPortfolioMsg');
@@ -549,8 +526,8 @@ class PortfolioAnalyzer {
 
                 <td>€${(bond.totalEur ?? 0).toFixed(2)}</td>
                 <td style="white-space: nowrap;">${bond.maturity}</td>
-                <td>${bond.currentYield.toFixed(2)}%</td>
-                <td>${bond.say.toFixed(2)}%</td>
+                <td>${this.computeCurrentYield(bond).toFixed(2)}%</td>
+                <td>${this.computeSAY(bond).toFixed(2)}%</td>
                 <td class="${gainLoss >= 0 ? 'good' : 'bad'}">
                     ${gainLoss}
                 </td>
@@ -600,6 +577,7 @@ class PortfolioAnalyzer {
             document.getElementById('currencyBreakdown').innerHTML = '';
             document.getElementById('statTotalProfit').textContent = '€0';
             document.getElementById('statTotalCouponIncome').textContent = '€0.00';
+            this.updateCalendars();
             return;
         }
 
@@ -622,8 +600,8 @@ class PortfolioAnalyzer {
             totalInvestment += investedAmount;
             totalInvestment1 += currentValue;
 
-            weightedSAY += (bond.say * currentValue);
-            weightedYield += (bond.currentYield * currentValue);
+            weightedSAY += (this.computeSAY(bond) * currentValue);
+            weightedYield += (this.computeCurrentYield(bond) * currentValue);
             weightedCoupon += (bond.coupon * currentValue);
 
             // TOTAL PROFIT (correct now)
@@ -703,6 +681,7 @@ class PortfolioAnalyzer {
 
         // Display currency breakdown
         this.updateCurrencyBreakdown(currencyTotals, totalInvestment1);
+        this.updateCalendars();
     }
 
     updateCurrencyBreakdown(currencyTotals, totalInvestment) {
@@ -719,6 +698,144 @@ class PortfolioAnalyzer {
                     <p style="margin:5px 0 0 0;font-size:11px;color:#999;">€${amount}</p>
                 </div>
             `;
+        }).join('');
+    }
+
+    // ── Dividend Calendar & Maturity Calendar ────────────────────────────────
+
+    updateCalendars() {
+        this.updateDividendCalendar();
+        this.updateMaturityCalendar();
+    }
+
+    updateDividendCalendar() {
+        const el = document.getElementById('dividendCalendar');
+        if (!el) return;
+
+        const bonds = this.portfolio.filter(b => b.includeInStatistics);
+        if (bonds.length === 0) {
+            el.innerHTML = '<p style="color:#999;font-size:13px;">No bonds in portfolio.</p>';
+            return;
+        }
+
+        // Build 12 monthly buckets starting from next month
+        const today = new Date();
+        const months = [];
+        for (let i = 0; i < 12; i++) {
+            const d = new Date(today.getFullYear(), today.getMonth() + i, 1);
+            months.push({ year: d.getFullYear(), month: d.getMonth(), income: 0, label: d.toLocaleString('default', { month: 'short', year: 'numeric' }) });
+        }
+
+        bonds.forEach(bond => {
+            const matDate  = new Date(bond.maturity);
+            if (matDate <= today) return; // already matured
+
+            const nominal  = bond.nominal || 100;
+            const fxRate   = bond.currency !== 'EUR' ? (bond.priceEur / bond.price) : 1;
+            const nomEur   = nominal * fxRate;
+            // annual coupon in EUR per unit * quantity
+            const annualCouponTotal = (bond.coupon / 100) * nomEur * bond.quantity;
+
+            // payments per year from backend (1=annual, 2=semi-annual, 4=quarterly)
+            const freq = bond.couponFrequency || 1;
+            const couponPerPayment = annualCouponTotal / freq;
+            // interval in months between payments
+            const intervalMonths = Math.round(12 / freq);
+
+            // Reference month = maturity month (coupon paid on same month each cycle)
+            const refMonth = matDate.getMonth(); // 0-11
+
+            // Build set of payment months within a year
+            const paymentMonths = new Set();
+            for (let i = 0; i < freq; i++) {
+                paymentMonths.add((refMonth - i * intervalMonths + 120) % 12);
+            }
+
+            months.forEach(bucket => {
+                if (paymentMonths.has(bucket.month)) {
+                    const bucketDate = new Date(bucket.year, bucket.month + 1, 0);
+                    if (bucketDate <= matDate) {
+                        bucket.income += couponPerPayment;
+                    }
+                }
+            });
+        });
+
+        el.innerHTML = months.map(m => {
+            const income = Math.round(m.income);
+            const height = income > 0 ? Math.max(20, Math.min(80, income / 5)) : 0;
+            const color  = income > 0 ? '#4CAF50' : '#e0e0e0';
+            return `
+                <div class="cal-month">
+                    <div class="cal-bar-wrap">
+                        <div class="cal-bar" style="height:${height}px;background:${color};"
+                             title="${m.label}: €${income}"></div>
+                    </div>
+                    <div class="cal-amount">${income > 0 ? '€' + income : '—'}</div>
+                    <div class="cal-label">${m.label}</div>
+                </div>`;
+        }).join('');
+    }
+
+    updateMaturityCalendar() {
+        const el = document.getElementById('maturityCalendar');
+        if (!el) return;
+
+        const bonds = this.portfolio.filter(b => b.includeInStatistics);
+        if (bonds.length === 0) {
+            el.innerHTML = '<p style="color:#999;font-size:13px;">No bonds in portfolio.</p>';
+            return;
+        }
+
+        // Group by maturity date, sorted ascending
+        const sorted = [...bonds].sort((a, b) => new Date(a.maturity) - new Date(b.maturity));
+
+        // Merge same ISIN entries
+        const merged = {};
+        sorted.forEach(bond => {
+            const key = bond.isin;
+            if (!merged[key]) {
+                merged[key] = { ...bond };
+            } else {
+                merged[key].quantity += bond.quantity;
+                merged[key].totalEur = (merged[key].totalEur || 0) + (bond.totalEur || 0);
+            }
+        });
+
+        const rows = Object.values(merged).sort((a, b) => new Date(a.maturity) - new Date(b.maturity));
+
+        el.innerHTML = rows.map(bond => {
+            const nominal    = bond.nominal || 100;
+            const isEur      = bond.currency === 'EUR';
+            const fxRate     = isEur ? 1 : (bond.priceEur / bond.price);
+
+            // Capital returned at maturity (face value * quantity, in native currency)
+            const faceNative = nominal * bond.quantity;
+            const faceEur    = faceNative * fxRate;
+
+            // Capital gain = face value - cost basis
+            const costBasis  = bond.totalEur || (bond.priceEur * bond.quantity);
+            const gainEur    = faceEur - costBasis;
+            const gainClass  = gainEur >= 0 ? 'good' : 'bad';
+            const gainSign   = gainEur >= 0 ? '+' : '';
+
+            const matStr     = new Date(bond.maturity).toLocaleDateString('default', { year:'numeric', month:'short', day:'numeric' });
+
+            // Show face value in original currency if not EUR
+            const faceDisplay = isEur
+                ? `€${Math.round(faceEur).toLocaleString()}`
+                : `${bond.currency} ${Math.round(faceNative).toLocaleString()} (≈€${Math.round(faceEur).toLocaleString()})`;
+
+            return `
+                <div class="maturity-row-item">
+                    <div class="mat-date">${matStr}</div>
+                    <div class="mat-info">
+                        <strong>${bond.issuer}</strong>
+                        <span style="color:#888;font-size:12px;">${bond.isin}</span>
+                    </div>
+                    <div class="mat-face">${faceDisplay}</div>
+                    <div class="mat-gain ${gainClass}">${gainSign}€${Math.round(gainEur).toLocaleString()}</div>
+                </div>`;
         }).join('');
     }
 
