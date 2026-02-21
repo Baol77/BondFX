@@ -662,6 +662,11 @@ function closeInfoModal() {
     document.getElementById('infoModal').classList.remove('open');
     document.getElementById('infoModalBackdrop').classList.remove('open');
     document.body.style.overflow = '';
+
+    // remove anchor from URL
+    if (window.location.hash) {
+        history.replaceState(null, null, window.location.pathname + window.location.search);
+    }
 }
 
 // Close on Escape key

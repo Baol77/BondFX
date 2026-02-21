@@ -14,9 +14,8 @@
 6. [Portfolio Analyzer](#portfolio-analyzer)
 7. [Analysis Modes](#analysis-modes)
 8. [Custom Investment Profiles (YAML)](#custom-investment-profiles-yaml)
-9. [For Administrators: Generating Reports](#for-administrators-generating-reports)
-10. [Troubleshooting](#troubleshooting)
-11. [Frequently Asked Questions](#frequently-asked-questions)
+9. [Troubleshooting](#troubleshooting)
+10. [Frequently Asked Questions](#frequently-asked-questions)
 
 ---
 
