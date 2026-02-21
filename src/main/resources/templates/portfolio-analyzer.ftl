@@ -134,7 +134,7 @@
                         <p id="statTotalProfit" class="stat-value">€0.00</p>
                     </div>
                     <div class="stat-card deep-purple">
-                        <div class="stat-label">Coupon Income (Current Year)</div>
+                        <div class="stat-label">Coupon Income (Current Year, net)</div>
                         <p id="statTotalCouponIncome" class="stat-value">€0.00</p>
                     </div>
                 </div>

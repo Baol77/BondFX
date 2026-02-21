@@ -647,7 +647,7 @@ class PortfolioAnalyzer {
             // TOTAL PROFIT (correct now)
             totalProfit += (currentValue - investedAmount);
 
-            // TOTAL COUPON INCOME (ANNUAL, IN EUR)
+            // TOTAL COUPON INCOME (ANNUAL, IN EUR, NET OF WITHHOLDING TAX)
             const nominal = bond.nominal || 100;
             const annualCouponOriginal = (bond.coupon / 100) * nominal * bond.quantity;
 
@@ -655,7 +655,7 @@ class PortfolioAnalyzer {
                 ? annualCouponOriginal
                 : annualCouponOriginal * (bond.priceEur / bond.price);
 
-            totalCouponIncome += annualCouponEur;
+            totalCouponIncome += annualCouponEur * (1 - (bond.taxRate || 0) / 100);
 
             // Risk (years to maturity)
             const maturityDate = new Date(bond.maturity);
