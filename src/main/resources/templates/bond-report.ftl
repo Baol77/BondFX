@@ -22,7 +22,8 @@
 
 <h2 class="page-title">
     <span class="page-title__text">BondFX <span class="page-title__currency">(EUR)</span></span>
-    <span class="page-title__meta" id="pageMeta">— 📅 ${generatedAt} <span id="dataAge"></span></span>
+    <span class="page-title__meta" id="pageMeta">— 📅 <span id="generatedAtLocal"></span> <span id="dataAge"></span></span>
+    <span id="generatedAtMs" style="display:none">${generatedAtMs?c}</span>
     <button class="info-icon-btn" onclick="openInfoModal()" title="How to use BondFX" aria-label="Help">ℹ</button>
 </h2>
 

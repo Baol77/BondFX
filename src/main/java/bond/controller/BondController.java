@@ -65,6 +65,8 @@ public class BondController {
         model.addAttribute("reportCurrency", "EUR");
         model.addAttribute("generatedAt",
             LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
+        model.addAttribute("generatedAtMs",
+            java.time.Instant.now().toEpochMilli());
 
         // README info box — read from project root, convert Markdown → HTML
         model.addAttribute("readmeHtml", loadReadme());
@@ -101,11 +103,9 @@ public class BondController {
     /**
      * Injects id attributes into h1–h6 tags using the GitHub-style slug algorithm:
      * lowercase, strip non-alphanumeric (except spaces and hyphens), replace spaces with hyphens.
-     * <p>
-     * Example:
-     * <p>
-     * {@code <h2>Quick Start</h2>} →  {@code <h2 id="quick-start">Quick Start</h2>}
-     * <p>
+     *
+     * Example: {@code <h2>Quick Start</h2>}  →  {@code <h2 id="quick-start">Quick Start</h2>}
+     *
      * This makes the Table of Contents anchor links (#quick-start) work correctly
      * inside the modal, where the browser cannot resolve href="#..." against the page.
      */
@@ -130,5 +130,4 @@ public class BondController {
             return "<" + tag + " id=\"" + slug + "\">" + inner + "</" + tag + ">";
         });
     }
-
 }

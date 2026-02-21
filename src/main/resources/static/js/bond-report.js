@@ -697,11 +697,20 @@ document.addEventListener('click', e => {
     const ageEl  = document.getElementById('dataAge');
     if (!metaEl || !ageEl) return;
 
-    // Extract "2026-02-21 15:48" from the span text
-    const match = metaEl.textContent.match(/(\d{4}-\d{2}-\d{2} \d{2}:\d{2})/);
-    if (!match) return;
+    // Use epoch ms from hidden span — avoids any timezone parsing ambiguity
+    const msEl = document.getElementById('generatedAtMs');
+    if (!msEl) return;
+    const generatedAt = new Date(parseInt(msEl.textContent.trim(), 10));
 
-    const generatedAt = new Date(match[1].replace(' ', 'T')); // ISO-safe parse
+    // Show timestamp in browser's local timezone
+    const localEl = document.getElementById('generatedAtLocal');
+    if (localEl) {
+        const pad = n => String(n).padStart(2, '0');
+        const d = generatedAt;
+        localEl.textContent =
+            d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) +
+            ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+    }
 
     function update() {
         const seconds = Math.floor((Date.now() - generatedAt.getTime()) / 1000);
