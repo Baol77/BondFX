@@ -614,6 +614,11 @@ class PortfolioAnalyzer {
             document.getElementById('statTotalProfit').textContent = '€0';
             document.getElementById('statTotalCouponIncome').textContent = '€0.00';
             this.updateCalendars();
+            // reset all cards to neutral when empty
+            ['card-totalInvestment','card-avgPrice','card-weightedSAY','card-weightedSAYNet',
+             'card-weightedYield','card-weightedYieldNet','card-avgCoupon','card-bondCount',
+             'card-weightedRisk','card-weightedRating','card-totalProfit','card-couponIncome'
+            ].forEach(id => this.setCardColor(id, 'neutral'));
             return;
         }
 
@@ -725,6 +730,11 @@ class PortfolioAnalyzer {
 
         // Display currency breakdown
         this.updateCurrencyBreakdown(currencyTotals, totalInvestment1);
+        this.updateStatCardColors(weightedSAYPercent, weightedSAYNetPercent,
+                                  weightedYieldPercent, weightedYieldNetPercent,
+                                  weightedCouponPercent, weightedRiskYears,
+                                  weightedRating, avgPrice,
+                                  totalProfit);
         this.updateCalendars();
     }
 
@@ -882,6 +892,72 @@ class PortfolioAnalyzer {
                     <div class="mat-gain ${gainClass}">${gainSign}€${Math.round(gainEur).toLocaleString()}</div>
                 </div>`;
         }).join('');
+    }
+
+    // ── Stat card colour logic ────────────────────────────────────────────────
+
+    setCardColor(cardId, level) {
+        const el = document.getElementById(cardId);
+        if (!el) return;
+        el.classList.remove('stat-neutral', 'stat-green', 'stat-yellow', 'stat-red');
+        el.classList.add('stat-' + level);
+    }
+
+    updateStatCardColors(sayGross, sayNet, yieldGross, yieldNet,
+                         coupon, riskYears, rating, avgPrice, totalProfit) {
+
+        const ratingOrder = ['AAA','AA+','AA','AA-','A+','A','A-',
+                             'BBB+','BBB','BBB-','BB+','BB','BB-',
+                             'B+','B','B-','CCC','CC','C','D'];
+
+        // Helper: map value to green/yellow/red given [greenMax, yellowMax] thresholds
+        // For "lower is better" metrics pass invert=true
+        const band = (val, greenThresh, yellowThresh, invert = false) => {
+            if (invert) {
+                if (val <= greenThresh)  return 'green';
+                if (val <= yellowThresh) return 'yellow';
+                return 'red';
+            } else {
+                if (val >= greenThresh)  return 'green';
+                if (val >= yellowThresh) return 'yellow';
+                return 'red';
+            }
+        };
+
+        // Static neutral cards
+        this.setCardColor('card-totalInvestment', 'neutral');
+        this.setCardColor('card-bondCount',        'neutral');
+        this.setCardColor('card-couponIncome',     'neutral');
+
+        // SAY gross / net  (≥3.5% green, ≥2% yellow, <2% red)
+        this.setCardColor('card-weightedSAY',    band(sayGross, 3.5, 2.0));
+        this.setCardColor('card-weightedSAYNet', band(sayNet,   3.5, 2.0));
+
+        // Yield gross / net  (≥3% green, ≥1.5% yellow, <1.5% red)
+        this.setCardColor('card-weightedYield',    band(yieldGross, 3.0, 1.5));
+        this.setCardColor('card-weightedYieldNet', band(yieldNet,   3.0, 1.5));
+
+        // Avg Coupon  (≥3% green, ≥1.5% yellow, <1.5% red)
+        this.setCardColor('card-avgCoupon', band(coupon, 3.0, 1.5));
+
+        // Avg Risk — lower is better  (≤7y green, ≤15y yellow, >15y red)
+        this.setCardColor('card-weightedRisk', band(riskYears, 7, 15, true));
+
+        // Avg Price — lower is better  (≤110 green, ≤120 yellow, >120 red)
+        this.setCardColor('card-avgPrice', band(avgPrice, 110, 120, true));
+
+        // Total Profit  (≥0 green, <0 yellow)
+        this.setCardColor('card-totalProfit', totalProfit >= 0 ? 'green' : 'yellow');
+
+        // Weighted Rating  (≥A- green, ≥BBB- yellow, <BBB- red)
+        const ratingIdx = ratingOrder.indexOf(rating);
+        let ratingColor = 'neutral';
+        if (ratingIdx >= 0) {
+            if (ratingIdx <= ratingOrder.indexOf('A-'))   ratingColor = 'green';
+            else if (ratingIdx <= ratingOrder.indexOf('BBB-')) ratingColor = 'yellow';
+            else ratingColor = 'red';
+        }
+        this.setCardColor('card-weightedRating', ratingColor);
     }
 
     savePortfolio() {

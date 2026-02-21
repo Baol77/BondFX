@@ -193,6 +193,7 @@ Yield and SAY are always shown **net of withholding tax** as configured in `tax-
 | Statistic                  | What It Means                                                       |
 |----------------------------|---------------------------------------------------------------------|
 | **Total Investment**       | Original euros committed (cost basis)                               |
+| **Avg Price**              | Weighted average purchase price across the portfolio                |
 | **Weighted SAY (gross)**   | Portfolio average annual total return before withholding tax        |
 | **Weighted SAY (net)**     | Portfolio average annual total return after withholding tax         |
 | **Weighted Yield (gross)** | Portfolio average annual income yield before withholding tax        |
@@ -202,9 +203,29 @@ Yield and SAY are always shown **net of withholding tax** as configured in `tax-
 | **Avg Risk (Maturity)**    | Weighted average years to maturity                                  |
 | **Weighted Rating**        | Average credit quality                                              |
 | **Total Profit**           | Current market value minus cost basis (price movement only)         |
-| **Coupon Income**          | Estimated annual coupon income in EUR (gross)                       |
+| **Coupon Income (net)**    | Estimated annual coupon income in EUR, after withholding tax        |
 
 SAY and Current Yield are always recalculated from live price data — they never use stale cached values.
+
+### Statistics Card Colour Coding
+
+Each statistic card changes colour automatically to signal portfolio health at a glance.
+
+**Static (always blue):** Total Investment, Bond Count, Coupon Income — these depend on portfolio size and have no universal risk threshold.
+
+**Dynamic cards:**
+
+| Card | 🟢 Green | 🟡 Yellow | 🔴 Red |
+|---|---|---|---|
+| **Weighted SAY (gross/net)** | ≥ 3.5% | 2.0 – 3.5% | < 2.0% |
+| **Weighted Yield (gross/net)** | ≥ 3.0% | 1.5 – 3.0% | < 1.5% |
+| **Avg Coupon** | ≥ 3.0% | 1.5 – 3.0% | < 1.5% |
+| **Avg Risk (Maturity)** | ≤ 7 years | 7 – 15 years | > 15 years |
+| **Avg Price** | ≤ 110 | 110 – 120 | > 120 |
+| **Weighted Rating** | AAA – A− | BBB+ – BBB− | BB+ and below |
+| **Total Profit** | ≥ 0 | < 0 | — |
+
+> Avg Price above 110 signals a guaranteed capital loss at maturity that weighs on SAY. Above 120, the impact is material.
 
 ### Saving and Loading
 
@@ -475,4 +496,4 @@ Set a quarterly reminder to reimport the CSV and review price changes.
 
 ---
 
-*Last updated: February 2026 — BondFX v2.2*
+*Last updated: February 2026 — BondFX v2.3*

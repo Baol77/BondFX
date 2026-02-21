@@ -217,10 +217,15 @@ pointer-events: auto;
 }
 
 /* Statistic Card Colors */
-.stat-card.orange { border-left-color: #FF9800; }
-.stat-card.purple { border-left-color: #9C27B0; }
-.stat-card.green  { border-left-color: #4CAF50; }
-.stat-card.deep-purple { border-left-color: #673AB7; }
+/* ── Static neutral (blue) ── */
+.stat-card.stat-neutral   { border-left-color: #1a73e8; }
+.stat-card.stat-neutral .stat-label { color: #1a73e8; }
+.stat-card.stat-neutral .stat-value { color: #1a73e8; }
+
+/* ── Dynamic risk colours ── */
+.stat-card.stat-green  { border-left-color: #2e7d32; background: #f1f8f1; }
+.stat-card.stat-yellow { border-left-color: #f57f17; background: #fffde7; }
+.stat-card.stat-red    { border-left-color: #c62828; background: #fff5f5; }
 
 .stat-label {
   font-size: 11px;
@@ -237,10 +242,12 @@ pointer-events: auto;
 }
 
 /* Text Color Modifiers matching borders */
-.stat-card.orange .stat-value { color: #FF9800; }
-.stat-card.purple .stat-value { color: #9C27B0; }
-.stat-card.green .stat-value  { color: #4CAF50; }
-.stat-card.deep-purple .stat-value { color: #673AB7; }
+.stat-card.stat-green .stat-label  { color: #2e7d32; }
+.stat-card.stat-green .stat-value  { color: #2e7d32; }
+.stat-card.stat-yellow .stat-label { color: #e65100; }
+.stat-card.stat-yellow .stat-value { color: #e65100; }
+.stat-card.stat-red .stat-label    { color: #c62828; }
+.stat-card.stat-red .stat-value    { color: #c62828; }
 
 /* Currency Breakdown */
 .currency-breakdown {

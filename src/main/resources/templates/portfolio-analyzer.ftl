@@ -89,51 +89,51 @@
                 <h3>3️⃣ Portfolio Statistics</h3>
 
                 <div class="stats-grid">
-                    <div class="stat-card">
+                    <div id="card-totalInvestment" class="stat-card stat-neutral">
                         <div class="stat-label">Total Init. Investment</div>
                         <p id="statTotalInvestment" class="stat-value">€0.00</p>
                     </div>
-                    <div class="stat-card">
+                    <div id="card-avgPrice" class="stat-card stat-neutral">
                         <div class="stat-label">Avg Price</div>
                         <p id="statAvgPrice" class="stat-value">€0.00</p>
                     </div>
-                    <div class="stat-card">
+                    <div id="card-weightedSAY" class="stat-card stat-neutral">
                         <div class="stat-label">Weighted SAY (gross)</div>
                         <p id="statWeightedSAY" class="stat-value">0.00%</p>
                     </div>
-                    <div class="stat-card tax-card">
+                    <div id="card-weightedSAYNet" class="stat-card stat-neutral">
                         <div class="stat-label">Weighted SAY (net)</div>
                         <p id="statWeightedSAYNet" class="stat-value">0.00%</p>
                     </div>
-                    <div class="stat-card">
+                    <div id="card-weightedYield" class="stat-card stat-neutral">
                         <div class="stat-label">Weighted Yield (gross)</div>
                         <p id="statWeightedYield" class="stat-value">0.00%</p>
                     </div>
-                    <div class="stat-card tax-card">
+                    <div id="card-weightedYieldNet" class="stat-card stat-neutral">
                         <div class="stat-label">Weighted Yield (net)</div>
                         <p id="statWeightedYieldNet" class="stat-value">0.00%</p>
                     </div>
-                    <div class="stat-card">
+                    <div id="card-avgCoupon" class="stat-card stat-neutral">
                         <div class="stat-label">Avg Coupon</div>
                         <p id="statAvgCoupon" class="stat-value">0.00%</p>
                     </div>
-                    <div class="stat-card">
+                    <div id="card-bondCount" class="stat-card stat-neutral">
                         <div class="stat-label">Bond Count</div>
                         <p id="statBondCount" class="stat-value">0</p>
                     </div>
-                    <div class="stat-card orange">
+                    <div id="card-weightedRisk" class="stat-card stat-neutral">
                         <div class="stat-label">Avg Risk (Maturity)</div>
                         <p id="statWeightedRisk" class="stat-value">0.00 yrs</p>
                     </div>
-                    <div class="stat-card purple">
+                    <div id="card-weightedRating" class="stat-card stat-neutral">
                         <div class="stat-label">Weighted Rating</div>
                         <p id="statWeightedRating" class="stat-value">-</p>
                     </div>
-                    <div class="stat-card green">
+                    <div id="card-totalProfit" class="stat-card stat-neutral">
                         <div class="stat-label">Total Profit</div>
                         <p id="statTotalProfit" class="stat-value">€0.00</p>
                     </div>
-                    <div class="stat-card deep-purple">
+                    <div id="card-couponIncome" class="stat-card stat-neutral">
                         <div class="stat-label">Coupon Income (Current Year, net)</div>
                         <p id="statTotalCouponIncome" class="stat-value">€0.00</p>
                     </div>
