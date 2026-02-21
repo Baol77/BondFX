@@ -125,13 +125,13 @@ button {
 /* =======================
    TABLE STYLES
 ======================= */
-table {
+#bondTable {
     border-collapse: collapse;
     width: 100%;
     font-size: 14px;
 }
 
-thead th {
+#bondTable thead th {
     position: sticky;
     top: 0;
     background: #f2f2f2;
@@ -141,26 +141,26 @@ thead th {
     border-bottom: 2px solid #999;
 }
 
-th,
-td {
+#bondTable th,
+#bondTable td {
     border: 1px solid #ccc;
     padding: 6px 8px;
     text-align: right;
 }
 
-td:first-child,
-th:first-child,
-td:nth-child(2),
-th:nth-child(2) {
+#bondTable td:first-child,
+#bondTable th:first-child,
+#bondTable td:nth-child(2),
+#bondTable th:nth-child(2) {
     text-align: left;
 }
 
-td:nth-child(7),
-th:nth-child(7) {
+#bondTable td:nth-child(7),
+#bondTable th:nth-child(7) {
     white-space: nowrap;
 }
 
-tr:hover {
+#bondTable tr:hover {
     background: #eef6ff;
 }
 
@@ -392,4 +392,44 @@ h2.page-title {
     .info-modal__body h1 { font-size: 17px; }
     .info-modal__body h2 { font-size: 14px; }
     .info-modal__body table { display: block; overflow-x: auto; }
+}
+
+/* ─── DATA AGE DOT ───────────────────────────────────────────────────────────── */
+.data-age-dot {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 10px;
+    vertical-align: middle;
+}
+
+.data-age-dot::before {
+    content: '●';
+    margin-right: 4px;
+    font-size: 9px;
+}
+
+.data-age-green {
+    color: #1a7f37;
+    background: #dcfce7;
+}
+
+.data-age-green::before {
+    animation: pulse-green 2s ease-in-out infinite;
+}
+
+.data-age-yellow {
+    color: #854d0e;
+    background: #fef9c3;
+}
+
+.data-age-red {
+    color: #991b1b;
+    background: #fee2e2;
+}
+
+@keyframes pulse-green {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.3; }
 }

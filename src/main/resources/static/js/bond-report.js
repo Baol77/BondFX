@@ -373,7 +373,7 @@ function setDefaultMaturityFilters() {
     document.getElementById("filterMaxMat").value = formatDate(max);
 }
 
-
+        
 /* =======================
    YAML IMPORT
 ======================= */
@@ -662,14 +662,66 @@ function closeInfoModal() {
     document.getElementById('infoModal').classList.remove('open');
     document.getElementById('infoModalBackdrop').classList.remove('open');
     document.body.style.overflow = '';
-
-    // remove anchor from URL
-    if (window.location.hash) {
-        history.replaceState(null, null, window.location.pathname + window.location.search);
-    }
 }
 
 // Close on Escape key
 document.addEventListener('keydown', e => {
     if (e.key === 'Escape') closeInfoModal();
 });
+
+// Intercept #anchor clicks inside the modal — scroll within the modal body
+// instead of jumping the main page, which would close or misplace the view.
+document.addEventListener('click', e => {
+    const link = e.target.closest('a[href^="#"]');
+    if (!link) return;
+
+    const modal = document.getElementById('infoModal');
+    if (!modal || !modal.contains(link)) return;
+
+    e.preventDefault();
+
+    const targetId = link.getAttribute('href').slice(1);          // strip the #
+    const target   = modal.querySelector('#' + CSS.escape(targetId));
+    if (target) {
+        const body = modal.querySelector('.info-modal__body');
+        // Scroll the modal body so the heading is near the top with a small offset
+        const offset = target.offsetTop - body.offsetTop - 12;
+        body.scrollTo({ top: offset, behavior: 'smooth' });
+    }
+});
+
+// ─── DATA AGE COUNTER ─────────────────────────────────────────────────────────
+(function () {
+    // Parse the timestamp rendered by FreeMarker: "yyyy-MM-dd HH:mm"
+    const metaEl = document.getElementById('pageMeta');
+    const ageEl  = document.getElementById('dataAge');
+    if (!metaEl || !ageEl) return;
+
+    // Extract "2026-02-21 15:48" from the span text
+    const match = metaEl.textContent.match(/(\d{4}-\d{2}-\d{2} \d{2}:\d{2})/);
+    if (!match) return;
+
+    const generatedAt = new Date(match[1].replace(' ', 'T')); // ISO-safe parse
+
+    function update() {
+        const seconds = Math.floor((Date.now() - generatedAt.getTime()) / 1000);
+        const minutes = Math.floor(seconds / 60);
+        let color, label;
+
+        if (minutes < 1) {
+            color = 'green'; label = 'now';
+        } else if (minutes < 10) {
+            color = 'green'; label = minutes + ' min ago';
+        } else if (minutes < 30) {
+            color = 'yellow'; label = minutes + ' min ago';
+        } else {
+            color = 'red'; label = minutes + ' min ago';
+        }
+
+        ageEl.className = 'data-age-dot data-age-' + color;
+        ageEl.textContent = label;
+    }
+
+    update();
+    setInterval(update, 30000); // every 30s for "now" to flip quickly
+})();

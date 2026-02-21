@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Bond Yield Ranking</title>
+    <title>BondFX</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
     <link rel="stylesheet" href="/css/bond-report.css">
     <link rel="stylesheet" href="/css/porfolio-analyzer.css">
@@ -21,7 +22,7 @@
 
 <h2 class="page-title">
     <span class="page-title__text">BondFX <span class="page-title__currency">(EUR)</span></span>
-    <span class="page-title__meta">— 📅 ${generatedAt}</span>
+    <span class="page-title__meta" id="pageMeta">— 📅 ${generatedAt} <span id="dataAge"></span></span>
     <button class="info-icon-btn" onclick="openInfoModal()" title="How to use BondFX" aria-label="Help">ℹ</button>
 </h2>
 
