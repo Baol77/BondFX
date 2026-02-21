@@ -11,13 +11,12 @@
 3. [Understanding the Bond Table](#understanding-the-bond-table)
 4. [Key Metrics Explained](#key-metrics-explained)
 5. [Investment Strategy Presets](#investment-strategy-presets)
-6. [Advanced Filtering](#advanced-filtering)
-7. [Portfolio Analyzer](#portfolio-analyzer)
-8. [Analysis Modes](#analysis-modes)
-9. [Custom Investment Profiles (YAML)](#custom-investment-profiles-yaml)
-10. [For Administrators: Generating Reports](#for-administrators-generating-reports)
-11. [Troubleshooting](#troubleshooting)
-12. [Frequently Asked Questions](#frequently-asked-questions)
+6. [Portfolio Analyzer](#portfolio-analyzer)
+7. [Analysis Modes](#analysis-modes)
+8. [Custom Investment Profiles (YAML)](#custom-investment-profiles-yaml)
+9. [For Administrators: Generating Reports](#for-administrators-generating-reports)
+10. [Troubleshooting](#troubleshooting)
+11. [Frequently Asked Questions](#frequently-asked-questions)
 
 ---
 
@@ -271,4 +270,4 @@ Set a quarterly reminder to reimport the CSV and review price changes.
 
 ---
 
-*Last updated: February 2026 — BondFX v6.2*
+*Last updated: February 2026 — BondFX v1*
