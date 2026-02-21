@@ -21,6 +21,8 @@ import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -89,9 +91,44 @@ public class BondController {
         try {
             String markdown = Files.readString(path);
             Node document = MD_PARSER.parse(markdown);
-            return MD_HTML.render(document);
+            String html = MD_HTML.render(document);
+            return injectHeadingIds(html);
         } catch (IOException e) {
             return "<p><em>Could not load README.md: " + e.getMessage() + "</em></p>";
         }
     }
+
+    /**
+     * Injects id attributes into h1–h6 tags using the GitHub-style slug algorithm:
+     * lowercase, strip non-alphanumeric (except spaces and hyphens), replace spaces with hyphens.
+     * <p>
+     * Example:
+     * <p>
+     * {@code <h2>Quick Start</h2>} →  {@code <h2 id="quick-start">Quick Start</h2>}
+     * <p>
+     * This makes the Table of Contents anchor links (#quick-start) work correctly
+     * inside the modal, where the browser cannot resolve href="#..." against the page.
+     */
+    private static String injectHeadingIds(String html) {
+
+        Pattern pattern = Pattern.compile("<(h[1-6])>(.+?)</h[1-6]>", Pattern.DOTALL);
+        Matcher matcher = pattern.matcher(html);
+
+        return matcher.replaceAll(match -> {
+
+            String tag   = match.group(1);
+            String inner = match.group(2);
+
+            // strip nested tags for slug
+            String text = inner.replaceAll("<[^>]+>", "");
+
+            String slug = text.toLowerCase()
+                .replaceAll("[^\\w\\s-]", "")
+                .replaceAll("\\s+", "-")
+                .replaceAll("-+", "-");
+
+            return "<" + tag + " id=\"" + slug + "\">" + inner + "</" + tag + ">";
+        });
+    }
+
 }
