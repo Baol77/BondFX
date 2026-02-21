@@ -19,8 +19,9 @@ intelligent filtering, preset investment strategies, and real-time portfolio ana
 10. [Analysis Modes](#analysis-modes)
 11. [Custom Investment Profiles (YAML)](#custom-investment-profiles-yaml)
 12. [Coupon Frequency Configuration](#coupon-frequency-configuration)
-13. [Troubleshooting](#troubleshooting)
-14. [Frequently Asked Questions](#frequently-asked-questions)
+13. [Tax Rate Configuration](#tax-rate-configuration)
+14. [Troubleshooting](#troubleshooting)
+15. [Frequently Asked Questions](#frequently-asked-questions)
 
 ---
 
@@ -32,7 +33,7 @@ BondFX is a live sovereign bond analytics platform:
 knowledge required.
 
 **2. The Spring Boot Backend** — A data engine that scrapes live bond data, calculates returns, applies FX adjustments,
-and serves the page. Auto-refreshes every 5 minutes via UptimeRobot.
+and serves the page. Data is refreshed on every page load.
 
 Together, they form a self-contained investment research tool that requires no subscription or login.
 
@@ -178,45 +179,59 @@ Click **🎯 Portfolio Analyzer** to open the portfolio builder.
 > Note: modifying the quantity in the portfolio table does **not** change your cost basis (Total Investment). It only
 > updates the quantity count.
 
-### Portfolio Dashboard
+### Portfolio Table
 
-| Statistic               | What It Means                                           |
-|-------------------------|---------------------------------------------------------|
-| **Total Investment**    | Original euros committed (cost basis)                   |
-| **Weighted SAY**        | Portfolio average annual total return (calculated live) |
-| **Weighted Yield**      | Portfolio average annual income yield (calculated live) |
-| **Avg Coupon**          | Weighted average interest rate                          |
-| **Bond Count**          | Number of distinct bonds                                |
-| **Avg Risk (Maturity)** | Weighted average years to maturity                      |
-| **Weighted Rating**     | Average credit quality                                  |
-| **Total Profit**        | Current market value minus cost basis                   |
-| **Coupon Income**       | Estimated annual coupon income in EUR                   |
+Each bond row shows: ISIN, Issuer, Price, Currency, Rating, Quantity, Investment, Maturity, **Yield (net%)**, **SAY (net%)**, **Tax %**, Profit, and a toggle to include/exclude the bond from statistics.
+
+Yield and SAY are always shown **net of withholding tax** as configured in `tax-rates.yaml` and editable per bond in the
+**Tax %** column. Changing the tax rate instantly recalculates Yield, SAY, and all statistics.
+
+> Profit = current market value − cost basis. It reflects price movements only and is not affected by taxation.
+
+### Portfolio Statistics
+
+| Statistic                  | What It Means                                                       |
+|----------------------------|---------------------------------------------------------------------|
+| **Total Investment**       | Original euros committed (cost basis)                               |
+| **Weighted SAY (gross)**   | Portfolio average annual total return before withholding tax        |
+| **Weighted SAY (net)**     | Portfolio average annual total return after withholding tax         |
+| **Weighted Yield (gross)** | Portfolio average annual income yield before withholding tax        |
+| **Weighted Yield (net)**   | Portfolio average annual income yield after withholding tax         |
+| **Avg Coupon**             | Weighted average interest rate                                      |
+| **Bond Count**             | Number of distinct bonds                                            |
+| **Avg Risk (Maturity)**    | Weighted average years to maturity                                  |
+| **Weighted Rating**        | Average credit quality                                              |
+| **Total Profit**           | Current market value minus cost basis (price movement only)         |
+| **Coupon Income**          | Estimated annual coupon income in EUR (gross)                       |
 
 SAY and Current Yield are always recalculated from live price data — they never use stale cached values.
 
 ### Saving and Loading
 
-**Export (📥):** Downloads as CSV. Does not include SAY/Yield (recalculated on import).
+**Export (📥):** Downloads as CSV including the Tax % per bond. SAY and Yield are not exported (recalculated on import).
 
-**Import (📤):** Reloads a saved CSV with current prices and shows what changed:
+**Import (📤):** Reloads a saved CSV with current prices, restores saved tax rates, and shows what changed:
 
 ```
 XS2571924070 (Romania):  €96.50 → €98.75  ↑ +€2.25
 US0000000001 (USA):     €105.00 → €103.50  ↓ −€1.50
 ```
 
+> Old CSV files without a TaxRate column are supported — the tax rate will be assigned from `tax-rates.yaml` defaults
+> on import.
+
 ---
 
 ## Dividend Calendar
 
-The **Dividend Calendar** shows estimated coupon income per month for the next 12 months across your entire portfolio,
-displayed as a bar chart.
+The **Dividend Calendar** shows estimated net coupon income per month for the next 12 months across your entire
+portfolio, displayed as a bar chart.
 
-Each bar represents the total EUR-equivalent coupon income expected in that month. Non-EUR bonds are converted using the
-current FX rate.
+Each bar represents the total EUR-equivalent coupon income expected in that month, **after withholding tax**. Non-EUR
+bonds are converted using the current FX rate. If a bond's tax rate is set to 100%, it contributes €0 to the calendar.
 
 Payment months are determined by the bond's maturity month and its coupon frequency (annual, semi-annual, or quarterly).
-Frequency is configured automatically by ISIN — see [Coupon Frequency Configuration](#coupon-frequency-configuration).
+Frequency is configured automatically by issuer country — see [Coupon Frequency Configuration](#coupon-frequency-configuration).
 
 ---
 
@@ -281,11 +296,11 @@ The Dividend Calendar needs to know how many times per year each bond pays its c
 
 ### Default Rules
 
-| ISIN Prefix | Frequency   | Payments/Year |
-|-------------|-------------|---------------|
-| IT          | Semi-annual | 2             |
-| US          | Semi-annual | 2             |
-| All others  | Annual      | 1             |
+| Issuer Country | Frequency   | Payments/Year |
+|----------------|-------------|---------------|
+| Italy          | Semi-annual | 2             |
+| USA            | Semi-annual | 2             |
+| All others     | Annual      | 1             |
 
 ### File Structure
 
@@ -300,8 +315,10 @@ prefixes:
   - prefix: "US"
     frequency: SEMI_ANNUAL
 
-exceptions: # exact ISIN overrides — highest priority
+exceptions:          # exact ISIN overrides — highest priority
   - isin: "IT0005534060"
+    frequency: ANNUAL
+  - isin: "IT0005534061,IT0005534062"   # comma-separated ISINs supported
     frequency: ANNUAL
   - isin: "US912828ZT91"
     frequency: QUARTERLY
@@ -318,6 +335,66 @@ changes required.
 
 ---
 
+## Tax Rate Configuration
+
+Withholding tax at source on coupon income is configured in `src/main/resources/tax-rates.yaml`. Rates are applied
+automatically when a bond is added to the portfolio and can be overridden manually per bond in the **Tax %** column.
+
+> **Important:** these rates model withholding tax at source only (deducted by the issuing country). Tax on capital
+> gains and any additional taxation in your country of residence are not modelled.
+
+### Resolution Order
+
+1. **ISIN exception** — exact match, highest priority
+2. **Country** — matched against the normalized issuer name
+3. **Default** — 0% if no rule matches
+
+This means a BTP issued with an `XS` ISIN (e.g. listed on Euronext) is still correctly taxed at 12.5% because the
+match is on the **issuer country** (Italy), not the ISIN prefix.
+
+### Default Country Rules
+
+| Country     | Withholding Tax |
+|-------------|-----------------|
+| Italy       | 12.5%           |
+| USA         | 15.0%           |
+| Spain       | 19.0%           |
+| Greece      | 15.0%           |
+| Belgium     | 30.0%           |
+| Ireland     | 20.0%           |
+| Romania     | 10.0%           |
+| Hungary     | 15.0%           |
+| Turkey      | 10.0%           |
+| Brazil      | 15.0%           |
+| Germany     | 0.0%            |
+| France      | 0.0%            |
+| Austria     | 0.0%            |
+| Netherlands | 0.0%            |
+| Portugal    | 0.0%            |
+| All others  | 0.0%            |
+
+### File Structure
+
+```yaml
+defaultRate: 0.0
+
+countries:
+  - country: "ITALIA"      # must match CountryNormalizer internal name
+    rate: 12.5
+  - country: "USA"
+    rate: 15.0
+
+exceptions:                        # ISIN overrides — highest priority
+  - isin: "XS1234567890"           # single ISIN
+    rate: 12.5
+  - isin: "XS0001,XS0002,XS0003"  # comma-separated ISINs
+    rate: 0.0
+```
+
+To change a rate or add an exception, edit the YAML and redeploy. No code changes required.
+
+---
+
 ## Troubleshooting
 
 **Search does not find a bond** — The ISIN must be exact. Copy-paste from the table.
@@ -327,10 +404,14 @@ changes required.
 **Numbers look wrong** — Confirm you are in the correct analysis mode (Capital Gain vs Income). FX values use rates at
 the time of the last data refresh.
 
-**Dividend Calendar shows wrong months** — The coupon frequency for that bond's ISIN prefix may be incorrect. Add an
+**Dividend Calendar shows wrong months** — The coupon frequency for that bond's issuer country may be incorrect. Add an
 exception in `coupon-frequency.yaml`.
 
-**Data is outdated** — The timestamp at the top shows the last refresh. Data auto-refreshes every 5 minutes.
+**Dividend Calendar income seems too low** — Check the Tax % column for that bond. Withholding tax is applied to coupon
+income before it appears in the calendar.
+
+**Data is outdated** — The timestamp and age indicator (🟢/🟡/🔴) at the top of the page show when data was last loaded.
+Reload the page to fetch fresh data.
 
 ---
 
@@ -351,7 +432,8 @@ diversified portfolio of 5–10 bonds across countries, ratings, and maturities 
 
 **How often is data updated?**
 
-Every 5 minutes automatically. The timestamp in the top bar shows the exact last refresh.
+Data is refreshed on every page load. The timestamp and age indicator at the top show exactly how fresh your current
+view is. Reload the page to get the latest data.
 
 **Can I use this on mobile?**
 
@@ -368,6 +450,11 @@ Payment months are derived from the bond's maturity month. For example, a bond m
 payments will pay in March and September. If this does not match the actual schedule, add a coupon frequency exception
 in `coupon-frequency.yaml`.
 
+**Why is my net SAY lower than expected?**
+
+Check the Tax % column in the portfolio table. The default rates come from `tax-rates.yaml` based on the issuer country.
+You can override the rate directly in the table — changes take effect immediately.
+
 ---
 
 ## First Portfolio: Step-by-Step
@@ -377,14 +464,15 @@ in `coupon-frequency.yaml`.
 3. Pick 5 bonds from different countries
 4. Click **🎯 Portfolio Analyzer**
 5. Add each bond with your intended investment amount
-6. Check **Weighted SAY** and **Weighted Rating**
-7. Review the **Dividend Calendar** for expected monthly income
-8. Review the **Maturity Calendar** for capital repayment timeline
-9. Confirm **Currency Breakdown** is acceptable
-10. Click **📥 Export CSV** to share with your broker
+6. Check **Weighted SAY (net)** and **Weighted Rating**
+7. Review tax rates in the **Tax %** column and adjust if needed
+8. Review the **Dividend Calendar** for expected monthly net income
+9. Review the **Maturity Calendar** for capital repayment timeline
+10. Confirm **Currency Breakdown** is acceptable
+11. Click **📥 Export CSV** to save your portfolio
 
 Set a quarterly reminder to reimport the CSV and review price changes.
 
 ---
 
-*Last updated: February 2026 — BondFX v2*
+*Last updated: February 2026 — BondFX v2.2*
