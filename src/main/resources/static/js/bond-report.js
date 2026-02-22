@@ -858,6 +858,7 @@ function saveWishlistItem() {
 function removeFromWishlist(isin) {
     wishlist = wishlist.filter(w => w.isin !== isin);
     saveWishlistData();
+    checkWishlistAlerts();
     renderWishlist();
     syncWishlistButtons();
     setTimeout(() => {
