@@ -101,11 +101,16 @@
         body.dark .search-result-item       { color: #c0c8e8 !important; border-color: #2a2d45 !important; }
         body.dark .search-result-item:hover { background: #252840 !important; }
         body.dark .basket-chip              { background: #252840 !important; border-color: #3a3f5c !important; color: #c0c8e8 !important; }
+        body.dark .basket-chip:hover        { background: #3a4a7a !important; border-color: #6a7cc7 !important; color: #fff !important; }
         body.dark .btn-tool                 { background: #1e2130 !important; }
         body.dark .btn-tool-export          { border-color: #4a7cc7 !important; color: #7ab4f7 !important; }
+        body.dark .btn-tool-export:hover    { background: #4a7cc7 !important; color: #fff !important; }
         body.dark .btn-tool-import          { border-color: #388e3c !important; color: #5ab85e !important; }
+        body.dark .btn-tool-import:hover    { background: #388e3c !important; color: #fff !important; }
         body.dark .btn-tool-pdf             { border-color: #cc4444 !important; color: #e07070 !important; }
+        body.dark .btn-tool-pdf:hover       { background: #cc0000 !important; color: #fff !important; }
         body.dark .btn-tool-clear           { border-color: #4a4f70 !important; color: #6870a0 !important; }
+        body.dark .btn-tool-clear:hover     { background: #f44336 !important; border-color: #f44336 !important; color: #fff !important; }
         body.dark .input-label              { color: #c0c8e8 !important; }
         body.dark .form-input               { background: #252840 !important; border-color: #3a3f5c !important; color: #c0c8e8 !important; }
         body.dark .bond-details-box         { background: #252840 !important; border-color: #3a3f5c !important; color: #c0c8e8 !important; }
@@ -118,15 +123,71 @@
         body.dark .portfolio-table-toolbar h3 { color: #e0e4ff !important; }
         body.dark .page-footer              { color: #4a4f70 !important; border-color: #2a2d45 !important; }
         body.dark .page-footer a            { color: #4a7cc7 !important; }
-        body.dark .analyzer-header__back    { color: #4a7cc7 !important; border-color: #2a3a5c !important; background: #1e2130 !important; }
+        body.dark .analyzer-header__back         { color: #4a7cc7 !important; border-color: #2a3a5c !important; background: #1e2130 !important; }
+        body.dark .analyzer-header__back:hover    { background: #4a7cc7 !important; color: #fff !important; border-color: #4a7cc7 !important; }
         body.dark .analyzer-header__title   { color: #e0e4ff !important; }
         body.dark .analyzer-header__title svg { stroke: #7ab4f7 !important; }
-        body.dark .analyzer-header         { border-color: #2a2d45 !important; background: #1a1d2e !important; }
+        body.dark .analyzer-header          { border-color: #2a2d45 !important; background: #1a1d2e !important; }
+
+        /* ── Basket labels (white bg) ── */
+        body.dark .basket-labels            { background: #151c30 !important; border-color: #2a3a5c !important; }
+        body.dark .basket-labels__title     { color: #6a8acc !important; }
+        body.dark .basket-chip              { background: #1e2540 !important; border-color: #3a5a9a !important; color: #c0d0f0 !important; }
+        body.dark .basket-chip:hover        { background: #3a4a7a !important; border-color: #6a7cc7 !important; color: #fff !important; }
+
+        /* ── Add bond form (light grey bg) ── */
+        body.dark .add-bond-form            { background: #151b2e !important; border-left-color: #3a6aaf !important; }
+        body.dark .add-bond-form h4         { color: #c0c8e8 !important; }
+        body.dark .bond-details-box         { background: #1e2338 !important; border: 1px solid #2a3a5c !important; color: #c0c8e8 !important; }
+        body.dark .bond-details-box strong  { color: #e0e8ff !important; }
+        body.dark .input-label              { color: #8890b8 !important; }
+        body.dark .form-input               { background: #1e2338 !important; border-color: #3a3f60 !important; color: #c8d0f0 !important; }
+        body.dark .add-btn, body.dark .btn-add { background: #1a4a9c !important; }
+        body.dark .btn-close-form           { color: #c0c8e8 !important; border-color: #5a6080 !important; background: #2a2d45 !important; }
+        body.dark .btn-close-form:hover     { background: #7a1a1a !important; border-color: #cc3333 !important; color: #ffaaaa !important; }
+
+        /* ── Portfolio table TD cells ── */
+        body.dark .portfolio-table td       { background: #13151f !important; color: #c8d0e8 !important; border-color: #2a2d45 !important; }
+        body.dark .portfolio-table tr:nth-child(even) td { background: #181b2c !important; }
+        body.dark .portfolio-table tr:hover td           { background: #1e2440 !important; }
+        body.dark .portfolio-table td input { background: #1e2338 !important; border-color: #3a3f60 !important; color: #c8d0f0 !important; }
+        /* Profit cell green/red keep color but on dark bg */
+        body.dark .portfolio-table td[style*="background: #e8f5e9"] { background: #0f2a0f !important; }
+        body.dark .portfolio-table td[style*="background: #ffebee"] { background: #2a0f0f !important; }
+
+        /* ── Currency breakdown cards ── */
+        body.dark .currency-breakdown       { }
+        body.dark .currency-card            { background: #1e2338 !important; border: 1px solid #2a3a5c !important; color: #c0c8e8 !important; }
+        body.dark .currency-card .currency-name  { color: #e0e8ff !important; font-weight: 700; }
+        body.dark .currency-card .currency-pct   { color: #5ab85e !important; }
+        body.dark .currency-card .currency-amt   { color: #8890b8 !important; }
+
+        /* ── Warning/disclaimer text ── */
+        body.dark .portfolio-disclaimer     { color: #5a6070 !important; }
+        body.dark .warning-note             { color: #5a6070 !important; }
+
+        /* ── Section headers (1️⃣ 2️⃣ 3️⃣) ── */
+        body.dark .section-title, body.dark h3 { color: #c0c8e8 !important; }
+
+        /* ── Toolbar ── */
+        body.dark .portfolio-table-toolbar  { background: transparent !important; }
+        body.dark .portfolio-table-toolbar h3 { color: #e0e4ff !important; }
     </style>
-    <script>if(localStorage.getItem("bondTheme")==="dark")document.body.classList.add("dark");</script>
+    <script>
+        // Apply theme to <html> immediately (body doesn't exist yet in <head>)
+        if (localStorage.getItem("bondTheme") === "dark") {
+            document.documentElement.classList.add("dark");
+        }
+    </script>
 </head>
 
 <body>
+<script>
+    // Sync body.dark from html.dark (set in <head> before body existed)
+    if (document.documentElement.classList.contains("dark")) {
+        document.body.classList.add("dark");
+    }
+</script>
 
 <!-- Analyzer page header -->
 <div class="analyzer-header">

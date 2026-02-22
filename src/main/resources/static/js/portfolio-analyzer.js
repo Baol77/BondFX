@@ -155,6 +155,21 @@ class PortfolioAnalyzer {
         }
     }
 
+    closeAddForm() {
+        const form = document.getElementById('addBondForm');
+        if (form) form.style.display = 'none';
+        // Clear selection
+        this.selectedBond = null;
+        const details = document.getElementById('bondDetails');
+        if (details) details.innerHTML = '';
+        const amountInput = document.getElementById('amount');
+        if (amountInput) amountInput.value = '';
+        const searchInput = document.querySelector('.search-input');
+        if (searchInput) searchInput.value = '';
+        const results = document.getElementById('searchResults');
+        if (results) results.innerHTML = '';
+    }
+
     closeModal() {
         if (this.modal) {
             this.modal.classList.remove('open');
@@ -596,38 +611,41 @@ class PortfolioAnalyzer {
             const currentValueEur = bond.quantity * bond.priceEur;
             const gainLoss = Math.round(currentValueEur - bond.totalEur);
 
-            return `<tr style="border-bottom:1px solid #eee;">
+            const _dk = document.body.classList.contains('dark');
+            const _trBorder = _dk ? '#2a2d45' : '#eee';
+            const _inputStyle = _dk ? 'background:#1e2338;border:1px solid #3a3f60;color:#c8d0f0;' : '';
+            return `<tr style="border-bottom:1px solid ${_trBorder};">
                 <td>${bond.isin}</td>
-                <td style="text-align:center;">${bond.issuer}</td>
-                <td style="text-align:right;">${bond.priceEur.toFixed(2)}</td>
-                <td style="text-align:center;">${bond.currency}</td>
-                <td style="text-align:center;">${bond.rating}</td>
-                <td style="text-align:center;">
+                <td>${bond.issuer}</td>
+                <td>${bond.priceEur.toFixed(2)}</td>
+                <td>${bond.currency}</td>
+                <td>${bond.rating}</td>
+                <td>
                     <input type="number"
                            value="${bond.quantity.toFixed(2)}"
                            min="0.01"
                            step="0.01"
                            onchange="window.portfolioAnalyzer.updateQuantityInPortfolio(${idx}, this.value)"
-                           style="width:58px;padding:4px;font-size:12px;">
+                           style="width:58px;padding:4px;font-size:12px;${_inputStyle}">
                 </td>
-                <td style="text-align:center;">${(bond.totalEur ?? 0).toFixed(2)}</td>
+                <td>${(bond.totalEur ?? 0).toFixed(2)}</td>
                 <td style="white-space:nowrap;">${bond.maturity}</td>
-                <td style="text-align:right;">${this.computeCurrentYieldNet(bond).toFixed(2)}</td>
-                <td style="text-align:right;">${this.computeSAYNet(bond).toFixed(2)}</td>
-                <td style="text-align:center;">
+                <td>${this.computeCurrentYieldNet(bond).toFixed(2)}</td>
+                <td>${this.computeSAYNet(bond).toFixed(2)}</td>
+                <td>
                     <input type="number" min="0" max="100" step="0.5"
                            value="${(bond.taxRate ?? 0).toFixed(1)}"
-                           style="width:48px;padding:3px;font-size:12px;text-align:right;"
+                           style="width:48px;padding:3px;font-size:12px;text-align:right;${_inputStyle}"
                            title="Withholding tax % on coupon income"
                            onchange="window.portfolioAnalyzer.updateTaxRate(${idx}, this.value)">
                 </td>
-                <td style="text-align:right;" class="${gainLoss >= 0 ? 'good' : 'bad'}">${gainLoss}</td>
-                <td style="text-align:center;">
+                <td class="${gainLoss >= 0 ? 'good' : 'bad'}">${gainLoss}</td>
+                <td>
                     <input type="checkbox" title="Toggle to include/exclude this bond from statistics calculations"
                            ${bond.includeInStatistics ? 'checked' : ''}
                            onchange="window.portfolioAnalyzer.toggleStatistics(${idx})">
                 </td>
-                <td style="text-align:right;">
+                <td>
                    <div style="display:flex;justify-content:flex-end;align-items:center;gap:10px;">
                        ${hasDuplicates ? `<span onclick="window.portfolioAnalyzer.mergeBond('${bond.isin}')" title="Merge duplicates" style="cursor:pointer;font-size:18px;transition:opacity 0.15s ease;" onmouseover="this.style.opacity='0.6'" onmouseout="this.style.opacity='1'">🔄</span>` : ''}
                        <span onclick="window.portfolioAnalyzer.removeBond(${idx})" title="Delete bond" style="cursor:pointer;font-size:18px;transition:opacity 0.15s ease;" onmouseover="this.style.opacity='0.6'" onmouseout="this.style.opacity='1'">❌</span>
@@ -799,14 +817,18 @@ class PortfolioAnalyzer {
         const breakdown = document.getElementById('currencyBreakdown');
         const currencies = Object.keys(currencyTotals).sort();
 
+        const _dark = document.body.classList.contains('dark');
+        const _cardBg   = _dark ? '#1e2338' : 'white';
+        const _labelClr = _dark ? '#8890b8' : '#666';
+        const _amtClr   = _dark ? '#6a7090' : '#999';
         breakdown.innerHTML = currencies.map(currency => {
             const amount = Math.round(currencyTotals[currency]);
             const percentage = Math.round((amount / totalInvestment * 100));
             return `
-                <div style="background:white;padding:10px;border-radius:4px;border-left:4px solid #4CAF50;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
-                    <div style="font-size:11px;color:#666;font-weight:600;margin-bottom:6px;">${currency}</div>
+                <div style="background:${_cardBg};padding:10px;border-radius:4px;border-left:4px solid #4CAF50;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+                    <div style="font-size:11px;color:${_labelClr};font-weight:600;margin-bottom:6px;">${currency}</div>
                     <p style="margin:0;font-size:14px;font-weight:bold;color:#4CAF50;">${percentage}%</p>
-                    <p style="margin:5px 0 0 0;font-size:11px;color:#999;">€${amount}</p>
+                    <p style="margin:5px 0 0 0;font-size:11px;color:${_amtClr};">€${amount}</p>
                 </div>
             `;
         }).join('');
@@ -825,7 +847,7 @@ class PortfolioAnalyzer {
 
         const bonds = this.portfolio.filter(b => b.includeInStatistics);
         if (bonds.length === 0) {
-            el.innerHTML = '<p style="color:#999;font-size:13px;">No bonds in portfolio.</p>';
+            el.innerHTML = `<p style="color:${document.body.classList.contains('dark') ? '#4a5070' : '#999'};font-size:13px;">No bonds in portfolio.</p>`;
             return;
         }
 
@@ -895,7 +917,7 @@ class PortfolioAnalyzer {
 
         const bonds = this.portfolio.filter(b => b.includeInStatistics);
         if (bonds.length === 0) {
-            el.innerHTML = '<p style="color:#999;font-size:13px;">No bonds in portfolio.</p>';
+            el.innerHTML = `<p style="color:${document.body.classList.contains('dark') ? '#4a5070' : '#999'};font-size:13px;">No bonds in portfolio.</p>`;
             return;
         }
 

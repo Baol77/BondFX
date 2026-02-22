@@ -357,7 +357,7 @@
 
 <!-- Footer -->
 <footer class="page-footer">
-    BondFX v3.5 &nbsp;·&nbsp;<a href="https://github.com/your-repo/BondFX/blob/main/README.md" target="_blank" rel="noopener">User Manual</a>
+    BondFX v3.5 &nbsp;·&nbsp;<a href="#" onclick="openInfoModal(); return false;">User Manual</a>
 </footer>
 
 <!-- JavaScript (external static files) -->

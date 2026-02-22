@@ -49,9 +49,14 @@
                     </div>
                 </div>
 
-                <button onclick="window.portfolioAnalyzer.addBondToPortfolio()" class="btn btn-add">
-                    ➕ Add to Portfolio
-                </button>
+                <div class="add-bond-actions">
+                    <button onclick="window.portfolioAnalyzer.addBondToPortfolio()" class="btn btn-add">
+                        ➕ Add to Portfolio
+                    </button>
+                    <button onclick="window.portfolioAnalyzer.closeAddForm()" class="btn btn-close-form">
+                        ✕ Close
+                    </button>
+                </div>
             </div>
 
             <div class="portfolio-table-wrapper">
@@ -97,12 +102,9 @@
                             <th style="text-align:center;">SAY (net%)</th>
                             <th style="text-align:center;" title="Withholding tax at source. Editable per bond.">Tax %</th>
                             <th style="text-align:center;">Profit (€)</th>
-                            <th style="text-align:center;">
-                                <div class="portfolio-table-header-flex" title="Toggle to include/exclude all bonds">
-                                    <span>Σ</span>
-                                    <input type="checkbox" id="toggleAllStatistics" checked
-                                           onchange="window.portfolioAnalyzer.toggleAllStatistics(this.checked)">
-                                </div>
+                            <th style="text-align:center;" title="Toggle to include/exclude all bonds">
+                                <input type="checkbox" id="toggleAllStatistics" checked
+                                       onchange="window.portfolioAnalyzer.toggleAllStatistics(this.checked)">
                             </th>
                             <th style="text-align:center;">Action</th>
                         </tr>

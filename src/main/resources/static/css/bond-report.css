@@ -1113,3 +1113,14 @@ body.dark .page-footer a        { color: #4a7cc7; }
 body.dark .loading-overlay      { background: rgba(13,15,25,0.85); }
 body.dark .loading-spinner      { background: #1e2130; }
 body.dark .loading-text         { color: #c0c8e8; }
+
+/* ─── BTN-TOOL DARK HOVER (home page) ───────────────────────────────────────── */
+body.dark .btn-tool               { background: #1e2130; }
+body.dark .btn-tool-export        { border-color: #4a7cc7; color: #7ab4f7; }
+body.dark .btn-tool-export:hover  { background: #4a7cc7 !important; color: #fff !important; }
+body.dark .btn-tool-import        { border-color: #388e3c; color: #5ab85e; }
+body.dark .btn-tool-import:hover  { background: #388e3c !important; color: #fff !important; }
+body.dark .btn-tool-pdf           { border-color: #cc4444; color: #e07070; }
+body.dark .btn-tool-pdf:hover     { background: #cc0000 !important; color: #fff !important; }
+body.dark .btn-tool-clear         { border-color: #4a4f70; color: #6870a0; }
+body.dark .btn-tool-clear:hover   { background: #f44336 !important; border-color: #f44336 !important; color: #fff !important; }
