@@ -321,7 +321,7 @@
 
 <!-- Footer -->
 <footer class="page-footer">
-    BondFX v2.5 &nbsp;·&nbsp;<a href="#" onclick="openInfoModal(); return false;">User Manual</a>
+    BondFX v3 &nbsp;·&nbsp;<a href="#" onclick="openInfoModal(); return false;">User Manual</a>
 </footer>
 
 <!-- JavaScript (external static files) -->

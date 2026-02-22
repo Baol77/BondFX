@@ -532,4 +532,4 @@ Set a quarterly reminder to reimport the CSV and review price changes.
 
 ---
 
-*Last updated: February 2026 — BondFX v2.5*
+*Last updated: February 2026 — BondFX v3*
