@@ -532,6 +532,13 @@ body.dark .search-input            { background: #1e2338; border-color: #3a3f60;
 body.dark .search-input::placeholder { color: #5a607a; }
 body.dark .search-results          { background: #1e2338; border-color: #3a3f60;
                                      box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+body.dark .search-result           { border-color: #2a2d45; }
+body.dark .search-result .sr-main  { color: #c8d4f0; }
+body.dark .search-result .sr-meta  { color: #6870a0; }
+body.dark .search-result.active    { background: #1a3a6c; }
+body.dark .search-result.active .sr-main { color: #ffffff; }
+body.dark .search-result.active .sr-meta { color: #a0b8e8; }
+body.dark .search-result:hover     { background: #252d4a; }
 body.dark .search-result-item      { color: #c0c8e8; border-color: #2a2d45; }
 body.dark .search-result-item:hover { background: #252d4a; }
 
