@@ -1,100 +1,108 @@
 <a id="top"></a>
 
-# 📊 BondFX : Sovereign Bond Analytics Platform — User Manual
+# 📊 BondFX — Sovereign Bond Analytics Platform · User Manual
 
-**Discover, analyze, and build custom bond portfolios in minutes. Find the best yields across 30+ countries with
-intelligent filtering, preset investment strategies, and real-time portfolio analytics.**
+**Discover, analyze, and build sovereign bond portfolios in minutes. Browse 1,000+ bonds across 30+ countries, set price/yield alerts, and export professional PDF reports.**
 
 ---
 
 ## Table of Contents
 
-[↑ Top](#top)
-
-1. [What Is This Platform?](#what-is-this-platform)
-2. [Quick Start](#quick-start)
-3. [Understanding the Bond Table](#understanding-the-bond-table)
+1. [What Is BondFX?](#what-is-bondfx)
+2. [Typical User Workflow](#typical-user-workflow)
+3. [The Bond Table](#the-bond-table)
 4. [Key Metrics Explained](#key-metrics-explained)
 5. [Investment Strategy Presets](#investment-strategy-presets)
 6. [Advanced Filtering](#advanced-filtering)
-7. [Portfolio Analyzer](#portfolio-analyzer)
-8. [Dividend Calendar](#dividend-calendar)
-9. [Maturity Calendar](#maturity-calendar)
-10. [Analysis Modes](#analysis-modes)
-11. [Custom Investment Profiles (YAML)](#custom-investment-profiles-yaml)
-12. [Coupon Frequency Configuration](#coupon-frequency-configuration)
-13. [Tax Rate Configuration](#tax-rate-configuration)
-14. [Troubleshooting](#troubleshooting)
-15. [Frequently Asked Questions](#frequently-asked-questions)
+7. [Wishlist — Price & SAY Alerts](#wishlist--price--say-alerts)
+8. [Bond Basket](#bond-basket)
+9. [Portfolio Analyzer](#portfolio-analyzer)
+10. [Dividend Calendar](#dividend-calendar)
+11. [Maturity Calendar](#maturity-calendar)
+12. [Analysis Modes](#analysis-modes)
+13. [Custom Investment Profiles (YAML)](#custom-investment-profiles-yaml)
+14. [Coupon Frequency Configuration](#coupon-frequency-configuration)
+15. [Tax Rate Configuration](#tax-rate-configuration)
+16. [Troubleshooting](#troubleshooting)
+17. [Frequently Asked Questions](#frequently-asked-questions)
 
 ---
 
-## What Is This Platform?
+## What Is BondFX?
 
 [↑ Top](#top)
 
-BondFX is a live sovereign bond analytics platform:
+BondFX is a self-contained sovereign bond analytics platform with two components:
 
-**1. The Interactive Report** — A browser-based interface to browse, filter, and analyze sovereign bonds. No technical
-knowledge required.
+**The Interactive Report** — A browser-based interface to browse, filter, track, and analyze sovereign bonds. No login or subscription required.
 
-**2. The Spring Boot Backend** — A data engine that scrapes live bond data, calculates returns, applies FX adjustments,
-and serves the page. Data is refreshed on every page load.
-
-Together, they form a self-contained investment research tool that requires no subscription or login.
+**The Spring Boot Backend** — A data engine that scrapes live bond data, calculates returns, applies FX adjustments, and serves the page. Data is refreshed on every page load.
 
 ---
 
-## Quick Start
+## Typical User Workflow
 
 [↑ Top](#top)
 
-### Step 1 — Open the Report
+Here is how a typical user moves from discovery to an investment decision.
 
-Navigate to **bondfx.onrender.com**. You will see a table of 1,000+ sovereign bonds with interactive filtering.
+### Step 1 — Browse and Filter
 
-### Step 2 — Pick a Strategy Preset
+Open the report at **bondfx.onrender.com**. The table loads with the **Cash Parking** preset active by default. Choose a preset that matches your investment goals, or clear all filters and browse freely.
 
-At the top of the page, six preset buttons instantly filter the table to match a specific investment style:
+### Step 2 — Identify Candidates
 
-| Preset Button             | Who It Is For                                 | What It Filters                                             |
-|---------------------------|-----------------------------------------------|-------------------------------------------------------------|
-| 🅿️🛡️ **Cash Parking**   | Short-term, safety-first investors            | Investment-grade bonds, maturity under 2.5 years            |
-| ⚡💰 **Ultra Short High**  | Risk-tolerant investors seeking quick returns | Short-term bonds (1–3 years) with yield above 6%            |
-| ⚖️🌲 **Balanced Core**    | The majority of long-term investors           | Mid-term (5–15 years), investment-grade, SAY above 3.5%     |
-| 💵🔥 **Max Income**       | Retirees and income-focused investors         | Long-duration bonds (15+ years) with current yield above 6% |
-| 📉🚀 **Deep Discount**    | Capital-growth investors                      | Bonds trading below 90% of face value, SAY above 5%         |
-| 🏰🛡️ **AAA/AA Fortress** | Wealth-preservation, risk-averse investors    | Only top-rated sovereigns (AA− or better)                   |
+Sort by **SAY** descending to surface the best risk-adjusted returns within the current filter. Review color-coded highlights — green rows have healthy yields, red rows require scrutiny.
 
-### Step 3 — Review and Act
+For bonds you want to monitor without acting immediately, click the **★ star button** on the row to add them to the **Wishlist** with a price or SAY threshold. You will be notified at the next page load if conditions improve.
 
-Once a preset is active:
+### Step 3 — Build a Shortlist with the Basket
 
-- Scroll through the filtered list and review color-coded highlights
-- Click any column header to re-sort by that metric
-- Click **🎯 Portfolio Analyzer** to open the portfolio builder
+For bonds you want to analyze together, click **＋** to add them to the **Bond Basket** (🛒 in the header). The basket persists across reloads.
+
+### Step 4 — Analyze in the Portfolio Analyzer
+
+Click **Open in Portfolio Analyzer** from the basket dropdown, or the **Portfolio Analyzer** button. In the Analyzer:
+
+1. Click a basket chip to auto-fill the search field
+2. Enter your intended investment amount per bond and click ➕ Add
+3. Review the **Portfolio Statistics** cards — Weighted SAY (net), Weighted Rating, Total Profit
+4. Check the **Dividend Calendar** for monthly net income over the next 12 months
+5. Review the **Maturity Calendar** for capital repayment timeline and projected gains/losses
+
+### Step 5 — Export
+
+- **↑ CSV** to save your portfolio with quantities, tax rates, and cost basis
+- **PDF icon** to generate a professional report with statistics, currency breakdown, dividend and maturity calendars
+- Re-import with **↓ CSV** later to see price changes since you saved
+
+### Step 6 — Act
+
+Copy the ISIN from the table and provide it to your broker to place a buy order.
 
 ---
 
-## Understanding the Bond Table
+## The Bond Table
 
 [↑ Top](#top)
 
-Each row represents a single sovereign bond:
+Each row represents a single sovereign bond. On **mobile** (≤ 768px) the table adapts: issuer shows only a flag, maturity shows the year only, and column headers are abbreviated.
 
-| Column                 | What It Represents                          | Practical Use                                 |
-|------------------------|---------------------------------------------|-----------------------------------------------|
-| **ISIN**               | Unique international identifier             | Provide to your broker to place a buy order   |
-| **Issuer**             | Country that issued the bond                | Know who you are lending money to             |
-| **Price**              | Current price in the bond's native currency | What you pay today per unit                   |
-| **Currency**           | Bond denomination currency                  | EUR, USD, GBP, CHF, SEK, etc.                 |
-| **Rating**             | Credit quality from rating agencies         | AAA is safest; BB+ and below is speculative   |
-| **Price (EUR)**        | Price converted to euros                    | Enables fair comparison across currencies     |
-| **Coupon %**           | Fixed annual interest rate                  | A 5% coupon on €1,000 pays €50/year           |
-| **Maturity**           | Date the issuer repays principal            | How long your money is committed              |
-| **Curr. Yield %**      | Annual income as % of current price         | More accurate than coupon when buying off-par |
-| **Total Return (1k€)** | What €1,000 grows to by maturity            | End-state profit in absolute terms            |
-| **SAY (%)**            | Simple Annual Yield — total return per year | **The most important column**                 |
+| Column | What It Represents | Practical Use |
+|---|---|---|
+| **★** | Wishlist alert button | Set a price or SAY threshold |
+| **＋** | Basket button | Add bond to analysis shortlist |
+| **ISIN** | Unique international identifier | Provide to your broker |
+| **Issuer** | Country that issued the bond | Know who you are lending to |
+| **Price** | Current price in the bond's native currency | What you pay today per unit |
+| **Currency** | Bond denomination currency | EUR, USD, GBP, CHF, SEK, etc. |
+| **Rating** | Credit quality from rating agencies | AAA is safest; BB+ and below is speculative |
+| **Price (EUR)** | Price converted to euros | Enables fair comparison across currencies |
+| **Coupon %** | Fixed annual interest rate | A 5% coupon on €1,000 pays €50/year |
+| **Maturity** | Date the issuer repays principal | How long your money is committed |
+| **Curr. Yield %** | Annual income as % of current price | More accurate than coupon when buying off-par |
+| **Total Return (1k€)** | What €1,000 grows to by maturity | End-state profit in absolute terms |
+| **SAY (%)** | Simple Annual Yield — annualized total return | **The most important column** |
 
 ---
 
@@ -104,38 +112,47 @@ Each row represents a single sovereign bond:
 
 ### SAY — Simple Annual Yield
 
-SAY is the single most useful number. It combines coupon income and any capital gain or loss from buying above or below
-face value.
+SAY is the single most useful number in the table. It represents the annualized total return on a standardized €1,000 investment, combining coupon income, capital gain/loss from buying above or below face value, and an FX risk adjustment for non-EUR bonds.
 
 **Formula:**
 
 ```
-SAY = (Annual Coupon % + Capital Gain % per year) / Purchase Price EUR
+SAY = (Total Return at Maturity − €1,000) / (10 × Years to Maturity)
 ```
 
-**Example:**
+Where **Total Return** is built as:
 
-- Buy at €96, face value €100, 5% coupon, 10 years to maturity
-- Annual coupon income: €4.80 | Capital gain: €4 over 10 years
-- SAY = (€4.80 + €0.40) / €96 = **5.4% per year**
+```
+Total Return = (Coupon % × Years to Maturity × Bonds held × FX coupon factor)
+             + (100 × Bonds held × FX redemption factor)
+```
 
-Color coding:
+The FX factor applies a moderate discount on coupon income and a stronger discount on the redemption value for non-EUR bonds, reflecting exchange-rate uncertainty over the holding period. EUR bonds are unaffected (factor = 1).
 
-- 🟢 **Dark green** — SAY 4%+ (excellent)
-- 🟢 **Light green** — SAY 2.5–4% (good)
-- 🟠 **Yellow** — SAY 1–2.5% (acceptable)
-- 🔴 **Red** — SAY below 1% (poor)
+> SAY is a per-unit value (€ per €1,000 invested per year), not a percentage of price. A SAY of 2.10 means €2.10 of annualized total return per €1,000 invested.
+
+**Color coding in the table:**
+
+| Color | SAY Range | Interpretation |
+|---|---|---|
+| 🟢 Dark green | ≥ 4.0 | Excellent |
+| 🟢 Light green | 2.5 – 4.0 | Good |
+| 🟡 Yellow | 1.0 – 2.5 | Acceptable |
+| 🔴 Red | < 1.0 | Poor |
 
 ### Current Yield
 
-Annual cash income as a % of today's price. Does not account for capital gains. Use this if you depend on regular
-income.
+Annual coupon income as a % of today's price. Does not account for capital gains or losses. Use this if you depend on regular income and plan to hold to maturity.
+
+### Total Return (1k€)
+
+The projected total amount received per €1,000 invested at maturity, including all coupon payments and face-value redemption converted to EUR. Above 1,000 = net gain; below 1,000 = net loss.
 
 ### Maturity
 
-- **Under 3 years:** Lower risk, lower returns. Good for capital you may need soon.
+- **Under 3 years:** Low risk, lower returns. Good for capital you may need soon.
 - **5–10 years:** Balanced risk and return.
-- **15+ years:** Higher potential returns, but more interest-rate sensitivity.
+- **15+ years:** Higher potential returns, but more sensitivity to interest rate changes.
 
 ---
 
@@ -143,29 +160,18 @@ income.
 
 [↑ Top](#top)
 
-### 🅿️🛡️ Cash Parking
+Eight preset buttons instantly configure filters and sort order for a specific investment style.
 
-Safe home for capital needed within 2–3 years. Maturity ≤ 2.5y, rating ≥ BBB+, yield ≥ 2%.
-
-### ⚡💰 Ultra Short High
-
-Maximum yield, short timeframe, accepts higher credit risk. Maturity 1–3y, yield ≥ 6%.
-
-### ⚖️🌲 Balanced Core
-
-All-purpose profile. Maturity 5–15y, rating ≥ BBB+, SAY ≥ 3.5%.
-
-### 💵🔥 Max Income
-
-Maximize annual cash income. Maturity 15+y, yield ≥ 6%, rating ≥ BB+.
-
-### 📉🚀 Deep Discount
-
-Buy cheap, collect capital gain at maturity. Price < €90, maturity 3–20y, SAY ≥ 5%.
-
-### 🏰🛡️ AAA/AA Fortress
-
-Maximum capital safety. Rating ≥ AA−, maturity 5–30y.
+| Preset | For | What It Filters |
+|---|---|---|
+| 🅿️🛡️ **Cash Parking** | Short-term, safety-first | IG bonds, maturity ≤ 2.5y, yield ≥ 2% |
+| ⚡💰 **Ultra Short High** | Risk-tolerant, short timeframe | Maturity 1–3y, yield ≥ 6%, accepts sub-IG |
+| ⚖️🌲 **Balanced Core** | Long-term general investors | Maturity 5–15y, IG, SAY ≥ 3.5% |
+| 📉🚀 **Deep Discount** | Capital-growth investors | Price < €90, maturity 3–20y, SAY ≥ 5% |
+| 💵🔥 **Max Income** | Retirees, income-focused | Yield ≥ 6%, price ≤ 110, rating ≥ BBB− |
+| 🏰🛡️ **AAA/AA Fortress** | Wealth-preservation | Rating ≥ AA−, maturity 5–30y, SAY ≥ 3% |
+| 🏛️📈 **Long Quality** | Rate-cut beneficiaries | Maturity 20–40y, rating ≥ A−, yield ≥ 4% |
+| 🏖️💵 **Retirement Income** | Long-term stable income | Maturity 20–35y, yield ≥ 4%, rating ≥ BBB+ |
 
 ---
 
@@ -174,10 +180,59 @@ Maximum capital safety. Rating ≥ AA−, maturity 5–30y.
 [↑ Top](#top)
 
 - **Click any column header** to sort ascending or descending
-- **Type in the filter row** below each header to filter by text or value
-- **Combine a preset with manual column sorting** for refined results
+- **Type in the filter row** below each header to filter by text or numeric threshold
+- **Combine a preset with manual column filters** for refined results
 
-**Example:** Click **⚖️ Balanced Core**, then click **Rating** to see the safest bonds within that strategy first.
+**Example:** Click **⚖️ Balanced Core**, then click the **Rating** header to sort safest bonds within that strategy to the top.
+
+---
+
+## Wishlist — Price & SAY Alerts
+
+[↑ Top](#top)
+
+The Wishlist lets you track bonds you are interested in but not yet ready to buy, by setting conditions that notify you when market conditions improve.
+
+### Adding a Wishlist Alert
+
+Click the **★** button on any row. A dialog opens showing the bond's current Price (EUR) and SAY. Set one or both conditions:
+
+- **Price ≤ X** — alert when the bond becomes cheaper than your target
+- **SAY ≥ X** — alert when the yield improves above your threshold
+
+Click **✓ Save Alert**. The alert is saved in your browser's local storage and persists across reloads.
+
+### How Alerts Work
+
+Every time the page loads BondFX checks all wishlist items against live data. If any condition is met:
+
+- The ⭐ icon in the header **pulses** continuously
+- The matching item shows a **green background** in the dropdown
+- The specific criterion that triggered is highlighted green with ✓
+
+### Managing Wishlist Items
+
+Open the ⭐ dropdown to:
+
+- **→ Basket** — move the bond to the basket and remove it from the wishlist (pulsing stops for that bond)
+- **✕** — remove the alert entirely
+
+---
+
+## Bond Basket
+
+[↑ Top](#top)
+
+The **🛒 Basket** is a shortlist of bonds you want to analyze together.
+
+- Click **＋** on any row to add (button turns green ✓)
+- Open 🛒 to review or remove items with ✕
+- Click **Clear all** to empty the basket
+- Click **Open in Portfolio Analyzer** to send all basket bonds to the Analyzer
+
+In the Portfolio Analyzer, basket bonds appear as clickable chips at the top — click one to auto-fill the bond search field.
+
+The basket persists across page reloads via local storage.
 
 ---
 
@@ -185,57 +240,52 @@ Maximum capital safety. Rating ≥ AA−, maturity 5–30y.
 
 [↑ Top](#top)
 
-Click **🎯 Portfolio Analyzer** to open the portfolio builder.
+The Portfolio Analyzer (`/analyzer`) is a dedicated full-page tool for building and evaluating custom bond portfolios.
 
 ### Adding a Bond
 
 1. Search by ISIN or issuer name
 2. Select a bond from the results
-3. Enter **Total Investment (€)** — quantity is calculated automatically, or enter quantity directly
+3. Enter **Total Investment (€)** — quantity is calculated automatically
 4. Click **➕ Add to Portfolio**
 
-> Note: modifying the quantity in the portfolio table does **not** change your cost basis (Total Investment). It only
-> updates the quantity count.
+> Modifying quantity directly in the table updates the count but does **not** change your cost basis.
 
-### Portfolio Table
+### Portfolio Table Columns
 
-Each bond row shows: ISIN, Issuer, Price, Currency, Rating, Quantity, Investment, Maturity, **Yield (net%)**, **SAY (net%)**, **Tax %**, Profit, and a toggle to include/exclude the bond from statistics.
+ISIN · Issuer · Price (€) · Currency · Rating · Qty · Investment (€) · Maturity · **Yield net%** · **SAY net%** · **Tax %** · Profit · **Σ toggle**
 
-Yield and SAY are always shown **net of withholding tax** as configured in `tax-rates.yaml` and editable per bond in the
-**Tax %** column. Changing the tax rate instantly recalculates Yield, SAY, and all statistics.
+The **Σ toggle** includes or excludes a bond from all statistics and calendars without removing it from the table.
 
-> Profit = current market value − cost basis. It reflects price movements only and is not affected by taxation.
+### Toolbar
+
+| Button | Action |
+|---|---|
+| **↑ CSV** | Export portfolio to CSV |
+| **↓ CSV** | Import a saved CSV with current prices |
+| **PDF icon** | Export full PDF report |
+| **🗑** | Clear portfolio |
 
 ### Portfolio Statistics
 
-| Statistic                  | What It Means                                                       |
-|----------------------------|---------------------------------------------------------------------|
-| **Total Investment**       | Original euros committed (cost basis)                               |
-| **Avg Price**              | Weighted average purchase price across the portfolio                |
-| **Weighted SAY (gross)**   | Portfolio average annual total return before withholding tax        |
-| **Weighted SAY (net)**     | Portfolio average annual total return after withholding tax         |
-| **Weighted Yield (gross)** | Portfolio average annual income yield before withholding tax        |
-| **Weighted Yield (net)**   | Portfolio average annual income yield after withholding tax         |
-| **Avg Coupon**             | Weighted average interest rate                                      |
-| **Bond Count**             | Number of distinct bonds                                            |
-| **Avg Risk (Maturity)**    | Weighted average years to maturity                                  |
-| **Weighted Rating**        | Average credit quality                                              |
-| **Total Profit**           | Current market value minus cost basis (price movement only)         |
-| **Coupon Income (net)**    | Estimated annual coupon income in EUR, after withholding tax        |
-
-SAY and Current Yield are always recalculated from live price data — they never use stale cached values.
+| Statistic | What It Means |
+|---|---|
+| **Total Investment** | Original euros committed (cost basis) |
+| **Avg Price** | Weighted average purchase price |
+| **Weighted SAY (gross/net)** | Annualized total return before/after withholding tax |
+| **Weighted Yield (gross/net)** | Annual income yield before/after withholding tax |
+| **Avg Coupon** | Weighted average coupon rate |
+| **Bond Count** | Number of distinct bonds |
+| **Avg Risk (Maturity)** | Weighted average years to maturity |
+| **Weighted Rating** | Average credit quality |
+| **Total Profit** | Market value minus cost basis (price movement only) |
+| **Coupon Income (net)** | Estimated annual EUR coupon income after withholding tax |
 
 ### Statistics Card Colour Coding
 
-Each statistic card changes colour automatically to signal portfolio health at a glance.
-
-**Static (always blue):** Total Investment, Bond Count, Coupon Income — these depend on portfolio size and have no universal risk threshold.
-
-**Dynamic cards:**
-
 | Card | 🟢 Green | 🟡 Yellow | 🔴 Red |
 |---|---|---|---|
-| **Weighted SAY (gross/net)** | ≥ 3.5% | 2.0 – 3.5% | < 2.0% |
+| **Weighted SAY (gross/net)** | ≥ 3.5 | 2.0 – 3.5 | < 2.0 |
 | **Weighted Yield (gross/net)** | ≥ 3.0% | 1.5 – 3.0% | < 1.5% |
 | **Avg Coupon** | ≥ 3.0% | 1.5 – 3.0% | < 1.5% |
 | **Avg Risk (Maturity)** | ≤ 7 years | 7 – 15 years | > 15 years |
@@ -243,21 +293,32 @@ Each statistic card changes colour automatically to signal portfolio health at a
 | **Weighted Rating** | AAA – A− | BBB+ – BBB− | BB+ and below |
 | **Total Profit** | ≥ 0 | < 0 | — |
 
-> Avg Price above 110 signals a guaranteed capital loss at maturity that weighs on SAY. Above 120, the impact is material.
+> Avg Price above 110 signals a guaranteed capital loss at maturity. Above 120, the impact on SAY is material.
+
+### PDF Export
+
+The PDF (landscape A4) contains:
+
+1. Portfolio table with color-coded profit
+2. Portfolio statistics (3-column summary)
+3. Currency breakdown — investment and % share per currency
+4. Dividend Calendar bar chart — net coupon income per month, next 12 months
+5. Maturity Calendar table — capital returned and gain/loss per bond
+
+Filename: `BondFX-Portfolio-YYYY-MM-DD.pdf`
 
 ### Saving and Loading
 
-**Export (📥):** Downloads as CSV including the Tax % per bond. SAY and Yield are not exported (recalculated on import).
+**↑ CSV:** Exports ISIN, issuer, quantity, investment, coupon, rating, currency, maturity, and tax rate.
 
-**Import (📤):** Reloads a saved CSV with current prices, restores saved tax rates, and shows what changed:
+**↓ CSV:** Reloads a saved portfolio with current live prices and shows the diff:
 
 ```
 XS2571924070 (Romania):  €96.50 → €98.75  ↑ +€2.25
 US0000000001 (USA):     €105.00 → €103.50  ↓ −€1.50
 ```
 
-> Old CSV files without a TaxRate column are supported — the tax rate will be assigned from `tax-rates.yaml` defaults
-> on import.
+> CSV files exported without a TaxRate column are supported — missing rates are assigned from `tax-rates.yaml` defaults.
 
 ---
 
@@ -265,14 +326,9 @@ US0000000001 (USA):     €105.00 → €103.50  ↓ −€1.50
 
 [↑ Top](#top)
 
-The **Dividend Calendar** shows estimated net coupon income per month for the next 12 months across your entire
-portfolio, displayed as a bar chart.
+Shows estimated **net coupon income per month** for the next 12 months across your portfolio as a bar chart. Each bar is the total EUR-equivalent income expected that month after withholding tax. Non-EUR bonds are converted at the current FX rate.
 
-Each bar represents the total EUR-equivalent coupon income expected in that month, **after withholding tax**. Non-EUR
-bonds are converted using the current FX rate. If a bond's tax rate is set to 100%, it contributes €0 to the calendar.
-
-Payment months are determined by the bond's maturity month and its coupon frequency (annual, semi-annual, or quarterly).
-Frequency is configured automatically by issuer country — see [Coupon Frequency Configuration](#coupon-frequency-configuration).
+Payment months are derived from each bond's maturity month and coupon frequency — see [Coupon Frequency Configuration](#coupon-frequency-configuration).
 
 ---
 
@@ -280,12 +336,12 @@ Frequency is configured automatically by issuer country — see [Coupon Frequenc
 
 [↑ Top](#top)
 
-The **Maturity Calendar** lists every bond in your portfolio sorted by maturity date, showing:
+Lists every portfolio bond sorted by maturity date:
 
-- **Face value returned** at maturity (in original currency for non-EUR bonds, with EUR equivalent)
-- **Capital gain/loss** = face value minus your cost basis (green if positive, red if negative)
+- **Capital returned** — face value × quantity (original currency for non-EUR, with EUR equivalent)
+- **Capital gain/loss** — face value minus cost basis, green if positive, red if negative
 
-This lets you plan future cash flows and see at a glance which bonds will repay capital and when.
+Use this to plan future cash flows and identify which bonds will repay capital and when.
 
 ---
 
@@ -293,11 +349,10 @@ This lets you plan future cash flows and see at a glance which bonds will repay 
 
 [↑ Top](#top)
 
-Toggle in the legend section at the bottom of the page.
+Toggle in the legend at the bottom of the main page.
 
-**Capital Gain Mode (Default)** — focuses on SAY. Best for growth investors.
-
-**Income Mode** — focuses on Current Yield. Best for retirees living off coupons.
+- **Capital Gain Mode (default)** — heatmap colors rows by SAY. Best for growth investors.
+- **Income Mode** — heatmap colors rows by Current Yield. Best for income-focused investors.
 
 ---
 
@@ -305,14 +360,14 @@ Toggle in the legend section at the bottom of the page.
 
 [↑ Top](#top)
 
-Create your own strategies by uploading a YAML file via **📁 Import YAML**:
+Upload a YAML file via **📁 Import YAML** to add your own preset strategy buttons:
 
 ```yaml
 profiles:
   - id: myConservative
-    label: My Conservative Strategy
+    label: My Conservative
     emoji: "🛡️"
-    description: Investment-grade bonds, 3–7 years, minimum 3% yield
+    description: IG bonds, 3–7 years, SAY ≥ 3%
     profileType: SAY
     sortedBy: SAY
     filters:
@@ -325,14 +380,14 @@ profiles:
 
 ### Available Filter Fields
 
-| Field         | Type   | Description                                     |
-|---------------|--------|-------------------------------------------------|
-| `minMatYears` | number | Minimum years to maturity                       |
-| `maxMatYears` | number | Maximum years to maturity                       |
-| `minRating`   | string | Minimum credit rating (e.g. `BBB-`, `A`, `AA-`) |
-| `minYield`    | number | Minimum current yield %                         |
-| `minSAY`      | number | Minimum SAY %                                   |
-| `maxPrice`    | number | Maximum price in EUR                            |
+| Field | Type | Description |
+|---|---|---|
+| `minMatYears` | number | Minimum years to maturity |
+| `maxMatYears` | number | Maximum years to maturity |
+| `minRating` | string | Minimum credit rating (e.g. `BBB-`, `A`, `AA-`) |
+| `minYield` | number | Minimum current yield % |
+| `minSAY` | number | Minimum SAY |
+| `maxPrice` | number | Maximum price in EUR |
 
 ---
 
@@ -340,21 +395,21 @@ profiles:
 
 [↑ Top](#top)
 
-The Dividend Calendar needs to know how many times per year each bond pays its coupon. This is configured in
-`src/main/resources/coupon-frequency.yaml` on the server.
+Configure in `src/main/resources/coupon-frequency.yaml`.
 
 ### Default Rules
 
-| Issuer Country | Frequency   | Payments/Year |
-|----------------|-------------|---------------|
-| Italy          | Semi-annual | 2             |
-| USA            | Semi-annual | 2             |
-| All others     | Annual      | 1             |
+| Issuer / ISIN Prefix | Frequency | Payments/Year |
+|---|---|---|
+| IT prefix | Semi-annual | 2 |
+| US prefix | Semi-annual | 2 |
+| XS prefix | Semi-annual | 2 |
+| All others | Annual | 1 |
 
 ### File Structure
 
 ```yaml
-defaultFrequency: ANNUAL   # fallback for all unmatched ISINs
+defaultFrequency: ANNUAL
 
 prefixes:
   - prefix: "IT"
@@ -364,23 +419,16 @@ prefixes:
   - prefix: "US"
     frequency: SEMI_ANNUAL
 
-exceptions:          # exact ISIN overrides — highest priority
+exceptions:
   - isin: "IT0005534060"
     frequency: ANNUAL
-  - isin: "IT0005534061,IT0005534062"   # comma-separated ISINs supported
+  - isin: "IT0005534061,IT0005534062"
     frequency: ANNUAL
   - isin: "US912828ZT91"
     frequency: QUARTERLY
 ```
 
-### Supported Frequencies
-
-- `ANNUAL` — 1 payment per year
-- `SEMI_ANNUAL` — 2 payments per year (every 6 months)
-- `QUARTERLY` — 4 payments per year
-
-To add an exception for a specific bond, add it under `exceptions` and redeploy. The YAML is read at startup — no code
-changes required.
+Supported values: `ANNUAL`, `SEMI_ANNUAL`, `QUARTERLY`.
 
 ---
 
@@ -388,41 +436,32 @@ changes required.
 
 [↑ Top](#top)
 
-Withholding tax at source on coupon income is configured in `src/main/resources/tax-rates.yaml`. Rates are applied
-automatically when a bond is added to the portfolio and can be overridden manually per bond in the **Tax %** column.
+Configure in `src/main/resources/tax-rates.yaml`.
 
-> **Important:** these rates model withholding tax at source only (deducted by the issuing country). Tax on capital
-> gains and any additional taxation in your country of residence are not modelled.
+> These rates model **withholding tax at source only**. Capital gains tax and any additional tax in your country of residence are not modelled.
 
 ### Resolution Order
 
-1. **ISIN exception** — exact match, highest priority
-2. **Country** — matched against the normalized issuer name
-3. **Default** — 0% if no rule matches
+1. ISIN exception — exact match, highest priority
+2. Country — matched against normalized issuer name
+3. Default rate — 0% if no rule matches
 
-This means a BTP issued with an `XS` ISIN (e.g. listed on Euronext) is still correctly taxed at 12.5% because the
-match is on the **issuer country** (Italy), not the ISIN prefix.
+### Default Country Rates
 
-### Default Country Rules
-
-| Country     | Withholding Tax |
-|-------------|-----------------|
-| Italy       | 12.5%           |
-| USA         | 15.0%           |
-| Spain       | 19.0%           |
-| Greece      | 15.0%           |
-| Belgium     | 30.0%           |
-| Ireland     | 20.0%           |
-| Romania     | 10.0%           |
-| Hungary     | 15.0%           |
-| Turkey      | 10.0%           |
-| Brazil      | 15.0%           |
-| Germany     | 0.0%            |
-| France      | 0.0%            |
-| Austria     | 0.0%            |
-| Netherlands | 0.0%            |
-| Portugal    | 0.0%            |
-| All others  | 0.0%            |
+| Country | Withholding Tax |
+|---|---|
+| Italy | 12.5% |
+| USA | 15.0% |
+| Spain | 19.0% |
+| Greece | 15.0% |
+| Belgium | 30.0% |
+| Ireland | 20.0% |
+| Romania | 10.0% |
+| Hungary | 15.0% |
+| Turkey | 10.0% |
+| Brazil | 15.0% |
+| Germany, France, Austria, Netherlands, Portugal | 0.0% |
+| All others | 0.0% |
 
 ### File Structure
 
@@ -430,19 +469,17 @@ match is on the **issuer country** (Italy), not the ISIN prefix.
 defaultRate: 0.0
 
 countries:
-  - country: "ITALIA"      # must match CountryNormalizer internal name
+  - country: "ITALIA"
     rate: 12.5
   - country: "USA"
     rate: 15.0
 
-exceptions:                        # ISIN overrides — highest priority
-  - isin: "XS1234567890"           # single ISIN
+exceptions:
+  - isin: "XS1234567890"
     rate: 12.5
-  - isin: "XS0001,XS0002,XS0003"  # comma-separated ISINs
+  - isin: "XS0001,XS0002,XS0003"
     rate: 0.0
 ```
-
-To change a rate or add an exception, edit the YAML and redeploy. No code changes required.
 
 ---
 
@@ -450,21 +487,21 @@ To change a rate or add an exception, edit the YAML and redeploy. No code change
 
 [↑ Top](#top)
 
-**Search does not find a bond** — The ISIN must be exact. Copy-paste from the table.
+**Search does not find a bond** — ISIN must be exact. Copy-paste from the table.
 
-**Filters do not work** — Click **🧹 Reset** or reload the page to clear all filters.
+**Filters do not reset** — Click 🧹 Clear column filters or reload the page.
 
-**Numbers look wrong** — Confirm you are in the correct analysis mode (Capital Gain vs Income). FX values use rates at
-the time of the last data refresh.
+**Wishlist alerts not triggering** — Reload the page; alerts are evaluated at page load. Click ★ again to verify thresholds.
 
-**Dividend Calendar shows wrong months** — The coupon frequency for that bond's issuer country may be incorrect. Add an
-exception in `coupon-frequency.yaml`.
+**Wishlist empty after reload** — Local storage was cleared (private browsing or browser settings). Re-add alerts.
 
-**Dividend Calendar income seems too low** — Check the Tax % column for that bond. Withholding tax is applied to coupon
-income before it appears in the calendar.
+**Dividend Calendar shows wrong months** — Coupon frequency for that country may be incorrect. Add an exception in `coupon-frequency.yaml`.
 
-**Data is outdated** — The timestamp and age indicator (🟢/🟡/🔴) at the top of the page show when data was last loaded.
-Reload the page to fetch fresh data.
+**Dividend Calendar income too low** — Check the Tax % column; withholding tax reduces income before it appears in the calendar.
+
+**PDF export shows no data** — Portfolio must not be empty and at least one bond must have Σ enabled.
+
+**Data is outdated** — The age indicator (🟢/🟡/🔴) at the top shows freshness. Reload to fetch current data.
 
 ---
 
@@ -474,41 +511,36 @@ Reload the page to fetch fresh data.
 
 **Which preset should I use?**
 
-1. Need money back within 2 years? → **Cash Parking**
-2. Retired, need regular income? → **Max Income**
-3. Want maximum safety? → **AAA/AA Fortress**
-4. Want long-term growth? → **Balanced Core**
-5. Comfortable with higher risk? → **Deep Discount**
+- Money needed within 2 years → **Cash Parking**
+- Maximum safety → **AAA/AA Fortress**
+- Long-term balanced growth → **Balanced Core**
+- Regular income in retirement → **Retirement Income** or **Max Income**
+- Higher risk, higher return → **Deep Discount** or **Ultra Short High**
+- Expecting interest rate cuts → **Long Quality**
 
 **Should I always buy the highest SAY bond?**
 
-Not necessarily. Very high SAY often signals lower credit rating, non-EUR currency risk, or very long maturity. A
-diversified portfolio of 5–10 bonds across countries, ratings, and maturities delivers better risk-adjusted returns.
+Not necessarily. Very high SAY often signals lower credit rating, non-EUR currency risk, or very long maturity. A diversified portfolio of 5–10 bonds across countries, ratings, and maturities typically delivers better risk-adjusted returns.
+
+**What is the difference between SAY and Current Yield?**
+
+Current Yield measures only annual coupon income relative to purchase price. SAY also accounts for the capital gain or loss from buying above or below face value, amortized over the years to maturity. For bonds trading far from par, SAY is the more meaningful metric.
 
 **How often is data updated?**
 
-Data is refreshed on every page load. The timestamp and age indicator at the top show exactly how fresh your current
-view is. Reload the page to get the latest data.
+On every page load. The timestamp and age indicator at the top show exactly how fresh the data is.
 
 **Can I use this on mobile?**
 
-Yes — the report is fully responsive for portrait and landscape on all screen sizes.
+Yes. The table adapts for mobile: flag instead of country name, year-only maturity, abbreviated headers. The Portfolio Analyzer is a full-page view that works well on mobile too.
 
 **What does a price above 100 mean?**
 
-You pay more than face value and will receive exactly 100 at maturity — a built-in capital loss. If the coupon
-compensates for this over the holding period, SAY can still be positive. Always check the SAY column.
-
-**Why does my Dividend Calendar show income in unexpected months?**
-
-Payment months are derived from the bond's maturity month. For example, a bond maturing in March with semi-annual
-payments will pay in March and September. If this does not match the actual schedule, add a coupon frequency exception
-in `coupon-frequency.yaml`.
+You pay more than face value and receive exactly 100 at maturity — a built-in capital loss. If the coupon income compensates over the holding period, SAY can still be positive. Always verify the SAY column.
 
 **Why is my net SAY lower than expected?**
 
-Check the Tax % column in the portfolio table. The default rates come from `tax-rates.yaml` based on the issuer country.
-You can override the rate directly in the table — changes take effect immediately.
+Check the Tax % column. Default rates come from `tax-rates.yaml` by issuer country. Override per bond directly in the table — changes take effect immediately.
 
 ---
 
@@ -517,19 +549,18 @@ You can override the rate directly in the table — changes take effect immediat
 [↑ Top](#top)
 
 1. Click **⚖️ Balanced Core**
-2. Sort by **SAY** (highest first)
-3. Pick 5 bonds from different countries
-4. Click **🎯 Portfolio Analyzer**
-5. Add each bond with your intended investment amount
-6. Check **Weighted SAY (net)** and **Weighted Rating**
-7. Review tax rates in the **Tax %** column and adjust if needed
-8. Review the **Dividend Calendar** for expected monthly net income
+2. Sort by **SAY** descending
+3. Click **＋** on 5 bonds from different countries
+4. Open 🛒 and click **Open in Portfolio Analyzer**
+5. Click each basket chip, enter investment amount, click ➕ Add
+6. Review **Weighted SAY (net)** and **Weighted Rating**
+7. Adjust **Tax %** per bond if needed
+8. Review the **Dividend Calendar** for expected monthly income
 9. Review the **Maturity Calendar** for capital repayment timeline
-10. Confirm **Currency Breakdown** is acceptable
-11. Click **📥 Export CSV** to save your portfolio
+10. Click **↑ CSV** to save your portfolio
 
-Set a quarterly reminder to reimport the CSV and review price changes.
+Set a quarterly reminder to re-import the CSV and review price changes.
 
 ---
 
-*Last updated: February 2026 — BondFX v3*
+*Last updated: February 2026 — BondFX v3.0*
