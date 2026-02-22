@@ -160,6 +160,8 @@ function filterTable() {
 
     applyHeatmap();
     syncBasketButtons();
+    checkWishlistAlerts();
+    syncWishlistButtons();
 }
 
 function clearColumnFilters() {
@@ -776,13 +778,212 @@ function goToAnalyzer() {
     window.location.href = '/analyzer';
 }
 
+
+/* =======================
+   WISHLIST
+======================= */
+let wishlist = JSON.parse(localStorage.getItem('bondWishlist') || '[]');
+let _wishlistDialogData = null; // { isin, issuer, price, say }
+
+function saveWishlistData() {
+    localStorage.setItem('bondWishlist', JSON.stringify(wishlist));
+}
+
+function openWishlistDialog(btn) {
+    _wishlistDialogData = {
+        isin:   btn.dataset.isin,
+        issuer: btn.dataset.issuer,
+        price:  parseFloat((btn.dataset.price || '0').replace(',', '.')),
+        say:    parseFloat((btn.dataset.say   || '0').replace(',', '.'))
+    };
+    // Pre-fill if already in wishlist
+    const existing = wishlist.find(w => w.isin === _wishlistDialogData.isin);
+    document.getElementById('wishlistDialogTitle').textContent =
+        _wishlistDialogData.issuer + ' (' + _wishlistDialogData.isin + ')  —  Price: ' +
+        _wishlistDialogData.price.toFixed(2) + '  SAY: ' + _wishlistDialogData.say.toFixed(2) + '%';
+    document.getElementById('wlPriceCheck').checked = !!(existing?.targetPrice);
+    document.getElementById('wlPriceVal').value   = existing?.targetPrice ?? '';
+    document.getElementById('wlSayCheck').checked  = !!(existing?.targetSay);
+    document.getElementById('wlSayVal').value    = existing?.targetSay ?? '';
+    document.getElementById('wishlistDialog').style.display = 'flex';
+}
+
+function closeWishlistDialog(e) {
+    if (e.target === document.getElementById('wishlistDialog')) closeWishlistDialogDirect();
+}
+function closeWishlistDialogDirect() {
+    document.getElementById('wishlistDialog').style.display = 'none';
+    _wishlistDialogData = null;
+}
+
+function saveWishlistItem() {
+    if (!_wishlistDialogData) return;
+    const priceCheck = document.getElementById('wlPriceCheck').checked;
+    const sayCheck   = document.getElementById('wlSayCheck').checked;
+    const priceVal   = parseFloat(document.getElementById('wlPriceVal').value);
+    const sayVal     = parseFloat(document.getElementById('wlSayVal').value);
+
+    if (!priceCheck && !sayCheck) {
+        alert('Please enable at least one criterion.');
+        return;
+    }
+    if (priceCheck && isNaN(priceVal)) {
+        alert('Please enter a valid price threshold.');
+        return;
+    }
+    if (sayCheck && isNaN(sayVal)) {
+        alert('Please enter a valid SAY threshold.');
+        return;
+    }
+
+    // Remove existing entry for same ISIN
+    wishlist = wishlist.filter(w => w.isin !== _wishlistDialogData.isin);
+    wishlist.push({
+        isin:        _wishlistDialogData.isin,
+        issuer:      _wishlistDialogData.issuer,
+        targetPrice: priceCheck ? priceVal : null,
+        targetSay:   sayCheck  ? sayVal   : null
+    });
+    saveWishlistData();
+    closeWishlistDialogDirect();
+    checkWishlistAlerts();   // re-evaluate immediately
+    renderWishlist();
+    syncWishlistButtons();
+}
+
+function removeFromWishlist(isin) {
+    wishlist = wishlist.filter(w => w.isin !== isin);
+    saveWishlistData();
+    renderWishlist();
+    syncWishlistButtons();
+    setTimeout(() => {
+        const el = document.getElementById('wishlistDropdown');
+        if (el) el.style.display = 'block';
+    }, 0);
+}
+
+function moveWishlistToBasket(isin) {
+    // Find current price/data from table row
+    const row = document.querySelector(`tr[data-isin="${isin}"]`);
+    if (row) {
+        const btn = row.querySelector('.add-to-basket-btn');
+        if (btn) addToBasket(btn);
+    }
+    removeFromWishlist(isin);
+}
+
+function clearWishlist() {
+    wishlist = [];
+    saveWishlistData();
+    renderWishlist();
+    syncWishlistButtons();
+    document.getElementById('wishlistDropdown').style.display = 'none';
+}
+
+function toggleWishlistDropdown() {
+    const dd = document.getElementById('wishlistDropdown');
+    dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
+}
+
+// Close wishlist dropdown when clicking outside
+document.addEventListener('click', e => {
+    const widget = document.getElementById('wishlistWidget');
+    if (widget && !widget.contains(e.target)) {
+        const dd = document.getElementById('wishlistDropdown');
+        if (dd) dd.style.display = 'none';
+    }
+});
+
+function checkWishlistAlerts() {
+    if (wishlist.length === 0) {
+        stopWishlistPulse();
+        return;
+    }
+    let anyTriggered = false;
+    wishlist.forEach(item => {
+        const row = document.querySelector(`tr[data-isin="${item.isin}"]`);
+        if (!row) return;
+        const currentPrice = parseFloat((row.cells[COL.PRICE_R]?.innerText || '999').replace(',', '.').replace(/[^0-9.-]/g, ''));
+        const currentSay   = parseFloat(row.cells[COL.SAY]?.innerText?.replace(',', '.') || '0');
+
+        const priceOk = item.targetPrice !== null && currentPrice <= item.targetPrice;
+        const sayOk   = item.targetSay   !== null && currentSay   >= item.targetSay;
+        item._priceTriggered = priceOk;
+        item._sayTriggered   = sayOk;
+
+        if (priceOk || sayOk) anyTriggered = true;
+    });
+
+    if (anyTriggered) startWishlistPulse();
+    else              stopWishlistPulse();
+}
+
+function startWishlistPulse() {
+    document.getElementById('wishlistIcon')?.classList.add('wishlist-pulse');
+    document.getElementById('wishlistBtn')?.classList.add('wishlist-triggered');
+}
+function stopWishlistPulse() {
+    document.getElementById('wishlistIcon')?.classList.remove('wishlist-pulse');
+    document.getElementById('wishlistBtn')?.classList.remove('wishlist-triggered');
+}
+
+function renderWishlist() {
+    const countEl = document.getElementById('wishlistCount');
+    const itemsEl = document.getElementById('wishlistItems');
+    if (!countEl || !itemsEl) return;
+
+    if (wishlist.length === 0) {
+        countEl.style.display = 'none';
+        itemsEl.innerHTML = '<p class="basket-empty">No alerts set.<br>Click ★ on any row.</p>';
+        return;
+    }
+    countEl.style.display = 'inline-flex';
+    countEl.textContent = wishlist.length;
+
+    itemsEl.innerHTML = wishlist.map(item => {
+        const triggered = item._priceTriggered || item._sayTriggered;
+        const criteria = [];
+        if (item.targetPrice !== null) {
+            const ok = item._priceTriggered;
+            criteria.push(`<span class="wl-criterion${ok ? ' wl-ok' : ''}">Price ≤ ${item.targetPrice.toFixed(2)}${ok ? ' ✓' : ''}</span>`);
+        }
+        if (item.targetSay !== null) {
+            const ok = item._sayTriggered;
+            criteria.push(`<span class="wl-criterion${ok ? ' wl-ok' : ''}">SAY ≥ ${item.targetSay.toFixed(2)}%${ok ? ' ✓' : ''}</span>`);
+        }
+        return `<div class="basket-item${triggered ? ' wl-triggered' : ''}">
+            <div style="flex:1;min-width:0;">
+                <div class="basket-item__label">${flagFor(item.issuer)} ${item.issuer}</div>
+                <div class="wl-criteria">${criteria.join(' ')}</div>
+                <div class="wl-actions">
+                    <button class="wl-move-btn" onclick="moveWishlistToBasket('${item.isin}')" title="Move to basket">→ Basket</button>
+                    <button class="basket-item__remove" onclick="removeFromWishlist('${item.isin}')" title="Remove">✕</button>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+
+    if (typeof twemoji !== 'undefined') twemoji.parse(itemsEl);
+}
+
+function syncWishlistButtons() {
+    document.querySelectorAll('.add-to-wishlist-btn').forEach(btn => {
+        const isin = btn.dataset.isin;
+        const inWl = !!wishlist.find(w => w.isin === isin);
+        btn.classList.toggle('in-wishlist', inWl);
+        btn.textContent = inWl ? '★' : '★';  // always star, color via CSS
+    });
+}
 /* =======================
    INITIALIZATION
 ======================= */
 document.addEventListener("DOMContentLoaded", () => {
     setDefaultMaturityFilters();
     applyPreset("cashParking");
-    renderBasket(); // also calls syncBasketButtons
+    renderBasket();           // also calls syncBasketButtons
+    renderWishlist();         // render wishlist from localStorage
+    syncWishlistButtons();    // restore ★ state on all rows
+    checkWishlistAlerts();    // check thresholds and pulse if needed
     // Parse emoji once after page load (covers flag column in table)
     if (typeof twemoji !== 'undefined') {
       document

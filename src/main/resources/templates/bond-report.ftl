@@ -26,6 +26,22 @@
     <span class="page-title__meta" id="pageMeta">— 📅 <span id="generatedAtLocal"></span> <span id="dataAge"></span></span>
     <span id="generatedAtMs" style="display:none">${generatedAtMs?c}</span>
     <div class="page-title__actions">
+        <!-- Wishlist widget -->
+        <div class="basket-widget" id="wishlistWidget">
+            <button class="basket-btn wishlist-btn" id="wishlistBtn" onclick="toggleWishlistDropdown()" title="Price/SAY alerts">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="wishlistIcon">
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                </svg>
+                <span class="basket-count wishlist-count" id="wishlistCount" style="display:none">0</span>
+            </button>
+            <div class="basket-dropdown" id="wishlistDropdown" style="display:none">
+                <div class="basket-dropdown__header">
+                    <span>⭐ Wishlist</span>
+                    <button onclick="clearWishlist()" class="basket-clear-btn">Clear all</button>
+                </div>
+                <div id="wishlistItems" class="basket-items"></div>
+            </div>
+        </div>
         <!-- Basket widget -->
         <div class="basket-widget" id="basketWidget">
             <button class="basket-btn" id="basketBtn" onclick="toggleBasketDropdown()" title="Bond basket">
@@ -128,7 +144,7 @@
 <table id="bondTable">
     <thead>
     <tr>
-        <th class="col-add" title="Add to basket"></th>
+        <th class="col-add" title="Add to basket / wishlist"></th>
         <th onclick="sortTable(COL.ISIN)">ISIN<span class="arrow"></span><br>
             <input id="filterIsin" type="text" placeholder="e.g. US900123AT75"
                    onclick="event.stopPropagation()" oninput="filterTable()">
@@ -199,13 +215,22 @@
     <#list bonds as b>
     <tr data-isin="${b.getIsin()}" data-issuer="${b.getIssuer()}" data-coupon="${b.getCouponPct()?string["0.00"]}" data-maturity="${b.getMaturity()}">
         <td class="col-add">
-            <button class="add-to-basket-btn"
-                    data-isin="${b.getIsin()}"
-                    data-issuer="${b.getIssuer()}"
-                    data-coupon="${b.getCouponPct()?string["0.00"]}"
-                    data-maturity="${b.getMaturity()}"
-                    onclick="addToBasket(this)"
-                    title="Add to basket">＋</button>
+            <div class="col-add-inner">
+                <button class="add-to-wishlist-btn"
+                        data-isin="${b.getIsin()}"
+                        data-issuer="${b.getIssuer()}"
+                        data-price="${b.getPriceEur()?string.computer}"
+                        data-say="${b.getSimpleAnnualYield()?string.computer}"
+                        onclick="openWishlistDialog(this)"
+                        title="Add alert">★</button>
+                <button class="add-to-basket-btn"
+                        data-isin="${b.getIsin()}"
+                        data-issuer="${b.getIssuer()}"
+                        data-coupon="${b.getCouponPct()?string.computer}"
+                        data-maturity="${b.getMaturity()}"
+                        onclick="addToBasket(this)"
+                        title="Add to basket">＋</button>
+            </div>
         </td>
         <td>${b.getIsin()}</td>
         <td class="td-issuer">
@@ -266,6 +291,31 @@
 </div>
 
 <!-- Portfolio Analyzer is now at /analyzer -->
+
+<!-- Wishlist Dialog -->
+<div id="wishlistDialog" class="wishlist-dialog-backdrop" style="display:none" onclick="closeWishlistDialog(event)">
+    <div class="wishlist-dialog">
+        <div class="wishlist-dialog__header">
+            <span>⭐ Set Alert</span>
+            <button onclick="closeWishlistDialogDirect()" class="info-modal__close">✕</button>
+        </div>
+        <div class="wishlist-dialog__body">
+            <p id="wishlistDialogTitle" style="font-weight:600;margin:0 0 12px;font-size:13px;"></p>
+            <label class="wishlist-label">
+                <input type="checkbox" id="wlPriceCheck"> Alert when Price ≤
+                <input type="number" id="wlPriceVal" step="0.01" class="wishlist-input" placeholder="e.g. 95.00">
+            </label>
+            <label class="wishlist-label">
+                <input type="checkbox" id="wlSayCheck"> Alert when SAY ≥
+                <input type="number" id="wlSayVal" step="0.01" class="wishlist-input" placeholder="e.g. 4.50">
+            </label>
+            <p style="font-size:11px;color:#999;margin:8px 0 0;">At least one criterion required.</p>
+        </div>
+        <div class="wishlist-dialog__footer">
+            <button onclick="saveWishlistItem()" class="basket-open-analyzer-btn">✓ Save Alert</button>
+        </div>
+    </div>
+</div>
 
 <!-- Footer -->
 <footer class="page-footer">

@@ -453,10 +453,23 @@ h2.page-title {
 
 /* ─── ADD TO BASKET COLUMN ──────────────────────────────────────────────────── */
 th.col-add, td.col-add {
-    width: 32px;
-    min-width: 32px;
-    padding: 0 4px;
+    width: 46px;
+    min-width: 46px;
+    padding: 0 3px;
     text-align: center;
+    white-space: nowrap;
+}
+
+/* Both buttons side-by-side, no vertical space added */
+td.col-add {
+    display: table-cell;
+    vertical-align: middle;
+}
+
+.col-add-inner {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
 }
 
 .add-to-basket-btn {
@@ -464,9 +477,9 @@ th.col-add, td.col-add {
     border: 1.5px solid #1a73e8;
     color: #1a73e8;
     border-radius: 50%;
-    width: 24px;
-    height: 24px;
-    font-size: 16px;
+    width: 19px;
+    height: 19px;
+    font-size: 13px;
     line-height: 1;
     cursor: pointer;
     padding: 0;
@@ -474,6 +487,7 @@ th.col-add, td.col-add {
     align-items: center;
     justify-content: center;
     transition: background 0.12s, color 0.12s;
+    flex-shrink: 0;
 }
 .add-to-basket-btn:hover {
     background: #1a73e8;
@@ -486,10 +500,11 @@ th.col-add, td.col-add {
     align-items: center;
     gap: 8px;
     margin-left: auto;
+    position: relative;
 }
 
 .basket-widget {
-    position: relative;
+    /* position:relative removed — dropdowns now position relative to page-title__actions */
 }
 
 .basket-btn {
@@ -531,6 +546,19 @@ th.col-add, td.col-add {
     box-shadow: 0 4px 16px rgba(0,0,0,0.12);
     min-width: 280px;
     z-index: 1000;
+}
+
+/* Wishlist dropdown: anchored under the ★ button, offset from right of actions */
+#wishlistDropdown {
+    right: 104px;   /* basket(~60px) + info(~36px) + 2*gap(8px) */
+    left: auto;
+    transform: none;
+}
+
+@media (max-width: 480px) {
+    #wishlistDropdown {
+        right: 0;   /* on narrow screens align to right edge */
+    }
 }
 
 .basket-dropdown__header {
@@ -682,15 +710,201 @@ th.col-add, td.col-add {
         font-size: 12px;
     }
 
-    /* ➕ button smaller on mobile */
+    /* ➕★ buttons on mobile */
     .add-to-basket-btn {
-        width: 20px;
-        height: 20px;
-        font-size: 14px;
+        width: 17px;
+        height: 17px;
+        font-size: 11px;
     }
+    .add-to-wishlist-btn { font-size: 11px; }
     th.col-add, td.col-add {
-        width: 24px;
-        min-width: 24px;
+        width: 38px;
+        min-width: 38px;
         padding: 0 2px;
     }
+}
+
+/* ─── WISHLIST BUTTON (per row) ─────────────────────────────────────────────── */
+.add-to-wishlist-btn {
+    background: none;
+    border: none;
+    color: #bbb;
+    font-size: 13px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    transition: color 0.12s;
+}
+.add-to-wishlist-btn:hover { color: #f5a623; }
+.add-to-wishlist-btn.in-wishlist { color: #f5a623; }
+
+/* ─── WISHLIST ICON — pulse animation ───────────────────────────────────────── */
+.wishlist-btn { border-color: #f5a623 !important; }
+.wishlist-btn svg { stroke: #f5a623; }
+.wishlist-triggered { border-color: #e65c00 !important; }
+.wishlist-triggered svg { stroke: #e65c00; }
+
+@keyframes wishlist-pulse {
+    0%, 100% { transform: scale(1);   opacity: 1; }
+    50%       { transform: scale(1.3); opacity: 0.7; }
+}
+.wishlist-pulse { animation: wishlist-pulse 1s ease-in-out infinite; }
+
+/* ─── WISHLIST DROPDOWN ITEMS ────────────────────────────────────────────────── */
+.wl-triggered {
+    background: #f0fff4 !important;
+    border-left: 3px solid #2e7d32;
+}
+.wl-criteria {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 3px;
+}
+.wl-criterion {
+    font-size: 11px;
+    color: #666;
+    background: #f5f5f5;
+    border-radius: 4px;
+    padding: 1px 5px;
+}
+.wl-criterion.wl-ok {
+    color: #2e7d32;
+    background: #e8f5e9;
+    font-weight: 700;
+}
+.wl-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 4px;
+    align-items: center;
+}
+.wl-move-btn {
+    background: none;
+    border: 1px solid #1a73e8;
+    color: #1a73e8;
+    font-size: 11px;
+    border-radius: 4px;
+    padding: 1px 7px;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+}
+.wl-move-btn:hover { background: #1a73e8; color: #fff; }
+
+/* ─── WISHLIST DIALOG ────────────────────────────────────────────────────────── */
+.wishlist-dialog-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.wishlist-dialog {
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.22);
+    width: min(380px, 92vw);
+    overflow: hidden;
+}
+.wishlist-dialog__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: #f6f8fa;
+    border-bottom: 1px solid #e1e4e8;
+    font-weight: 700;
+    font-size: 14px;
+}
+.wishlist-dialog__body {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.wishlist-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    cursor: pointer;
+}
+.wishlist-input {
+    width: 90px;
+    padding: 4px 6px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 13px;
+}
+.wishlist-dialog__footer {
+    padding: 12px 16px;
+    border-top: 1px solid #eee;
+}
+
+/* ─── PORTFOLIO TOOLBAR ──────────────────────────────────────────────────────── */
+.portfolio-table-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.portfolio-action-btns {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+.btn-tool {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1.5px solid;
+    white-space: nowrap;
+    transition: background 0.12s, color 0.12s;
+}
+.btn-tool-export {
+    border-color: #1a73e8;
+    color: #1a73e8;
+    background: #fff;
+}
+.btn-tool-export:hover { background: #1a73e8; color: #fff; }
+
+.btn-tool-import {
+    border-color: #388e3c;
+    color: #388e3c;
+    background: #fff;
+}
+.btn-tool-import:hover { background: #388e3c; color: #fff; }
+
+.btn-tool-pdf {
+    border-color: #cc0000;
+    color: #cc0000;
+    background: #fff;
+    padding: 4px 8px;
+}
+.btn-tool-pdf:hover { background: #cc0000; color: #fff; }
+.btn-tool-pdf:hover svg rect[fill="#cc0000"] { fill: #fff; }
+
+.btn-tool-clear {
+    border-color: #999;
+    color: #666;
+    background: #fff;
+    padding: 5px 8px;
+}
+.btn-tool-clear:hover { background: #f44336; border-color: #f44336; color: #fff; }
+
+@media (max-width: 768px) {
+    .portfolio-table-toolbar { flex-direction: column; align-items: flex-start; }
+    .btn-tool span { display: none; } /* icon only on very small */
 }

@@ -1021,6 +1021,315 @@ class PortfolioAnalyzer {
         localStorage.setItem('bondPortfolio', JSON.stringify(this.portfolio));
     }
 
+
+    exportPDF() {
+        if (this.portfolio.length === 0) {
+            alert('Portfolio is empty');
+            return;
+        }
+
+        // Load jsPDF dynamically if not already loaded
+        const doExport = () => {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+            const pageW = doc.internal.pageSize.getWidth();
+            const pageH = doc.internal.pageSize.getHeight();
+            const margin = 12;
+
+            // ── Header ──
+            doc.setFillColor(26, 58, 92);
+            doc.rect(0, 0, pageW, 16, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(13);
+            doc.setFont('helvetica', 'bold');
+            doc.text('BondFX — Portfolio Report', margin, 11);
+            doc.setFontSize(8);
+            doc.setFont('helvetica', 'normal');
+            const _d = new Date();
+            const now = _d.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' })
+                + ' ' + _d.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' });
+            doc.text('Generated: ' + now, pageW - margin, 11, { align: 'right' });
+
+            // ── Portfolio table ──
+            doc.setTextColor(0, 0, 0);
+            const headers = ['ISIN', 'Issuer', 'Price €', 'Curr.', 'Rating', 'Qty', 'Invest. €',
+                             'Maturity', 'Yield%', 'SAY%', 'Tax%', 'Profit €'];
+            const colW    = [28, 28, 18, 12, 14, 12, 22, 22, 14, 14, 12, 18];
+            let y = 24;
+
+            // Header row
+            doc.setFillColor(240, 244, 250);
+            doc.rect(margin, y - 4, pageW - margin * 2, 7, 'F');
+            doc.setFontSize(7);
+            doc.setFont('helvetica', 'bold');
+            let x = margin;
+            headers.forEach((h, i) => {
+                doc.text(h, x + colW[i] / 2, y, { align: 'center' });
+                x += colW[i];
+            });
+            y += 5;
+
+            // Data rows
+            doc.setFont('helvetica', 'normal');
+            this.portfolio.forEach((bond, idx) => {
+                if (y > pageH - 40) {
+                    doc.addPage();
+                    y = 20;
+                }
+                if (idx % 2 === 0) {
+                    doc.setFillColor(250, 252, 255);
+                    doc.rect(margin, y - 3.5, pageW - margin * 2, 6, 'F');
+                }
+                const say = this.computeSAYNet(bond);
+                const yld = this.computeCurrentYieldNet(bond);
+                const profit = ((bond.priceEur ?? bond.price ?? 0) * bond.quantity) - (bond.totalEur ?? 0);
+                const row = [
+                    bond.isin,
+                    bond.issuer,
+                    (bond.priceEur ?? bond.price ?? 0).toFixed(2),
+                    bond.currency,
+                    bond.rating,
+                    bond.quantity.toFixed(2),
+                    (bond.totalEur ?? 0).toFixed(2),
+                    bond.maturity,
+                    yld.toFixed(2),
+                    say.toFixed(2),
+                    (bond.taxRate ?? 0).toFixed(1),
+                    profit.toFixed(2)
+                ];
+                x = margin;
+                row.forEach((val, i) => {
+                    doc.setFontSize(6.5);
+                    doc.text(String(val), x + colW[i] / 2, y, { align: 'center', maxWidth: colW[i] - 1 });
+                    x += colW[i];
+                });
+                // Profit color indicator
+                const profitNum = profit;
+                if (profitNum >= 0) doc.setTextColor(46, 125, 50);
+                else                doc.setTextColor(198, 40, 40);
+                x = margin + colW.slice(0, 11).reduce((a,b) => a + b, 0);
+                doc.text(profitNum.toFixed(2), x + colW[11] / 2, y, { align: 'center' });
+                doc.setTextColor(0, 0, 0);
+                y += 6;
+            });
+
+            // ── Statistics summary ──
+            y += 4;
+            if (y > pageH - 55) { doc.addPage(); y = 20; }
+
+            doc.setFillColor(26, 58, 92);
+            doc.rect(margin, y, pageW - margin * 2, 6, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(8);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Portfolio Statistics', margin + 3, y + 4);
+            y += 10;
+            doc.setTextColor(0, 0, 0);
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(8);
+
+            const totalInv = this.portfolio.reduce((s, b) => s + (b.totalEur ?? 0), 0);
+            const stats = [
+                ['Total Investment', '€' + totalInv.toFixed(2)],
+                ['Bond Count', this.portfolio.length],
+                ['Weighted SAY (gross)', document.getElementById('statWeightedSAY')?.textContent ?? '-'],
+                ['Weighted SAY (net)',   document.getElementById('statWeightedSAYNet')?.textContent ?? '-'],
+                ['Weighted Yield (net)', document.getElementById('statWeightedYieldNet')?.textContent ?? '-'],
+                ['Avg Risk (Maturity)',  document.getElementById('statWeightedRisk')?.textContent ?? '-'],
+                ['Weighted Rating',      document.getElementById('statWeightedRating')?.textContent ?? '-'],
+                ['Total Profit',         document.getElementById('statTotalProfit')?.textContent ?? '-'],
+                ['Coupon Income (net)',   document.getElementById('statTotalCouponIncome')?.textContent ?? '-'],
+            ];
+            const statColW = (pageW - margin * 2) / 3;
+            stats.forEach((s, i) => {
+                const col = i % 3;
+                const row = Math.floor(i / 3);
+                if (col === 0 && row > 0 && i > 0) y += 0;
+                const sx = margin + col * statColW;
+                const sy = y + row * 7;
+                doc.setFont('helvetica', 'bold');
+                doc.text(s[0] + ':', sx, sy);
+                doc.setFont('helvetica', 'normal');
+                doc.text(String(s[1]), sx + statColW * 0.55, sy);
+            });
+
+
+            // ── Currency Breakdown ──
+            const totalRows = Math.ceil(stats.length / 3);
+            y += totalRows * 7 + 10;
+            if (y > pageH - 40) { doc.addPage(); y = 20; }
+
+            doc.setFillColor(26, 58, 92);
+            doc.rect(margin, y, pageW - margin * 2, 6, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(8);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Currency Breakdown', margin + 3, y + 4);
+            y += 10;
+            doc.setTextColor(0, 0, 0);
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(8);
+
+            const totalInvCurr = this.portfolio.reduce((s, b) => s + (b.totalEur ?? 0), 0);
+            const byCurrency = {};
+            this.portfolio.forEach(b => {
+                const cur = b.currency || 'EUR';
+                if (!byCurrency[cur]) byCurrency[cur] = 0;
+                byCurrency[cur] += (b.totalEur ?? 0);
+            });
+            let cx = margin;
+            Object.entries(byCurrency).sort((a,b) => b[1]-a[1]).forEach(([cur, amt]) => {
+                const pct = totalInvCurr > 0 ? (amt / totalInvCurr * 100).toFixed(1) : '0.0';
+                doc.setFont('helvetica', 'bold');
+                doc.text(cur + ':', cx, y);
+                doc.setFont('helvetica', 'normal');
+                doc.text('€' + Math.round(amt).toLocaleString() + ' (' + pct + '%)', cx + 12, y);
+                cx += 55;
+                if (cx > pageW - margin - 50) { cx = margin; y += 7; }
+            });
+            y += 12;
+
+            // ── Dividend Calendar ──
+            if (y > pageH - 60) { doc.addPage(); y = 20; }
+            doc.setFillColor(26, 58, 92);
+            doc.rect(margin, y, pageW - margin * 2, 6, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(8);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Dividend Calendar — Next 12 Months (net coupon income, EUR)', margin + 3, y + 4);
+            y += 10;
+            doc.setTextColor(0, 0, 0);
+            doc.setFont('helvetica', 'normal');
+
+            // Rebuild month data (same logic as updateDividendCalendar)
+            const today2 = new Date();
+            const divMonths = [];
+            for (let i = 0; i < 12; i++) {
+                const d = new Date(today2.getFullYear(), today2.getMonth() + i, 1);
+                divMonths.push({ year: d.getFullYear(), month: d.getMonth(), income: 0,
+                    label: d.toLocaleString('default', { month: 'short', year: '2-digit' }) });
+            }
+            this.portfolio.filter(b => b.includeInStatistics).forEach(bond => {
+                const matDate = new Date(bond.maturity);
+                if (matDate <= today2) return;
+                const nominal = bond.nominal || 100;
+                const fxRate  = bond.currency !== 'EUR' ? (bond.priceEur / bond.price) : 1;
+                const annualNet = (bond.coupon / 100) * nominal * fxRate * bond.quantity * (1 - (bond.taxRate || 0) / 100);
+                const freq = bond.couponFrequency || 1;
+                const perPayment = annualNet / freq;
+                const intervalMonths = Math.round(12 / freq);
+                const refMonth = matDate.getMonth();
+                const payMonths = new Set();
+                for (let i = 0; i < freq; i++) payMonths.add((refMonth - i * intervalMonths + 120) % 12);
+                divMonths.forEach(bucket => {
+                    if (payMonths.has(bucket.month)) {
+                        const bd = new Date(bucket.year, bucket.month + 1, 0);
+                        if (bd <= matDate) bucket.income += perPayment;
+                    }
+                });
+            });
+
+            // Draw as bar chart in PDF: month labels + amounts in a grid
+            const colW12 = (pageW - margin * 2) / 12;
+            const maxIncome = Math.max(...divMonths.map(m => m.income), 1);
+            const barMaxH = 18;
+            divMonths.forEach((m, i) => {
+                const bx = margin + i * colW12;
+                const barH = m.income > 0 ? Math.max(2, (m.income / maxIncome) * barMaxH) : 0;
+                // bar
+                if (barH > 0) {
+                    doc.setFillColor(76, 175, 80);
+                    doc.rect(bx + 2, y + barMaxH - barH, colW12 - 4, barH, 'F');
+                }
+                // amount
+                doc.setFontSize(6);
+                doc.setTextColor(0, 0, 0);
+                const amt = Math.round(m.income);
+                doc.text(amt > 0 ? '€' + amt : '—', bx + colW12 / 2, y + barMaxH + 4, { align: 'center' });
+                // label
+                doc.setFontSize(5.5);
+                doc.text(m.label, bx + colW12 / 2, y + barMaxH + 9, { align: 'center' });
+            });
+            y += barMaxH + 14;
+
+            // ── Maturity Calendar ──
+            if (y > pageH - 40) { doc.addPage(); y = 20; }
+            doc.setFillColor(26, 58, 92);
+            doc.rect(margin, y, pageW - margin * 2, 6, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(8);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Maturity Calendar', margin + 3, y + 4);
+            y += 10;
+            doc.setTextColor(0, 0, 0);
+
+            // Header row
+            doc.setFillColor(240, 244, 250);
+            doc.rect(margin, y - 4, pageW - margin * 2, 7, 'F');
+            doc.setFontSize(7);
+            doc.setFont('helvetica', 'bold');
+            const matCols = ['Maturity', 'Issuer', 'ISIN', 'Capital Returned', 'Capital Gain'];
+            const matColW = [28, 40, 32, 42, 36];
+            let mx = margin;
+            matCols.forEach((h, i) => { doc.text(h, mx + matColW[i]/2, y, {align:'center'}); mx += matColW[i]; });
+            y += 6;
+
+            doc.setFont('helvetica', 'normal');
+            const sorted2 = [...this.portfolio.filter(b => b.includeInStatistics)]
+                .sort((a,b) => new Date(a.maturity) - new Date(b.maturity));
+            // merge same ISIN
+            const merged2 = {};
+            sorted2.forEach(bond => {
+                if (!merged2[bond.isin]) merged2[bond.isin] = {...bond};
+                else { merged2[bond.isin].quantity += bond.quantity; merged2[bond.isin].totalEur = (merged2[bond.isin].totalEur||0) + (bond.totalEur||0); }
+            });
+            Object.values(merged2).sort((a,b) => new Date(a.maturity)-new Date(b.maturity)).forEach((bond, idx) => {
+                if (y > pageH - 15) { doc.addPage(); y = 20; }
+                const nominal = bond.nominal || 100;
+                const isEur   = bond.currency === 'EUR';
+                const fxRate  = isEur ? 1 : (bond.priceEur / bond.price);
+                const faceEur = nominal * bond.quantity * fxRate;
+                const gain    = faceEur - (bond.totalEur || 0);
+                const matStr  = new Date(bond.maturity).toLocaleDateString('en-GB', {year:'numeric',month:'short',day:'2-digit'});
+                if (idx % 2 === 0) {
+                    doc.setFillColor(250,252,255);
+                    doc.rect(margin, y-3.5, pageW-margin*2, 6, 'F');
+                }
+                const row2 = [matStr, bond.issuer, bond.isin,
+                    '€' + Math.round(faceEur).toLocaleString(),
+                    (gain >= 0 ? '+' : '') + '€' + Math.round(gain).toLocaleString()];
+                mx = margin;
+                row2.forEach((val, i) => {
+                    doc.setFontSize(6.5);
+                    if (i === 4) doc.setTextColor(gain >= 0 ? 46 : 198, gain >= 0 ? 125 : 40, gain >= 0 ? 50 : 40);
+                    else         doc.setTextColor(0, 0, 0);
+                    doc.text(String(val), mx + matColW[i]/2, y, {align:'center', maxWidth: matColW[i]-1});
+                    mx += matColW[i];
+                });
+                doc.setTextColor(0,0,0);
+                y += 6;
+            });
+
+            // ── Footer ──
+            y += 6;
+            doc.setFontSize(7);
+            doc.setTextColor(150, 150, 150);
+            doc.text('BondFX v2.5 — Net values reflect withholding tax at source on coupon income only. Capital gains not modelled.',
+                margin, pageH - 8);
+
+            doc.save('BondFX-Portfolio-' + new Date().toISOString().slice(0,10) + '.pdf');
+        };
+
+        if (window.jspdf) {
+            doExport();
+        } else {
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+            script.onload = doExport;
+            document.head.appendChild(script);
+        }
+    }
+
     exportPortfolio() {
         if (this.portfolio.length === 0) {
             alert('Portfolio is empty');

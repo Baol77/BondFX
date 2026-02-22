@@ -55,7 +55,32 @@
             </div>
 
             <div class="portfolio-table-wrapper">
-                <h3>2️⃣ Your Portfolio</h3>
+                <div class="portfolio-table-toolbar">
+                    <h3 style="margin:0;">2️⃣ Your Portfolio</h3>
+                    <div class="portfolio-action-btns">
+                        <button onclick="window.portfolioAnalyzer.exportPortfolio()" class="btn-tool btn-tool-export" title="Export CSV">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/><path d="M20 17v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2"/></svg>
+                            CSV
+                        </button>
+                        <button onclick="document.getElementById('csvFileInput').click()" class="btn-tool btn-tool-import" title="Import CSV">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="3" x2="12" y2="15"/><polyline points="8 11 12 15 16 11"/><path d="M3 15v4a2 2 0 002 2h14a2 2 0 002-2v-4"/></svg>
+                            CSV
+                        </button>
+                        <input type="file" id="csvFileInput" accept=".csv" style="display:none;"
+                               onchange="window.portfolioAnalyzer.importPortfolio(event)">
+                        <button onclick="window.portfolioAnalyzer.exportPDF()" class="btn-tool btn-tool-pdf" title="Export PDF">
+                            <svg width="14" height="14" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                                <rect x="5" y="5" width="70" height="85" rx="4" ry="4" fill="white" stroke="#bbb" stroke-width="4"/>
+                                <path d="M55 5 L75 25 L55 25 Z" fill="#ddd"/>
+                                <rect x="0" y="62" width="90" height="33" rx="4" ry="4" fill="#cc0000"/>
+                                <text x="45" y="89" font-family="Arial" font-weight="bold" font-size="28" fill="white" text-anchor="middle">PDF</text>
+                            </svg>
+                        </button>
+                        <button onclick="window.portfolioAnalyzer.clearPortfolio()" class="btn-tool btn-tool-clear" title="Clear portfolio">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                        </button>
+                    </div>
+                </div>
                 <div style="overflow-x:auto;">
                     <table id="portfolioTable" class="portfolio-table">
                         <thead>
@@ -168,19 +193,7 @@
                 <div id="maturityCalendar" class="maturity-list"></div>
             </div>
 
-            <div class="actions-footer">
-                <button onclick="window.portfolioAnalyzer.exportPortfolio()" class="btn btn-export">
-                    📥 Export CSV
-                </button>
-                <button onclick="document.getElementById('csvFileInput').click()" class="btn btn-import">
-                    📤 Import CSV
-                </button>
-                <input type="file" id="csvFileInput" accept=".csv" style="display:none;"
-                       onchange="window.portfolioAnalyzer.importPortfolio(event)">
-                <button onclick="window.portfolioAnalyzer.clearPortfolio()" class="btn btn-clear">
-                    🗑️ Clear Portfolio
-                </button>
-            </div>
+
 
         </div>
     </div>
