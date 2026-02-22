@@ -66,7 +66,12 @@
                 </div>
             </div>
         </div>
-        <button class="info-icon-btn" onclick="openInfoModal()" title="How to use BondFX" aria-label="Help">ℹ</button>
+        <button class="settings-btn" onclick="openSettingsModal()" title="Personal settings" aria-label="Settings">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+            </svg>
+        </button>
     </div>
 </h2>
 
@@ -294,6 +299,37 @@
 
 <!-- Portfolio Analyzer is now at /analyzer -->
 
+<!-- Settings Modal -->
+<div class="settings-backdrop" id="settingsBackdrop" onclick="closeSettingsModal(event)">
+    <div class="settings-modal" id="settingsModal">
+        <div class="settings-modal__header">
+            <span>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:6px;">
+                    <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+                </svg>
+                Personal Settings
+            </span>
+            <button class="info-modal__close" onclick="closeSettingsModalDirect()">✕</button>
+        </div>
+        <div class="settings-modal__body">
+            <div class="settings-row">
+                <span class="settings-label">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:6px;"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                    Theme
+                </span>
+                <div class="theme-toggle" id="themeToggle" onclick="toggleTheme()">
+                    <div class="theme-toggle__track">
+                        <span class="theme-toggle__label theme-toggle__light">☀️</span>
+                        <span class="theme-toggle__label theme-toggle__dark">🌙</span>
+                        <div class="theme-toggle__thumb" id="themeThumb"></div>
+                    </div>
+                    <span class="theme-toggle__text" id="themeText">Light</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Wishlist Dialog -->
 <div id="wishlistDialog" class="wishlist-dialog-backdrop" style="display:none" onclick="closeWishlistDialog(event)">
     <div class="wishlist-dialog">
@@ -321,7 +357,7 @@
 
 <!-- Footer -->
 <footer class="page-footer">
-    BondFX v3 &nbsp;·&nbsp;<a href="#" onclick="openInfoModal(); return false;">User Manual</a>
+    BondFX v3.5 &nbsp;·&nbsp;<a href="https://github.com/your-repo/BondFX/blob/main/README.md" target="_blank" rel="noopener">User Manual</a>
 </footer>
 
 <!-- JavaScript (external static files) -->

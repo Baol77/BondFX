@@ -209,89 +209,112 @@ function exportCSV() {
 ======================= */
 function applyHeatmap() {
     const rows = document.querySelectorAll("#bondTable tbody tr");
+    const dark = isDarkMode();
 
-    const red = [255, 215, 215];
-    const yellow = [255, 245, 190];
-    const green = [215, 245, 215];
+    // Light palette
+    const L = {
+        red:       [255, 215, 215],
+        yellow:    [255, 245, 190],
+        green:     [215, 245, 215],
+        darkGreen: [100, 200, 100],
+        topGreen:  [50,  180,  50],
+    };
+    // Dark palette — muted, readable on dark bg
+    const D = {
+        red:       [ 90,  30,  30],
+        yellow:    [ 80,  70,  20],
+        green:     [ 25,  70,  30],
+        darkGreen: [ 20,  90,  40],
+        topGreen:  [ 15, 110,  45],
+    };
+    const P = dark ? D : L;
+
+    // Text colors: light mode inherits from table; dark mode needs explicit contrast
+    const textRed    = dark ? '#e88'  : null;
+    const textYellow = dark ? '#dda'  : null;
+    const textGreen  = dark ? '#8d8'  : null;
+    const textTop    = dark ? '#6e6'  : null;
+
+    function setCellColor(cell, bg, fg) {
+        cell.style.backgroundColor = bg;
+        cell.style.color = fg || '';
+    }
 
     rows.forEach(r => {
         // === Current Yield ===
         const v = parseNum(r.cells[COL.CURR_YIELD].innerText);
-        let bg;
+        let bg, fg;
 
         if (currentMode === "income") {
-            // INCOME MODE: Strong coloring
             if (v <= 3.0) {
-                bg = "rgb(" + red.join(",") + ")";
+                bg = "rgb(" + P.red.join(",") + ")"; fg = textRed;
             } else if (v <= 4.5) {
-                bg = lerpColor(red, yellow, (v - 3.0) / 1.5);
+                bg = lerpColor(P.red, P.yellow, (v - 3.0) / 1.5); fg = textYellow;
             } else if (v <= 5.5) {
-                bg = lerpColor(yellow, green, (v - 4.5) / 1.0);
+                bg = lerpColor(P.yellow, P.green, (v - 4.5) / 1.0); fg = textGreen;
             } else if (v <= 6.5) {
-                const darkGreen = [100, 200, 100];
-                bg = lerpColor(green, darkGreen, (v - 5.5) / 1.0);
+                bg = lerpColor(P.green, P.darkGreen, (v - 5.5) / 1.0); fg = textGreen;
             } else {
-                bg = "rgb(50, 180, 50)";
+                bg = "rgb(" + P.topGreen.join(",") + ")"; fg = textTop;
             }
         } else {
-            // SAY MODE: Light coloring
+            // SAY mode: subtle
             if (v <= 1.5) {
-                bg = "rgba(255, 215, 215, 0.3)";
+                bg = dark ? "rgba(90,30,30,0.5)" : "rgba(255,215,215,0.3)"; fg = textRed;
             } else if (v < 3.0) {
-                bg = lerpColor(red, yellow, (v - 1.5) / 1.5);
+                bg = lerpColor(P.red, P.yellow, (v - 1.5) / 1.5); fg = textYellow;
             } else if (v < 5.0) {
-                bg = lerpColor(yellow, green, (v - 3.0) / 2.0);
+                bg = lerpColor(P.yellow, P.green, (v - 3.0) / 2.0); fg = textGreen;
             } else {
-                bg = "rgba(215, 245, 215, 0.5)";
+                bg = dark ? "rgba(20,80,30,0.6)" : "rgba(215,245,215,0.5)"; fg = textTop;
             }
         }
-        r.cells[COL.CURR_YIELD].style.backgroundColor = bg;
+        setCellColor(r.cells[COL.CURR_YIELD], bg, fg);
 
         // === Total Capital at Maturity ===
         const w = parseNum(r.cells[COL.CAPITAL_AT_MAT].innerText);
-        let bg2;
+        let bg2, fg2;
         if (w <= 1150) {
-            bg2 = "rgba(255, 215, 215, 0.3)";
+            bg2 = dark ? "rgba(90,30,30,0.5)" : "rgba(255,215,215,0.3)"; fg2 = textRed;
         } else if (w < 1400) {
-            bg2 = lerpColor(red, yellow, (w - 1150) / 250);
+            bg2 = lerpColor(P.red, P.yellow, (w - 1150) / 250); fg2 = textYellow;
         } else if (w < 1650) {
-            bg2 = lerpColor(yellow, green, (w - 1400) / 250);
+            bg2 = lerpColor(P.yellow, P.green, (w - 1400) / 250); fg2 = textGreen;
         } else {
-            bg2 = "rgba(215, 245, 215, 0.5)";
+            bg2 = dark ? "rgba(20,80,30,0.6)" : "rgba(215,245,215,0.5)"; fg2 = textTop;
         }
-        r.cells[COL.CAPITAL_AT_MAT].style.backgroundColor = bg2;
+        setCellColor(r.cells[COL.CAPITAL_AT_MAT], bg2, fg2);
 
-        // === SAY (Simple Annual Yield) ===
+        // === SAY ===
         const say = parseNum(r.cells[COL.SAY].innerText);
-        let bg3;
+        let bg3, fg3;
 
-        if (currentMode === "say") {
-            // SAY MODE: Strong coloring
+        if (currentMode !== "income") {
+            // Capital Gain / SAY MODE: strong coloring
             if (say <= 1.0) {
-                bg3 = "rgb(" + red.join(",") + ")";
+                bg3 = "rgb(" + P.red.join(",") + ")"; fg3 = textRed;
             } else if (say <= 2.5) {
-                bg3 = lerpColor(red, yellow, (say - 1.0) / 1.5);
+                bg3 = lerpColor(P.red, P.yellow, (say - 1.0) / 1.5); fg3 = textYellow;
             } else if (say <= 3.5) {
-                bg3 = lerpColor(yellow, green, (say - 2.5) / 1.0);
+                bg3 = lerpColor(P.yellow, P.green, (say - 2.5) / 1.0); fg3 = textGreen;
             } else if (say <= 4.5) {
-                const darkGreen = [100, 200, 100];
-                bg3 = lerpColor(green, darkGreen, (say - 3.5) / 1.0);
+                bg3 = lerpColor(P.green, P.darkGreen, (say - 3.5) / 1.0); fg3 = textGreen;
             } else {
-                bg3 = "rgb(50, 180, 50)";
+                bg3 = "rgb(" + P.topGreen.join(",") + ")"; fg3 = textTop;
             }
         } else {
-            // INCOME MODE: Light coloring
+            // INCOME MODE: subtle SAY
             if (say <= 1.0) {
-                bg3 = "rgba(255, 215, 215, 0.2)";
+                bg3 = dark ? "rgba(90,30,30,0.3)" : "rgba(255,215,215,0.2)"; fg3 = textRed;
             } else if (say <= 2.5) {
-                bg3 = "rgba(255, 245, 190, 0.2)";
+                bg3 = dark ? "rgba(80,70,20,0.3)" : "rgba(255,245,190,0.2)"; fg3 = textYellow;
             } else if (say <= 3.5) {
-                bg3 = "rgba(215, 245, 215, 0.2)";
+                bg3 = dark ? "rgba(25,70,30,0.3)" : "rgba(215,245,215,0.2)"; fg3 = textGreen;
             } else {
-                bg3 = "rgba(215, 245, 215, 0.3)";
+                bg3 = dark ? "rgba(20,80,30,0.4)" : "rgba(215,245,215,0.3)"; fg3 = textTop;
             }
         }
-        r.cells[COL.SAY].style.backgroundColor = bg3;
+        setCellColor(r.cells[COL.SAY], bg3, fg3);
     });
 }
 
@@ -300,6 +323,10 @@ function lerpColor(c1, c2, t) {
         Math.round(c1[0] + (c2[0] - c1[0]) * t) + "," +
         Math.round(c1[1] + (c2[1] - c1[1]) * t) + "," +
         Math.round(c1[2] + (c2[2] - c1[2]) * t) + ")";
+}
+
+function isDarkMode() {
+    return document.body.classList.contains('dark');
 }
 
 function updateLegend() {
@@ -981,6 +1008,43 @@ function syncWishlistButtons() {
     });
 }
 /* =======================
+   SETTINGS / THEME
+======================= */
+function openSettingsModal() {
+    document.getElementById('settingsBackdrop').classList.add('open');
+    _updateThemeToggleUI();
+}
+function closeSettingsModal(e) {
+    if (e.target === document.getElementById('settingsBackdrop')) closeSettingsModalDirect();
+}
+function closeSettingsModalDirect() {
+    document.getElementById('settingsBackdrop').classList.remove('open');
+}
+
+function _updateThemeToggleUI() {
+    const dark = document.body.classList.contains('dark');
+    const text = document.getElementById('themeText');
+    if (text) text.textContent = dark ? 'Dark' : 'Light';
+}
+
+function toggleTheme() {
+    const dark = document.body.classList.toggle('dark');
+    localStorage.setItem('bondTheme', dark ? 'dark' : 'light');
+    _updateThemeToggleUI();
+    if (typeof applyHeatmap === 'function') applyHeatmap();
+}
+
+function loadTheme() {
+    const saved = localStorage.getItem('bondTheme');
+    if (saved === 'dark') {
+        document.body.classList.add('dark');
+    }
+}
+
+// Apply theme immediately (before DOM fully painted) to avoid flash
+loadTheme();
+
+/* =======================
    INITIALIZATION
 ======================= */
 document.addEventListener("DOMContentLoaded", () => {
@@ -990,6 +1054,7 @@ document.addEventListener("DOMContentLoaded", () => {
     renderWishlist();         // render wishlist from localStorage
     syncWishlistButtons();    // restore ★ state on all rows
     checkWishlistAlerts();    // check thresholds and pulse if needed
+    _updateThemeToggleUI();   // sync toggle UI with current theme
     // Parse emoji once after page load (covers flag column in table)
     if (typeof twemoji !== 'undefined') {
       document

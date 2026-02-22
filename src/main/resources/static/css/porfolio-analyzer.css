@@ -471,3 +471,39 @@ pointer-events: auto;
     background: #1a73e8;
     color: #fff;
 }
+
+/* ─── DARK MODE — Portfolio Analyzer ────────────────────────────────────────── */
+body.dark .portfolio-modal-content,
+body.dark .portfolio-modal-inner  { background: #1e2130; color: #d0d8f0; }
+body.dark .portfolio-table        { border-color: #2a2d45; }
+body.dark .portfolio-table th     { background: #252840; color: #c0c8e8; border-color: #2a2d45; }
+body.dark .portfolio-table td     { border-color: #2a2d45; color: #c8d0e8; }
+body.dark .portfolio-table tr:nth-child(even) td { background: #1a1d2e; }
+body.dark .portfolio-table tr:hover td { background: #1e2440 !important; }
+body.dark .portfolio-table input  { background: #252840; border-color: #3a3f5c; color: #c0c8e8; }
+body.dark .stat-card              { background: #252840; border-color: #2a2d45; color: #c0c8e8; }
+body.dark .stat-card.stat-green   { background: #1a2e1a; border-color: #2e5a2e; }
+body.dark .stat-card.stat-yellow  { background: #2a2510; border-color: #5a4a10; }
+body.dark .stat-card.stat-red     { background: #2e1a1a; border-color: #5a2a2a; }
+body.dark .stat-value             { color: #e0e4ff; }
+body.dark .analyzer-header        { border-color: #2a2d45; }
+body.dark .analyzer-back-btn      { color: #4a7cc7; border-color: #2a3a5c; background: #1e2130; }
+body.dark .analyzer-back-btn:hover { background: #2a3a5c; }
+body.dark .search-input           { background: #252840; border-color: #3a3f5c; color: #c0c8e8; }
+body.dark .search-results         { background: #1e2130; border-color: #2a2d45; }
+body.dark .search-result-item     { color: #c0c8e8; border-color: #2a2d45; }
+body.dark .search-result-item:hover { background: #252840; }
+body.dark .btn-tool               { background: #1e2130; }
+body.dark .btn-tool-export        { border-color: #4a7cc7; color: #4a7cc7; }
+body.dark .btn-tool-import        { border-color: #388e3c; color: #5ab85e; }
+body.dark .btn-tool-pdf           { border-color: #cc4444; color: #cc4444; }
+body.dark .btn-tool-clear         { border-color: #4a4f70; color: #6870a0; }
+body.dark .basket-chip            { background: #252840; border-color: #3a3f5c; color: #c0c8e8; }
+body.dark .empty-portfolio-msg    { color: #4a4f70; }
+body.dark .cal-month .cal-label   { color: #8890b8; }
+body.dark .cal-month .cal-amount  { color: #c0c8e8; }
+body.dark .maturity-row-item      { border-color: #2a2d45; background: #1e2130; }
+body.dark .mat-date               { color: #8890b8; }
+body.dark .mat-info strong        { color: #c0c8e8; }
+body.dark .page-footer            { color: #4a4f70; border-color: #2a2d45; }
+body.dark .page-footer a          { color: #4a7cc7; }
