@@ -791,8 +791,10 @@ function saveWishlistData() {
 
 function openWishlistDialog(btn) {
     _wishlistDialogData = {
-        isin:   btn.dataset.isin,
-        issuer: btn.dataset.issuer,
+        isin:     btn.dataset.isin,
+        issuer:   btn.dataset.issuer,
+        coupon:   btn.dataset.coupon,
+        maturity: btn.dataset.maturity,
         price:  parseFloat((btn.dataset.price || '0').replace(',', '.')),
         say:    parseFloat((btn.dataset.say   || '0').replace(',', '.'))
     };
@@ -841,6 +843,8 @@ function saveWishlistItem() {
     wishlist.push({
         isin:        _wishlistDialogData.isin,
         issuer:      _wishlistDialogData.issuer,
+        coupon:      _wishlistDialogData.coupon,
+        maturity:    _wishlistDialogData.maturity,
         targetPrice: priceCheck ? priceVal : null,
         targetSay:   sayCheck  ? sayVal   : null
     });
@@ -951,9 +955,10 @@ function renderWishlist() {
             const ok = item._sayTriggered;
             criteria.push(`<span class="wl-criterion${ok ? ' wl-ok' : ''}">SAY ≥ ${item.targetSay.toFixed(2)}%${ok ? ' ✓' : ''}</span>`);
         }
+        const year = item.maturity ? item.maturity.substring(0, 4) : '';
         return `<div class="basket-item${triggered ? ' wl-triggered' : ''}">
             <div style="flex:1;min-width:0;">
-                <div class="basket-item__label">${flagFor(item.issuer)} ${item.issuer}</div>
+                <div class="basket-item__label">${flagFor(item.issuer)} ${item.issuer} ${item.coupon}% ${year}</div>
                 <div class="wl-criteria">${criteria.join(' ')}</div>
                 <div class="wl-actions">
                     <button class="wl-move-btn" onclick="moveWishlistToBasket('${item.isin}')" title="Move to basket">→ Basket</button>

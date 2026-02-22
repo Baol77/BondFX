@@ -220,6 +220,8 @@
                         data-isin="${b.getIsin()}"
                         data-issuer="${b.getIssuer()}"
                         data-price="${b.getPriceEur()?string.computer}"
+                        data-coupon="${b.getCouponPct()?string.computer}"
+                        data-maturity="${b.getMaturity()}"
                         data-say="${b.getSimpleAnnualYield()?string.computer}"
                         onclick="openWishlistDialog(this)"
                         title="Add alert">★</button>
