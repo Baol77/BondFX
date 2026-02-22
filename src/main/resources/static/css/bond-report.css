@@ -433,3 +433,264 @@ h2.page-title {
     0%, 100% { opacity: 1; }
     50%       { opacity: 0.3; }
 }
+
+/* ─── PORTFOLIO ANALYZER BUTTON ─────────────────────────────────────────────── */
+.btn-analyzer {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #1a3a5c;
+    color: #fff;
+    border: none;
+    padding: 7px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.btn-analyzer:hover { background: #0f2540; }
+
+/* ─── ADD TO BASKET COLUMN ──────────────────────────────────────────────────── */
+th.col-add, td.col-add {
+    width: 32px;
+    min-width: 32px;
+    padding: 0 4px;
+    text-align: center;
+}
+
+.add-to-basket-btn {
+    background: none;
+    border: 1.5px solid #1a73e8;
+    color: #1a73e8;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.12s, color 0.12s;
+}
+.add-to-basket-btn:hover {
+    background: #1a73e8;
+    color: #fff;
+}
+
+/* ─── BASKET WIDGET ──────────────────────────────────────────────────────────── */
+.page-title__actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+}
+
+.basket-widget {
+    position: relative;
+}
+
+.basket-btn {
+    background: none;
+    border: 1.5px solid #ccc;
+    border-radius: 20px;
+    padding: 5px 10px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: #444;
+    font-size: 13px;
+    transition: border-color 0.15s, color 0.15s;
+}
+.basket-btn:hover { border-color: #1a73e8; color: #1a73e8; }
+
+.basket-count {
+    background: #e53935;
+    color: #fff;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 1px 5px;
+    min-width: 18px;
+    text-align: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.basket-dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+    min-width: 280px;
+    z-index: 1000;
+}
+
+.basket-dropdown__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    border-bottom: 1px solid #eee;
+    font-weight: 600;
+    font-size: 13px;
+    color: #333;
+}
+
+.basket-clear-btn {
+    background: none;
+    border: none;
+    color: #e53935;
+    font-size: 12px;
+    cursor: pointer;
+    padding: 0;
+}
+.basket-clear-btn:hover { text-decoration: underline; }
+
+.basket-items {
+    max-height: 220px;
+    overflow-y: auto;
+    padding: 6px 0;
+}
+
+.basket-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 14px;
+    gap: 8px;
+}
+.basket-item:hover { background: #f5f5f5; }
+
+.basket-item__label {
+    font-size: 13px;
+    color: #333;
+}
+
+.basket-item__remove {
+    background: none;
+    border: none;
+    color: #999;
+    cursor: pointer;
+    font-size: 13px;
+    padding: 0 2px;
+    flex-shrink: 0;
+}
+.basket-item__remove:hover { color: #e53935; }
+
+.basket-empty {
+    text-align: center;
+    color: #aaa;
+    font-size: 12px;
+    padding: 16px 14px;
+    margin: 0;
+    line-height: 1.6;
+}
+
+.basket-dropdown__footer {
+    padding: 10px 14px;
+    border-top: 1px solid #eee;
+}
+
+.basket-open-analyzer-btn {
+    width: 100%;
+    background: #1a3a5c;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: background 0.15s;
+}
+.basket-open-analyzer-btn:hover { background: #0f2540; }
+
+/* ─── BASKET BUTTON — IN BASKET STATE ───────────────────────────────────────── */
+.add-to-basket-btn.in-basket {
+    background: #2e7d32;
+    border-color: #2e7d32;
+    color: #fff;
+    font-size: 13px;
+}
+.add-to-basket-btn.in-basket:hover {
+    background: #1b5e20;
+    border-color: #1b5e20;
+}
+
+/* flag alignment handled via pure CSS emoji rendering */
+.emoji {
+    width: 12px;
+    height: 12px;
+}
+
+/* ─── PAGE FOOTER ────────────────────────────────────────────────────────────── */
+.page-footer {
+    margin-top: 24px;
+    padding: 10px 0;
+    border-top: 1px solid #e0e0e0;
+    font-size: 11px;
+    color: #999;
+    text-align: center;
+}
+.page-footer a {
+    color: #1a73e8;
+    text-decoration: none;
+}
+.page-footer a:hover { text-decoration: underline; }
+
+/* ➕ column visible on all screen sizes — analyzer is now a full page */
+
+/* ─── COLUMN TITLE / SHORT LABEL ────────────────────────────────────────────── */
+/* Desktop: show full title, hide short */
+.col-short { display: none !important; }
+.column-title { display: inline !important; }
+
+/* ─── MATURITY CELL ─────────────────────────────────────────────────────────── */
+.mat-full  { display: inline !important; }
+.mat-year  { display: none !important; }
+
+/* ─── MOBILE TABLE TWEAKS (≤ 768px) ─────────────────────────────────────────── */
+@media (max-width: 768px) {
+    /* Short column headers */
+    .col-short    { display: inline !important; }
+    .column-title { display: none !important; }
+
+    /* Maturity: year only */
+    .mat-full { display: none !important; }
+    .mat-year { display: inline !important; }
+
+    /* Issuer: flag only (text hidden) */
+    .td-issuer .issuer-name { display: none !important; }
+    .td-issuer .issuer-flag { display: inline !important; }
+
+    /* Tighter cell padding on mobile */
+    #bondTable th,
+    #bondTable td {
+        padding: 4px 4px;
+        font-size: 12px;
+    }
+
+    /* ➕ button smaller on mobile */
+    .add-to-basket-btn {
+        width: 20px;
+        height: 20px;
+        font-size: 14px;
+    }
+    th.col-add, td.col-add {
+        width: 24px;
+        min-width: 24px;
+        padding: 0 2px;
+    }
+}

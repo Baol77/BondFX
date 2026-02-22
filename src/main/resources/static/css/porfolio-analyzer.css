@@ -8,7 +8,7 @@
   /* centrer la modale */
   justify-content: center;
   align-items: flex-start;
-  padding: 20px;
+  /*padding: 20px;*/
   box-sizing: border-box;
 
   /* IMPORTANT → laisse passer les clics */
@@ -431,4 +431,43 @@ pointer-events: auto;
 
 .stat-card.tax-card .stat-value {
     color: #e65100;
+}
+
+/* ─── BASKET LABELS (inside Portfolio Analyzer modal) ───────────────────────── */
+.basket-labels {
+    background: #f0f4ff;
+    border: 1px solid #c5d5f5;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 16px;
+}
+
+.basket-labels__title {
+    font-size: 12px;
+    font-weight: 600;
+    color: #3a5a9a;
+    margin-bottom: 8px;
+}
+
+.basket-labels__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.basket-chip {
+    background: #fff;
+    border: 1.5px solid #1a73e8;
+    color: #1a3a5c;
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+    white-space: nowrap;
+}
+.basket-chip:hover {
+    background: #1a73e8;
+    color: #fff;
 }

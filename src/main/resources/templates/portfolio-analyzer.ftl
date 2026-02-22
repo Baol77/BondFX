@@ -8,6 +8,9 @@
 
         <div class="portfolio-modal-body">
 
+            <!-- Basket labels — populated by openModalWithBasket() -->
+            <div id="basketLabels" class="basket-labels" style="display:none"></div>
+
             <div class="search-section">
                 <h3>1️⃣ Search & Add Bond</h3>
                 <div class="search-bar">

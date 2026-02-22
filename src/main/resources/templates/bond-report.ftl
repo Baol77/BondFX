@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="/css/bond-report.css">
     <link rel="stylesheet" href="/css/porfolio-analyzer.css">
     <link rel="stylesheet" href="/css/bond-report-mobile.css">
+    <script src="https://unpkg.com/twemoji@latest/dist/twemoji.min.js" crossorigin="anonymous"></script>
 </head>
 
 <body>
@@ -24,7 +25,33 @@
     <span class="page-title__text">BondFX <span class="page-title__currency">(EUR)</span></span>
     <span class="page-title__meta" id="pageMeta">— 📅 <span id="generatedAtLocal"></span> <span id="dataAge"></span></span>
     <span id="generatedAtMs" style="display:none">${generatedAtMs?c}</span>
-    <button class="info-icon-btn" onclick="openInfoModal()" title="How to use BondFX" aria-label="Help">ℹ</button>
+    <div class="page-title__actions">
+        <!-- Basket widget -->
+        <div class="basket-widget" id="basketWidget">
+            <button class="basket-btn" id="basketBtn" onclick="toggleBasketDropdown()" title="Bond basket">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/>
+                </svg>
+                <span class="basket-count" id="basketCount" style="display:none">0</span>
+            </button>
+            <div class="basket-dropdown" id="basketDropdown" style="display:none">
+                <div class="basket-dropdown__header">
+                    <span>Bond Basket</span>
+                    <button onclick="clearBasket()" title="Clear all" class="basket-clear-btn">Clear all</button>
+                </div>
+                <div id="basketItems" class="basket-items"></div>
+                <div class="basket-dropdown__footer">
+                    <button class="basket-open-analyzer-btn" onclick="goToAnalyzer()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+                        </svg>
+                        Open in Portfolio Analyzer
+                    </button>
+                </div>
+            </div>
+        </div>
+        <button class="info-icon-btn" onclick="openInfoModal()" title="How to use BondFX" aria-label="Help">ℹ</button>
+    </div>
 </h2>
 
 <!-- README MODAL -->
@@ -89,8 +116,11 @@
             🧹 Clear column filters
         </button>
         <button onclick="exportCSV()">📥 Export CSV</button>
-        <button onclick="window.portfolioAnalyzer?.openModal()" title="Create and analyze custom bond portfolios">
-            🎯 Portfolio Analyzer
+        <button class="btn-analyzer" onclick="goToAnalyzer()" title="Create and analyze custom bond portfolios">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+            </svg>
+            Portfolio Analyzer
         </button>
     </div>
 </div>
@@ -98,6 +128,7 @@
 <table id="bondTable">
     <thead>
     <tr>
+        <th class="col-add" title="Add to basket"></th>
         <th onclick="sortTable(COL.ISIN)">ISIN<span class="arrow"></span><br>
             <input id="filterIsin" type="text" placeholder="e.g. US900123AT75"
                    onclick="event.stopPropagation()" oninput="filterTable()">
@@ -140,8 +171,8 @@
             </select>
         </th>
         <th onclick="sortTable(COL.PRICE_R)">Price (${reportCurrency})<span class="arrow"></span></th>
-        <th onclick="sortTable(COL.COUPON)">Coupon %<span class="arrow"></span></th>
-        <th onclick="sortTable(COL.MATURITY)" data-short="Mat."><span class="column-title">Maturity</span><span class="arrow"></span></th>
+        <th onclick="sortTable(COL.COUPON)"><span class="column-title">Coupon %</span><span class="col-short">C.%</span><span class="arrow"></span></th>
+        <th onclick="sortTable(COL.MATURITY)"><span class="column-title">Maturity</span><span class="col-short">Mat.</span><span class="arrow"></span></th>
         <th title="Supposing an investment of EUR 100, what would the gain be?"
             onclick="sortTable(COL.CURR_YIELD)" data-short="CY%">
             <span class="column-title">Curr. Yield %</span><span class="arrow"></span><br>
@@ -150,13 +181,13 @@
         </th>
         <th title="Supposing an investment of EUR 1,000, what amount will you have at maturity?"
             onclick="sortTable(COL.CAPITAL_AT_MAT)">
-            Total Return (1k€)<span class="arrow"></span><br>
+            <span class="column-title">Total Return (1k€)</span><span class="col-short">Tot.Ret.</span><span class="arrow"></span><br>
             <input id="filterMinCapitalAtMat" type="number" step="500" placeholder="min"
                    onclick="event.stopPropagation()" oninput="filterTable()" style="width:80px;">
         </th>
         <th title="Simple Annual Yield % (Annual coupon income as a percentage of the bond's current price)"
-            onclick="sortTable(COL.SAY)" data-short="SAY">
-            <span class="column-title">SAY (%)</span><span class="arrow"></span><br>
+            onclick="sortTable(COL.SAY)">
+            <span class="column-title">SAY (%)</span><span class="col-short">SAY</span><span class="arrow"></span><br>
             <input id="filterMinSAY" type="number" step="0.5" placeholder="min %"
                    onclick="event.stopPropagation()" oninput="filterTable()" style="width:80px;">
         </th>
@@ -164,10 +195,23 @@
     </thead>
 
     <tbody>
+    <#assign flagMap = {"ITALIA":"🇮🇹","GERMANIA":"🇩🇪","FRANCIA":"🇫🇷","SPAGNA":"🇪🇸","PORTOGALLO":"🇵🇹","GRECIA":"🇬🇷","AUSTRIA":"🇦🇹","BELGIO":"🇧🇪","OLANDA":"🇳🇱","FINLANDIA":"🇫🇮","IRLANDA":"🇮🇪","SVEZIA":"🇸🇪","DANIMARCA":"🇩🇰","NORVEGIA":"🇳🇴","SVIZZERA":"🇨🇭","REGNO UNITO":"🇬🇧","USA":"🇺🇸","GIAPPONE":"🇯🇵","ROMANIA":"🇷🇴","POLONIA":"🇵🇱","UNGHERIA":"🇭🇺","BULGARIA":"🇧🇬","CROAZIA":"🇭🇷","SLOVENIA":"🇸🇮","SLOVACCHIA":"🇸🇰","REPUBBLICA CECA":"🇨🇿","ESTONIA":"🇪🇪","LETTONIA":"🇱🇻","LITUANIA":"🇱🇹","CIPRO":"🇨🇾","LUSSEMBURGO":"🇱🇺","TURCHIA":"🇹🇷","BRASILE":"🇧🇷","MESSICO":"🇲🇽","CILE":"🇨🇱","SUDAFRICA":"🇿🇦"}>
     <#list bonds as b>
-    <tr>
+    <tr data-isin="${b.getIsin()}" data-issuer="${b.getIssuer()}" data-coupon="${b.getCouponPct()?string["0.00"]}" data-maturity="${b.getMaturity()}">
+        <td class="col-add">
+            <button class="add-to-basket-btn"
+                    data-isin="${b.getIsin()}"
+                    data-issuer="${b.getIssuer()}"
+                    data-coupon="${b.getCouponPct()?string["0.00"]}"
+                    data-maturity="${b.getMaturity()}"
+                    onclick="addToBasket(this)"
+                    title="Add to basket">＋</button>
+        </td>
         <td>${b.getIsin()}</td>
-        <td>${b.getIssuer()}</td>
+        <td class="td-issuer">
+            <span class="issuer-name">${b.getIssuer()}</span>
+<span class="issuer-flag">${flagMap[b.getIssuer()]!'🏳️'}</span>
+        </td>
         <td class="<#if (b.getPrice() <= 100)>good<#else>bad</#if>">
             ${b.getPrice()?string["0.00"]}
         </td>
@@ -179,7 +223,7 @@
             ${b.getPriceEur()?string["0.00"]}
         </td>
         <td>${b.getCouponPct()?string["0.00"]}</td>
-        <td style="white-space: nowrap;">${b.getMaturity()}</td>
+        <td class="td-maturity" style="white-space: nowrap;"><span class="mat-full">${b.getMaturity()}</span><span class="mat-year">${b.getMaturity()?substring(0,4)}</span></td>
         <td>
             ${b.getCurrentYield()?string["0.00"]}
         </td>
@@ -221,7 +265,12 @@
     </table>
 </div>
 
-<#include "portfolio-analyzer.ftl">
+<!-- Portfolio Analyzer is now at /analyzer -->
+
+<!-- Footer -->
+<footer class="page-footer">
+    BondFX v2.5 &nbsp;·&nbsp;<a href="#" onclick="openInfoModal(); return false;">User Manual</a>
+</footer>
 
 <!-- JavaScript (external static files) -->
 <script>
@@ -243,7 +292,6 @@
     };
 </script>
 <script src="/js/bond-report.js"></script>
-<script src="/js/portfolio-analyzer.js"></script>
 <script src="/js/bond-report-mobile-adapter.js"></script>
 </body>
 </html>

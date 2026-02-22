@@ -74,6 +74,16 @@ public class BondController {
         return "bond-report";
     }
 
+    @GetMapping("/analyzer")
+    public String analyzer(Model model) throws Exception {
+        // Use cached bonds — no re-scrape
+        List<Bond> bonds = bondService.getAll();
+        model.addAttribute("bonds", bonds);
+        model.addAttribute("generatedAtMs",
+            java.time.Instant.now().toEpochMilli());
+        return "analyzer";
+    }
+
     // ─── Private helpers ───────────────────────────────────────────────────────
 
     /**

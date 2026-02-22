@@ -1,3 +1,5 @@
+<a id="top"></a>
+
 # 📊 BondFX : Sovereign Bond Analytics Platform — User Manual
 
 **Discover, analyze, and build custom bond portfolios in minutes. Find the best yields across 30+ countries with
@@ -6,6 +8,8 @@ intelligent filtering, preset investment strategies, and real-time portfolio ana
 ---
 
 ## Table of Contents
+
+[↑ Top](#top)
 
 1. [What Is This Platform?](#what-is-this-platform)
 2. [Quick Start](#quick-start)
@@ -27,6 +31,8 @@ intelligent filtering, preset investment strategies, and real-time portfolio ana
 
 ## What Is This Platform?
 
+[↑ Top](#top)
+
 BondFX is a live sovereign bond analytics platform:
 
 **1. The Interactive Report** — A browser-based interface to browse, filter, and analyze sovereign bonds. No technical
@@ -40,6 +46,8 @@ Together, they form a self-contained investment research tool that requires no s
 ---
 
 ## Quick Start
+
+[↑ Top](#top)
 
 ### Step 1 — Open the Report
 
@@ -70,6 +78,8 @@ Once a preset is active:
 
 ## Understanding the Bond Table
 
+[↑ Top](#top)
+
 Each row represents a single sovereign bond:
 
 | Column                 | What It Represents                          | Practical Use                                 |
@@ -89,6 +99,8 @@ Each row represents a single sovereign bond:
 ---
 
 ## Key Metrics Explained
+
+[↑ Top](#top)
 
 ### SAY — Simple Annual Yield
 
@@ -129,6 +141,8 @@ income.
 
 ## Investment Strategy Presets
 
+[↑ Top](#top)
+
 ### 🅿️🛡️ Cash Parking
 
 Safe home for capital needed within 2–3 years. Maturity ≤ 2.5y, rating ≥ BBB+, yield ≥ 2%.
@@ -157,6 +171,8 @@ Maximum capital safety. Rating ≥ AA−, maturity 5–30y.
 
 ## Advanced Filtering
 
+[↑ Top](#top)
+
 - **Click any column header** to sort ascending or descending
 - **Type in the filter row** below each header to filter by text or value
 - **Combine a preset with manual column sorting** for refined results
@@ -166,6 +182,8 @@ Maximum capital safety. Rating ≥ AA−, maturity 5–30y.
 ---
 
 ## Portfolio Analyzer
+
+[↑ Top](#top)
 
 Click **🎯 Portfolio Analyzer** to open the portfolio builder.
 
@@ -245,6 +263,8 @@ US0000000001 (USA):     €105.00 → €103.50  ↓ −€1.50
 
 ## Dividend Calendar
 
+[↑ Top](#top)
+
 The **Dividend Calendar** shows estimated net coupon income per month for the next 12 months across your entire
 portfolio, displayed as a bar chart.
 
@@ -258,6 +278,8 @@ Frequency is configured automatically by issuer country — see [Coupon Frequenc
 
 ## Maturity Calendar
 
+[↑ Top](#top)
+
 The **Maturity Calendar** lists every bond in your portfolio sorted by maturity date, showing:
 
 - **Face value returned** at maturity (in original currency for non-EUR bonds, with EUR equivalent)
@@ -269,6 +291,8 @@ This lets you plan future cash flows and see at a glance which bonds will repay 
 
 ## Analysis Modes
 
+[↑ Top](#top)
+
 Toggle in the legend section at the bottom of the page.
 
 **Capital Gain Mode (Default)** — focuses on SAY. Best for growth investors.
@@ -278,6 +302,8 @@ Toggle in the legend section at the bottom of the page.
 ---
 
 ## Custom Investment Profiles (YAML)
+
+[↑ Top](#top)
 
 Create your own strategies by uploading a YAML file via **📁 Import YAML**:
 
@@ -311,6 +337,8 @@ profiles:
 ---
 
 ## Coupon Frequency Configuration
+
+[↑ Top](#top)
 
 The Dividend Calendar needs to know how many times per year each bond pays its coupon. This is configured in
 `src/main/resources/coupon-frequency.yaml` on the server.
@@ -357,6 +385,8 @@ changes required.
 ---
 
 ## Tax Rate Configuration
+
+[↑ Top](#top)
 
 Withholding tax at source on coupon income is configured in `src/main/resources/tax-rates.yaml`. Rates are applied
 automatically when a bond is added to the portfolio and can be overridden manually per bond in the **Tax %** column.
@@ -418,6 +448,8 @@ To change a rate or add an exception, edit the YAML and redeploy. No code change
 
 ## Troubleshooting
 
+[↑ Top](#top)
+
 **Search does not find a bond** — The ISIN must be exact. Copy-paste from the table.
 
 **Filters do not work** — Click **🧹 Reset** or reload the page to clear all filters.
@@ -437,6 +469,8 @@ Reload the page to fetch fresh data.
 ---
 
 ## Frequently Asked Questions
+
+[↑ Top](#top)
 
 **Which preset should I use?**
 
@@ -480,6 +514,8 @@ You can override the rate directly in the table — changes take effect immediat
 
 ## First Portfolio: Step-by-Step
 
+[↑ Top](#top)
+
 1. Click **⚖️ Balanced Core**
 2. Sort by **SAY** (highest first)
 3. Pick 5 bonds from different countries
@@ -496,4 +532,4 @@ Set a quarterly reminder to reimport the CSV and review price changes.
 
 ---
 
-*Last updated: February 2026 — BondFX v2.3*
+*Last updated: February 2026 — BondFX v2.5*

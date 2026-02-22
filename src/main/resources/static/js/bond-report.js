@@ -2,17 +2,18 @@
    COLUMN MAPPING
 ======================= */
 const COL = {
-    ISIN: 0,
-    ISSUER: 1,
-    PRICE: 2,
-    CURRENCY: 3,
-    RATING: 4,
-    PRICE_R: 5,
-    COUPON: 6,
-    MATURITY: 7,
-    CURR_YIELD: 8,
-    CAPITAL_AT_MAT: 9,
-    SAY: 10
+    ADD: 0,       // ➕ basket button column
+    ISIN: 1,
+    ISSUER: 2,
+    PRICE: 3,
+    CURRENCY: 4,
+    RATING: 5,
+    PRICE_R: 6,
+    COUPON: 7,
+    MATURITY: 8,
+    CURR_YIELD: 9,
+    CAPITAL_AT_MAT: 10,
+    SAY: 11
 };
 
 /* =======================
@@ -102,6 +103,7 @@ function sortTable(col, initial) {
     });
 
     rows.forEach(r => tbody.appendChild(r));
+    syncBasketButtons();
 }
 
 /* =======================
@@ -157,6 +159,7 @@ function filterTable() {
     });
 
     applyHeatmap();
+    syncBasketButtons();
 }
 
 function clearColumnFilters() {
@@ -644,12 +647,148 @@ function updatePresetButtons(activePreset) {
     document.getElementById("preset-reset").classList.remove("active");
 }
 
+
+/* =======================
+   BOND BASKET
+======================= */
+const FLAG_MAP = {
+    "ITALIA":"🇮🇹","GERMANIA":"🇩🇪","FRANCIA":"🇫🇷","SPAGNA":"🇪🇸",
+    "PORTOGALLO":"🇵🇹","GRECIA":"🇬🇷","AUSTRIA":"🇦🇹","BELGIO":"🇧🇪",
+    "OLANDA":"🇳🇱","FINLANDIA":"🇫🇮","IRLANDA":"🇮🇪","SVEZIA":"🇸🇪",
+    "DANIMARCA":"🇩🇰","NORVEGIA":"🇳🇴","SVIZZERA":"🇨🇭",
+    "REGNO UNITO":"🇬🇧","USA":"🇺🇸","GIAPPONE":"🇯🇵",
+    "ROMANIA":"🇷🇴","POLONIA":"🇵🇱","UNGHERIA":"🇭🇺","BULGARIA":"🇧🇬",
+    "CROAZIA":"🇭🇷","SLOVENIA":"🇸🇮","SLOVACCHIA":"🇸🇰",
+    "REPUBBLICA CECA":"🇨🇿","ESTONIA":"🇪🇪","LETTONIA":"🇱🇻","LITUANIA":"🇱🇹",
+    "CIPRO":"🇨🇾","LUSSEMBURGO":"🇱🇺","TURCHIA":"🇹🇷","BRASILE":"🇧🇷",
+    "MESSICO":"🇲🇽","CILE":"🇨🇱","SUDAFRICA":"🇿🇦"
+};
+
+function flagFor(issuer) {
+    return FLAG_MAP[issuer.toUpperCase()] || "🏳️";
+}
+
+// basket: array of { isin, issuer, coupon, maturity }
+let basket = JSON.parse(localStorage.getItem('bondBasket') || '[]');
+
+function saveBasket() {
+    localStorage.setItem('bondBasket', JSON.stringify(basket));
+}
+
+function addToBasket(btn) {
+    const isin     = btn.dataset.isin;
+    const issuer   = btn.dataset.issuer;
+    const coupon   = btn.dataset.coupon;
+    const maturity = btn.dataset.maturity;
+
+    if (basket.find(b => b.isin === isin)) {
+        // already in — show green ✓ briefly
+        setBasketBtnState(btn, true);
+        return;
+    }
+    basket.push({ isin, issuer, coupon, maturity });
+    saveBasket();
+    renderBasket();
+    setBasketBtnState(btn, true);
+}
+
+function setBasketBtnState(btn, inBasket) {
+    if (inBasket) {
+        btn.textContent = '✓';
+        btn.classList.add('in-basket');
+    } else {
+        btn.textContent = '＋';
+        btn.classList.remove('in-basket');
+    }
+}
+
+function syncBasketButtons() {
+    document.querySelectorAll('.add-to-basket-btn').forEach(btn => {
+        const isin = btn.dataset.isin;
+        setBasketBtnState(btn, !!basket.find(b => b.isin === isin));
+    });
+}
+
+function removeFromBasket(isin) {
+    basket = basket.filter(b => b.isin !== isin);
+    saveBasket();
+    renderBasket(); // renderBasket already calls syncBasketButtons
+
+    // force open after DOM update + event bubbling
+    setTimeout(() => {
+        const el = document.getElementById('basketDropdown');
+        if (el) el.style.display = 'block';
+    }, 0);
+}
+
+function clearBasket() {
+    basket = [];
+    saveBasket();
+    renderBasket();
+    document.getElementById('basketDropdown').style.display = 'none';
+}
+
+function toggleBasketDropdown() {
+    const dd = document.getElementById('basketDropdown');
+    dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', e => {
+    const widget = document.getElementById('basketWidget');
+    if (widget && !widget.contains(e.target)) {
+        const dd = document.getElementById('basketDropdown');
+        if (dd) dd.style.display = 'none';
+    }
+});
+
+function renderBasket() {
+    const countEl = document.getElementById('basketCount');
+    const itemsEl = document.getElementById('basketItems');
+    if (!countEl || !itemsEl) return;
+
+    if (basket.length === 0) {
+        countEl.style.display = 'none';
+        itemsEl.innerHTML = '<p class="basket-empty">No bonds selected yet.<br>Click ＋ on any row.</p>';
+    } else {
+        countEl.style.display = 'inline-flex';
+        countEl.textContent = basket.length;
+        itemsEl.innerHTML = basket.map(b => {
+            const year = b.maturity ? b.maturity.substring(0, 4) : '';
+            return `<div class="basket-item">
+                <span class="basket-item__label">${flagFor(b.issuer)} ${b.issuer} ${b.coupon}% ${year}</span>
+                <button class="basket-item__remove" onclick="removeFromBasket('${b.isin}')" title="Remove">✕</button>
+            </div>`;
+        }).join('');
+    }
+
+    if (typeof twemoji !== 'undefined') twemoji.parse(itemsEl);
+    syncBasketButtons();
+}
+
+function openAnalyzerFromBasket() {
+    goToAnalyzer();
+}
+
+function goToAnalyzer() {
+    document.getElementById('basketDropdown').style.display = 'none';
+    // basket is already persisted in localStorage — just navigate
+    window.location.href = '/analyzer';
+}
+
 /* =======================
    INITIALIZATION
 ======================= */
 document.addEventListener("DOMContentLoaded", () => {
     setDefaultMaturityFilters();
     applyPreset("cashParking");
+    renderBasket(); // also calls syncBasketButtons
+    // Parse emoji once after page load (covers flag column in table)
+    if (typeof twemoji !== 'undefined') {
+      document
+        .querySelectorAll('td.td-issuer, span.basket-item__label')
+        .forEach(el => twemoji.parse(el));
+    }
 });
 // ─── INFO MODAL ──────────────────────────────────────────────────────────────
 function openInfoModal() {

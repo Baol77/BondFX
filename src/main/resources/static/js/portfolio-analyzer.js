@@ -89,12 +89,69 @@ class PortfolioAnalyzer {
     }
 
     openModal() {
+        this._initView([]);
+    }
+
+    openModalWithBasket(basketItems) {
+        this._initView(basketItems || []);
+    }
+
+    _initView(basketItems) {
+        // Works both as modal (homepage) and as standalone page (/analyzer)
         if (this.modal) {
             this.modal.classList.add('open');
-            this.updatePortfolioTable();
-            this.updateStatistics();
-            this.updateCalendars();
-            document.getElementById('searchResults').style.display = "none";
+        }
+        this.updatePortfolioTable();
+        this.updateStatistics();
+        this.updateCalendars();
+        const sr = document.getElementById('searchResults');
+        if (sr) sr.style.display = 'none';
+        this.renderBasketLabels(basketItems);
+    }
+
+    renderBasketLabels(basketItems) {
+        const container = document.getElementById('basketLabels');
+        if (!container) return;
+
+        if (!basketItems || basketItems.length === 0) {
+            container.style.display = 'none';
+            container.innerHTML = '';
+            return;
+        }
+
+        const FLAG_MAP = {
+            "ITALIA":"🇮🇹","GERMANIA":"🇩🇪","FRANCIA":"🇫🇷","SPAGNA":"🇪🇸",
+            "PORTOGALLO":"🇵🇹","GRECIA":"🇬🇷","AUSTRIA":"🇦🇹","BELGIO":"🇧🇪",
+            "OLANDA":"🇳🇱","FINLANDIA":"🇫🇮","IRLANDA":"🇮🇪","SVEZIA":"🇸🇪",
+            "DANIMARCA":"🇩🇰","NORVEGIA":"🇳🇴","SVIZZERA":"🇨🇭",
+            "REGNO UNITO":"🇬🇧","USA":"🇺🇸","GIAPPONE":"🇯🇵",
+            "ROMANIA":"🇷🇴","POLONIA":"🇵🇱","UNGHERIA":"🇭🇺","BULGARIA":"🇧🇬",
+            "CROAZIA":"🇭🇷","SLOVENIA":"🇸🇮","SLOVACCHIA":"🇸🇰",
+            "REPUBBLICA CECA":"🇨🇿","ESTONIA":"🇪🇪","LETTONIA":"🇱🇻","LITUANIA":"🇱🇹",
+            "CIPRO":"🇨🇾","LUSSEMBURGO":"🇱🇺","TURCHIA":"🇹🇷","BRASILE":"🇧🇷",
+            "MESSICO":"🇲🇽","CILE":"🇨🇱","SUDAFRICA":"🇿🇦"
+        };
+
+        container.style.display = 'block';
+        const chips = basketItems.map(b => {
+            const flag = FLAG_MAP[b.issuer.toUpperCase()] || '🏳️';
+            const year = b.maturity ? b.maturity.substring(0, 4) : '';
+            return `<button class="basket-chip" onclick="window.portfolioAnalyzer.loadFromBasket('${b.isin}')" title="${b.isin}">
+                ${flag} ${b.issuer} ${b.coupon}% ${year}
+            </button>`;
+        }).join('');
+
+        container.innerHTML = `
+            <div class="basket-labels__title">🛒 From basket — click to load:</div>
+            <div class="basket-labels__chips">${chips}</div>`;
+        if (typeof twemoji !== 'undefined') twemoji.parse(container);
+    }
+
+    loadFromBasket(isin) {
+        const searchInput = document.getElementById('isinSearch');
+        if (searchInput) {
+            searchInput.value = isin;
+            this.searchBond();
         }
     }
 
@@ -570,8 +627,8 @@ class PortfolioAnalyzer {
                            ${bond.includeInStatistics ? 'checked' : ''}
                            onchange="window.portfolioAnalyzer.toggleStatistics(${idx})">
                 </td>
-                <td style="text-align:center;">
-                   <div style="display:flex;justify-content:center;align-items:center;gap:10px;">
+                <td style="text-align:right;">
+                   <div style="display:flex;justify-content:flex-end;align-items:center;gap:10px;">
                        ${hasDuplicates ? `<span onclick="window.portfolioAnalyzer.mergeBond('${bond.isin}')" title="Merge duplicates" style="cursor:pointer;font-size:18px;transition:opacity 0.15s ease;" onmouseover="this.style.opacity='0.6'" onmouseout="this.style.opacity='1'">🔄</span>` : ''}
                        <span onclick="window.portfolioAnalyzer.removeBond(${idx})" title="Delete bond" style="cursor:pointer;font-size:18px;transition:opacity 0.15s ease;" onmouseover="this.style.opacity='0.6'" onmouseout="this.style.opacity='1'">❌</span>
                    </div>
@@ -1148,4 +1205,14 @@ class PortfolioAnalyzer {
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
     window.portfolioAnalyzer = new PortfolioAnalyzer();
+
+    // If running as standalone /analyzer page, auto-init with basket from localStorage
+    if (window.location.pathname === '/analyzer') {
+        try {
+            const basket = JSON.parse(localStorage.getItem('bondBasket') || '[]');
+            window.portfolioAnalyzer._initView(basket);
+        } catch(e) {
+            window.portfolioAnalyzer._initView([]);
+        }
+    }
 });
