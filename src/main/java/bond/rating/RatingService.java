@@ -93,6 +93,7 @@ public class RatingService {
         FALLBACK_MAP.put("CROAZIA", "BBB-");      // Croatia
         FALLBACK_MAP.put("UNGHERIA", "BBB-");     // Hungary
         FALLBACK_MAP.put("MESSICO", "BBB-");      // Mexico
+        FALLBACK_MAP.put("PERU", "BBB-");         // Peru
 
         // BB+ (Speculative - Likely filtered)
         FALLBACK_MAP.put("GRECIA", "BB+");        // Greece

@@ -1,5 +1,49 @@
 // Portfolio Analyzer - Client-Side Portfolio Management
 // Fixed version: draggable modal, CSV import/export, corrected weighted calculations
+
+/* ── Base Currency helpers (mirrors bond-report.js; work standalone on /analyzer) ── */
+const _PA_SYMBOL = { EUR: '€', CHF: '₣', USD: '$', GBP: '£' };
+let _paFxRates = { EUR: 1.0, CHF: 0.93, USD: 1.08, GBP: 0.86 };
+
+async function _paLoadFxRates() {
+    try {
+        const res = await fetch('/api/fx-rates');
+        if (res.ok) _paFxRates = await res.json();
+    } catch(e) {}
+}
+
+function _paBaseCcy() {
+    return localStorage.getItem('bondBaseCurrency') || 'EUR';
+}
+
+function _paSym(ccy) {
+    return _PA_SYMBOL[ccy] || ccy;
+}
+
+/** EUR value → base currency value */
+function _paToBase(eurVal) {
+    const ccy = _paBaseCcy();
+    return ccy === 'EUR' ? eurVal : eurVal * (_paFxRates[ccy] || 1.0);
+}
+
+/** Base currency → EUR (for CSV import conversion) */
+function _paFromBase(baseVal) {
+    const ccy = _paBaseCcy();
+    return ccy === 'EUR' ? baseVal : baseVal / (_paFxRates[ccy] || 1.0);
+}
+
+/** Update all .pa-base-sym spans with current currency symbol */
+function _paApplyBaseCurrencyUI() {
+    const sym = _paSym(_paBaseCcy());
+    document.querySelectorAll('.pa-base-sym').forEach(el => el.textContent = sym);
+}
+
+/** Format as base currency */
+function _paFmt(eurVal, decimals = 0) {
+    const sym = _paSym(_paBaseCcy());
+    const val = _paToBase(eurVal);
+    return sym + (decimals > 0 ? val.toFixed(decimals) : Math.round(val).toLocaleString());
+}
 // Embedded in FreeMarker template via <#include "portfolio-analyzer.js" parse=false>
 // No backend required - uses browser localStorage
 
@@ -377,7 +421,7 @@ class PortfolioAnalyzer {
             <strong>${bond.issuer}</strong><br>
             ISIN: <i>${bond.isin}</i><br>
             Maturity: <i>${bond.maturity}</i><br>
-            Price: <i>${bond.currency} ${bond.price.toFixed(2)}${bond.currency !== 'EUR' ? ` (€ ${bond.priceEur.toFixed(2)})` : ''}</i><br>
+            Price: <i>${bond.currency} ${bond.price.toFixed(2)}${bond.currency !== 'EUR' ? ` (${_paSym(_paBaseCcy())} ${_paToBase(bond.priceEur).toFixed(2)})` : ''}</i><br>
             Rating: <i>${bond.rating}</i> | Coupon: <i>${bond.coupon.toFixed(2)}%</i> | SAY: <i>${say.toFixed(2)}%</i>
         `;
 
@@ -389,7 +433,10 @@ class PortfolioAnalyzer {
         const originalLabel = document.getElementById('originalCurrencyLabel');
         const originalInput = document.getElementById('amountOriginal');
 
-        if (bond.currency === 'EUR') {
+        // Show native-currency input only when bond currency ≠ user's base currency
+        // (no point showing USD→USD conversion if base is already USD)
+        const baseCcy = _paBaseCcy();
+        if (bond.currency === baseCcy) {
             originalWrapper.style.display = 'none';
             originalInput.value = '';
         } else {
@@ -413,20 +460,22 @@ class PortfolioAnalyzer {
         const bond    = this.currentBond;
         const fxRate  = bond.currency !== 'EUR' ? (bond.priceEur / bond.price) : 1;
 
-        // EUR amount → quantity + original currency
+        // Base-currency amount input → qty + native currency
         eurInput.oninput = () => {
-            const eur = parseFloat(eurInput.value) || 0;
+            const baseAmt = parseFloat(eurInput.value) || 0;
+            const eur = _paFromBase(baseAmt);            // base → EUR
             qtyInput.value = eur > 0 ? (eur / bond.priceEur).toFixed(4) : '';
-            if (bond.currency !== 'EUR' && origInput)
-                origInput.value = eur > 0 ? (eur / fxRate).toFixed(2) : '';
+            // Fill native input only if it differs from base currency
+            if (bond.currency !== _paBaseCcy() && origInput)
+                origInput.value = eur > 0 ? (eur / fxRate).toFixed(2) : ''; // EUR → native
         };
 
-        // Original currency → EUR + quantity
-        if (bond.currency !== 'EUR' && origInput) {
+        // Original currency input only wired when bond currency ≠ base currency
+        if (bond.currency !== _paBaseCcy() && origInput) {
             origInput.oninput = () => {
                 const orig = parseFloat(origInput.value) || 0;
-                const eur  = orig * fxRate;
-                eurInput.value = orig > 0 ? eur.toFixed(2) : '';
+                const eur  = orig * fxRate;              // native → EUR
+                eurInput.value = orig > 0 ? _paToBase(eur).toFixed(2) : ''; // EUR → base
                 qtyInput.value = orig > 0 ? (eur / bond.priceEur).toFixed(4) : '';
             };
         }
@@ -436,9 +485,10 @@ class PortfolioAnalyzer {
         if (!this.currentBond) return;
 
         const qty = parseFloat(document.getElementById('quantity').value) || 0;
-        const totalEur = parseFloat(document.getElementById('amount').value.replace(/[^\d.-]/g, '')) || 0;
+        const _amountBaseInput = parseFloat(document.getElementById('amount').value.replace(/[^\d.-]/g, '')) || 0;
+        const totalEur = _paFromBase(_amountBaseInput); // base currency → EUR
 
-        if (qty <= 0 && totalEur <= 0) {
+        if (qty <= 0 && _amountBaseInput <= 0) {
             alert('Please enter either a quantity or an investment amount.');
             return;
         }
@@ -544,7 +594,7 @@ class PortfolioAnalyzer {
 
         console.log(
             `Consolidated ${matches.length} entries for ${isin}.
-             New Avg Cost: €${weightedAvgPrice.toFixed(2)}`
+             New Avg Cost: ${_paFmt(weightedAvgPrice, 2)}`
         );
     }
 
@@ -617,7 +667,7 @@ class PortfolioAnalyzer {
             return `<tr style="border-bottom:1px solid ${_trBorder};">
                 <td>${bond.isin}</td>
                 <td>${bond.issuer}</td>
-                <td>${bond.priceEur.toFixed(2)}</td>
+                <td>${_paToBase(bond.priceEur).toFixed(2)}</td>
                 <td>${bond.currency}</td>
                 <td>${bond.rating}</td>
                 <td>
@@ -628,7 +678,7 @@ class PortfolioAnalyzer {
                            onchange="window.portfolioAnalyzer.updateQuantityInPortfolio(${idx}, this.value)"
                            style="width:58px;padding:4px;font-size:12px;${_inputStyle}">
                 </td>
-                <td>${(bond.totalEur ?? 0).toFixed(2)}</td>
+                <td>${_paFmt(bond.totalEur ?? 0, 2)}</td>
                 <td style="white-space:nowrap;">${bond.maturity}</td>
                 <td>${this.computeCurrentYieldNet(bond).toFixed(2)}</td>
                 <td>${this.computeSAYNet(bond).toFixed(2)}</td>
@@ -639,7 +689,7 @@ class PortfolioAnalyzer {
                            title="Withholding tax % on coupon income"
                            onchange="window.portfolioAnalyzer.updateTaxRate(${idx}, this.value)">
                 </td>
-                <td class="${gainLoss >= 0 ? 'good' : 'bad'}">${gainLoss}</td>
+                <td class="${gainLoss >= 0 ? 'good' : 'bad'}">${Math.round(_paToBase(gainLoss))}</td>
                 <td>
                     <input type="checkbox" title="Toggle to include/exclude this bond from statistics calculations"
                            ${bond.includeInStatistics ? 'checked' : ''}
@@ -675,8 +725,8 @@ class PortfolioAnalyzer {
 
     updateStatistics() {
         if (this.portfolio.length === 0) {
-            document.getElementById('statTotalInvestment').textContent = '€0.00';
-            document.getElementById('statAvgPrice').textContent = '€0.00';
+            document.getElementById('statTotalInvestment').textContent = _paSym(_paBaseCcy()) + '0';
+            document.getElementById('statAvgPrice').textContent = _paSym(_paBaseCcy()) + '0.00';
             document.getElementById('statWeightedSAY').textContent = '0.00%';
             document.getElementById('statWeightedSAYNet').textContent = '0.00%';
             document.getElementById('statWeightedYield').textContent = '0.00%';
@@ -686,8 +736,8 @@ class PortfolioAnalyzer {
             document.getElementById('statWeightedRisk').textContent = '0.00 yrs';
             document.getElementById('statWeightedRating').textContent = '-';
             document.getElementById('currencyBreakdown').innerHTML = '';
-            document.getElementById('statTotalProfit').textContent = '€0';
-            document.getElementById('statTotalCouponIncome').textContent = '€0.00';
+            document.getElementById('statTotalProfit').textContent = _paSym(_paBaseCcy()) + '0';
+            document.getElementById('statTotalCouponIncome').textContent = _paSym(_paBaseCcy()) + '0';
             this.updateCalendars();
             // reset all cards to neutral when empty
             ['card-totalInvestment','card-avgPrice','card-weightedSAY','card-weightedSAYNet',
@@ -776,8 +826,8 @@ class PortfolioAnalyzer {
         const weightedRating = ratingOrder[Math.round(avgRatingScore)] || '-';
 
         totalInvestment = Math.round(totalInvestment);
-        document.getElementById('statTotalInvestment').textContent = `€${totalInvestment}`;
-        document.getElementById('statAvgPrice').textContent = `€${avgPrice.toFixed(2)}`;
+        document.getElementById('statTotalInvestment').textContent = _paFmt(totalInvestment);
+        document.getElementById('statAvgPrice').textContent = _paFmt(avgPrice, 2);
         document.getElementById('statWeightedSAY').textContent = `${weightedSAYPercent.toFixed(2)}%`;
         document.getElementById('statWeightedSAYNet').textContent = `${weightedSAYNetPercent.toFixed(2)}%`;
         document.getElementById('statWeightedYield').textContent = `${weightedYieldPercent.toFixed(2)}%`;
@@ -792,7 +842,7 @@ class PortfolioAnalyzer {
         totalProfit = Math.round(totalProfit);
         const profitElement = document.getElementById('statTotalProfit');
         if (profitElement) {
-            profitElement.textContent = `€${totalProfit}`;
+            profitElement.textContent = _paFmt(totalProfit);
             profitElement.style.color = totalProfit >= 0 ? '#4CAF50' : '#f44336';
         }
 
@@ -800,7 +850,7 @@ class PortfolioAnalyzer {
         totalCouponIncome = Math.round(totalCouponIncome);
         const couponElement = document.getElementById('statTotalCouponIncome');
         if (couponElement) {
-            couponElement.textContent = `€${totalCouponIncome}`;
+            couponElement.textContent = _paFmt(totalCouponIncome);
         }
 
         // Display currency breakdown
@@ -828,7 +878,7 @@ class PortfolioAnalyzer {
                 <div style="background:${_cardBg};padding:10px;border-radius:4px;border-left:4px solid #4CAF50;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
                     <div style="font-size:11px;color:${_labelClr};font-weight:600;margin-bottom:6px;">${currency}</div>
                     <p style="margin:0;font-size:14px;font-weight:bold;color:#4CAF50;">${percentage}%</p>
-                    <p style="margin:5px 0 0 0;font-size:11px;color:${_amtClr};">€${amount}</p>
+                    <p style="margin:5px 0 0 0;font-size:11px;color:${_amtClr};">${_paSym(_paBaseCcy())}${Math.round(_paToBase(amount))}</p>
                 </div>
             `;
         }).join('');
@@ -903,9 +953,9 @@ class PortfolioAnalyzer {
                 <div class="cal-month">
                     <div class="cal-bar-wrap">
                         <div class="cal-bar" style="height:${height}px;background:${color};"
-                             title="${m.label}: €${income}"></div>
+                             title="${m.label}: ${_paSym(_paBaseCcy())}${Math.round(_paToBase(income))}"></div>
                     </div>
-                    <div class="cal-amount">${income > 0 ? '€' + income : '—'}</div>
+                    <div class="cal-amount">${income > 0 ? _paSym(_paBaseCcy()) + Math.round(_paToBase(income)) : '—'}</div>
                     <div class="cal-label">${m.label}</div>
                 </div>`;
         }).join('');
@@ -955,10 +1005,14 @@ class PortfolioAnalyzer {
 
             const matStr     = new Date(bond.maturity).toLocaleDateString('default', { year:'numeric', month:'short', day:'numeric' });
 
-            // Show face value in original currency if not EUR
-            const faceDisplay = isEur
-                ? `€${Math.round(faceEur).toLocaleString()}`
-                : `${bond.currency} ${Math.round(faceNative).toLocaleString()} (≈€${Math.round(faceEur).toLocaleString()})`;
+            // Show native amount only if bond currency differs from user's base currency
+            const baseSym  = _paSym(_paBaseCcy());
+            const baseCcy2 = _paBaseCcy();
+            const sameAsBase = bond.currency === baseCcy2;
+            const faceBase = Math.round(_paToBase(faceEur)).toLocaleString();
+            const faceDisplay = sameAsBase
+                ? `${baseSym}${faceBase}`
+                : `${bond.currency} ${Math.round(faceNative).toLocaleString()} (≈${baseSym}${faceBase})`;
 
             return `
                 <div class="maturity-row-item">
@@ -968,7 +1022,7 @@ class PortfolioAnalyzer {
                         <span style="color:#888;font-size:12px;">${bond.isin}</span>
                     </div>
                     <div class="mat-face">${faceDisplay}</div>
-                    <div class="mat-gain ${gainClass}">${gainSign}€${Math.round(gainEur).toLocaleString()}</div>
+                    <div class="mat-gain ${gainClass}">${gainSign}${_paSym(_paBaseCcy())}${Math.round(_paToBase(gainEur)).toLocaleString()}</div>
                 </div>`;
         }).join('');
     }
@@ -1049,7 +1103,110 @@ class PortfolioAnalyzer {
             alert('Portfolio is empty');
             return;
         }
+        // Show title popup first, then export
+        this._showPdfTitlePopup();
+    }
 
+    _showPdfTitlePopup() {
+        const defaultTitle = `BondFX — Portfolio Report (${_paBaseCcy()})`;
+        // Remove any existing popup
+        const existing = document.getElementById('pdfTitlePopup');
+        if (existing) existing.remove();
+
+        const isDark = document.body.classList.contains('dark');
+        const popup = document.createElement('div');
+        popup.id = 'pdfTitlePopup';
+        popup.innerHTML = `
+            <div id="pdfTitleBackdrop" style="
+                position:fixed;inset:0;z-index:2000;
+                background:rgba(0,0,0,0.55);
+                display:flex;align-items:center;justify-content:center;
+                padding:16px;box-sizing:border-box;
+                animation:fadeInPdf 0.15s ease;">
+                <div style="
+                    background:${isDark ? '#1e2338' : '#fff'};
+                    border:1px solid ${isDark ? '#3a3f60' : '#d0d8e8'};
+                    border-radius:10px;
+                    padding:24px 24px 20px;
+                    width:100%;max-width:420px;
+                    box-shadow:0 12px 40px rgba(0,0,0,0.35);
+                    box-sizing:border-box;">
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="${isDark ? '#7aadee' : '#1a4a9c'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                        <span style="font-weight:700;font-size:14px;color:${isDark ? '#e0e8ff' : '#1a2a4a'};">Export PDF</span>
+                    </div>
+                    <label style="display:block;font-size:11px;font-weight:600;color:${isDark ? '#8890b8' : '#666'};margin-bottom:6px;letter-spacing:0.5px;text-transform:uppercase;">Report Title</label>
+                    <input id="pdfTitleInput" type="text" value="${defaultTitle.replace(/"/g, '&quot;')}"
+                        style="
+                            width:100%;box-sizing:border-box;
+                            padding:9px 12px;
+                            border:1.5px solid ${isDark ? '#3a4a6a' : '#c0cce0'};
+                            border-radius:6px;
+                            background:${isDark ? '#151825' : '#f5f8ff'};
+                            color:${isDark ? '#c8d0f0' : '#1a2a4a'};
+                            font-size:13px;
+                            outline:none;
+                            transition:border-color 0.15s;">
+                    <div style="display:flex;gap:10px;margin-top:18px;justify-content:flex-end;flex-wrap:wrap;">
+                        <button id="pdfTitleCancel" style="
+                            padding:8px 18px;
+                            border:1.5px solid ${isDark ? '#3a3f60' : '#bbb'};
+                            background:${isDark ? '#2a2d45' : '#f5f5f5'};
+                            color:${isDark ? '#c0c8e8' : '#444'};
+                            border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;
+                            transition:all 0.15s;">Cancel</button>
+                        <button id="pdfTitleConfirm" style="
+                            padding:8px 22px;
+                            border:none;
+                            background:#1a4a9c;
+                            color:#fff;
+                            border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;
+                            transition:background 0.15s;">
+                            ⬇ Export PDF</button>
+                    </div>
+                </div>
+            </div>`;
+        // Add animation keyframe once
+        if (!document.getElementById('pdfFadeStyle')) {
+            const s = document.createElement('style');
+            s.id = 'pdfFadeStyle';
+            s.textContent = '@keyframes fadeInPdf{from{opacity:0;transform:scale(0.97)}to{opacity:1;transform:scale(1)}}';
+            document.head.appendChild(s);
+        }
+        document.body.appendChild(popup);
+
+        const input = document.getElementById('pdfTitleInput');
+        const cancel = document.getElementById('pdfTitleCancel');
+        const confirm = document.getElementById('pdfTitleConfirm');
+        const backdrop = document.getElementById('pdfTitleBackdrop');
+
+        // Focus + select all
+        setTimeout(() => { input.focus(); input.select(); }, 50);
+
+        // Hover states
+        cancel.onmouseenter  = () => { cancel.style.background = isDark ? '#3a3f60' : '#e8e8e8'; };
+        cancel.onmouseleave  = () => { cancel.style.background = isDark ? '#2a2d45' : '#f5f5f5'; };
+        confirm.onmouseenter = () => { confirm.style.background = '#2560c8'; };
+        confirm.onmouseleave = () => { confirm.style.background = '#1a4a9c'; };
+        input.onfocus        = () => { input.style.borderColor = isDark ? '#5a7acc' : '#4a7cc7'; };
+        input.onblur         = () => { input.style.borderColor = isDark ? '#3a4a6a' : '#c0cce0'; };
+
+        const close = () => popup.remove();
+        const doExportWithTitle = () => {
+            const title = document.getElementById('pdfTitleInput')?.value?.trim() || defaultTitle;
+            close();
+            this._doExportPDF(title);
+        };
+
+        cancel.onclick  = close;
+        confirm.onclick = doExportWithTitle;
+        // Click outside to cancel
+        backdrop.onclick = (e) => { if (e.target === backdrop) close(); };
+        // Enter to confirm
+        input.onkeydown = (e) => { if (e.key === 'Enter') doExportWithTitle(); if (e.key === 'Escape') close(); };
+    }
+
+    _doExportPDF(reportTitle) {
         // Load jsPDF dynamically if not already loaded
         const doExport = () => {
             const { jsPDF } = window.jspdf;
@@ -1064,7 +1221,7 @@ class PortfolioAnalyzer {
             doc.setTextColor(255, 255, 255);
             doc.setFontSize(13);
             doc.setFont('helvetica', 'bold');
-            doc.text('BondFX — Portfolio Report', margin, 11);
+            doc.text(reportTitle, margin, 11);
             doc.setFontSize(8);
             doc.setFont('helvetica', 'normal');
             const _d = new Date();
@@ -1074,8 +1231,8 @@ class PortfolioAnalyzer {
 
             // ── Portfolio table ──
             doc.setTextColor(0, 0, 0);
-            const headers = ['ISIN', 'Issuer', 'Price €', 'Curr.', 'Rating', 'Qty', 'Invest. €',
-                             'Maturity', 'Yield%', 'SAY%', 'Tax%', 'Profit €'];
+            const headers = ['ISIN', 'Issuer', `Price ${_paSym(_paBaseCcy())}`, 'Curr.', 'Rating', 'Qty', `Invest. ${_paSym(_paBaseCcy())}`,
+                             'Maturity', 'Yield%', 'SAY%', 'Tax%', `Profit ${_paSym(_paBaseCcy())}`];
             const colW    = [28, 28, 18, 12, 14, 12, 22, 22, 14, 14, 12, 18];
             let y = 24;
 
@@ -1108,16 +1265,16 @@ class PortfolioAnalyzer {
                 const row = [
                     bond.isin,
                     bond.issuer,
-                    (bond.priceEur ?? bond.price ?? 0).toFixed(2),
+                    _paToBase(bond.priceEur ?? bond.price ?? 0).toFixed(2),
                     bond.currency,
                     bond.rating,
                     bond.quantity.toFixed(2),
-                    (bond.totalEur ?? 0).toFixed(2),
+                    _paToBase(bond.totalEur ?? 0).toFixed(2),
                     bond.maturity,
                     yld.toFixed(2),
                     say.toFixed(2),
                     (bond.taxRate ?? 0).toFixed(1),
-                    profit.toFixed(2)
+                    _paToBase(profit).toFixed(2)
                 ];
                 x = margin;
                 row.forEach((val, i) => {
@@ -1130,7 +1287,7 @@ class PortfolioAnalyzer {
                 if (profitNum >= 0) doc.setTextColor(46, 125, 50);
                 else                doc.setTextColor(198, 40, 40);
                 x = margin + colW.slice(0, 11).reduce((a,b) => a + b, 0);
-                doc.text(profitNum.toFixed(2), x + colW[11] / 2, y, { align: 'center' });
+                doc.text(_paToBase(profitNum).toFixed(2), x + colW[11] / 2, y, { align: 'center' });
                 doc.setTextColor(0, 0, 0);
                 y += 6;
             });
@@ -1152,7 +1309,7 @@ class PortfolioAnalyzer {
 
             const totalInv = this.portfolio.reduce((s, b) => s + (b.totalEur ?? 0), 0);
             const stats = [
-                ['Total Investment', '€' + totalInv.toFixed(2)],
+                ['Total Investment', _paFmt(totalInv, 2)],
                 ['Bond Count', this.portfolio.length],
                 ['Weighted SAY (gross)', document.getElementById('statWeightedSAY')?.textContent ?? '-'],
                 ['Weighted SAY (net)',   document.getElementById('statWeightedSAYNet')?.textContent ?? '-'],
@@ -1205,7 +1362,7 @@ class PortfolioAnalyzer {
                 doc.setFont('helvetica', 'bold');
                 doc.text(cur + ':', cx, y);
                 doc.setFont('helvetica', 'normal');
-                doc.text('€' + Math.round(amt).toLocaleString() + ' (' + pct + '%)', cx + 12, y);
+                doc.text(_paSym(_paBaseCcy()) + Math.round(_paToBase(amt)).toLocaleString() + ' (' + pct + '%)', cx + 12, y);
                 cx += 55;
                 if (cx > pageW - margin - 50) { cx = margin; y += 7; }
             });
@@ -1218,7 +1375,7 @@ class PortfolioAnalyzer {
             doc.setTextColor(255, 255, 255);
             doc.setFontSize(8);
             doc.setFont('helvetica', 'bold');
-            doc.text('Dividend Calendar — Next 12 Months (net coupon income, EUR)', margin + 3, y + 4);
+            doc.text(`Dividend Calendar — Next 12 Months (net coupon income, ${_paBaseCcy()})`, margin + 3, y + 4);
             y += 10;
             doc.setTextColor(0, 0, 0);
             doc.setFont('helvetica', 'normal');
@@ -1267,7 +1424,7 @@ class PortfolioAnalyzer {
                 doc.setFontSize(6);
                 doc.setTextColor(0, 0, 0);
                 const amt = Math.round(m.income);
-                doc.text(amt > 0 ? '€' + amt : '—', bx + colW12 / 2, y + barMaxH + 4, { align: 'center' });
+                doc.text(amt > 0 ? _paSym(_paBaseCcy()) + Math.round(_paToBase(amt)) : '—', bx + colW12 / 2, y + barMaxH + 4, { align: 'center' });
                 // label
                 doc.setFontSize(5.5);
                 doc.text(m.label, bx + colW12 / 2, y + barMaxH + 9, { align: 'center' });
@@ -1307,19 +1464,23 @@ class PortfolioAnalyzer {
             });
             Object.values(merged2).sort((a,b) => new Date(a.maturity)-new Date(b.maturity)).forEach((bond, idx) => {
                 if (y > pageH - 15) { doc.addPage(); y = 20; }
-                const nominal = bond.nominal || 100;
-                const isEur   = bond.currency === 'EUR';
-                const fxRate  = isEur ? 1 : (bond.priceEur / bond.price);
-                const faceEur = nominal * bond.quantity * fxRate;
-                const gain    = faceEur - (bond.totalEur || 0);
+                const nominal  = bond.nominal || 100;
+                const fxRate   = bond.currency !== 'EUR' ? (bond.priceEur / bond.price) : 1;
+                const faceEur  = nominal * bond.quantity * fxRate;
+                const gain     = faceEur - (bond.totalEur || 0);
+                // If bond currency differs from base, prefix capital with native amount
+                const _natFace = bond.currency !== _paBaseCcy()
+                    ? bond.currency + ' ' + Math.round(nominal * bond.quantity) + ' / '
+                    : '';
                 const matStr  = new Date(bond.maturity).toLocaleDateString('en-GB', {year:'numeric',month:'short',day:'2-digit'});
                 if (idx % 2 === 0) {
                     doc.setFillColor(250,252,255);
                     doc.rect(margin, y-3.5, pageW-margin*2, 6, 'F');
                 }
+                const _sym2 = _paSym(_paBaseCcy());
                 const row2 = [matStr, bond.issuer, bond.isin,
-                    '€' + Math.round(faceEur).toLocaleString(),
-                    (gain >= 0 ? '+' : '') + '€' + Math.round(gain).toLocaleString()];
+                    _natFace + _sym2 + Math.round(_paToBase(faceEur)).toLocaleString(),
+                    (gain >= 0 ? '+' : '') + _sym2 + Math.round(_paToBase(gain)).toLocaleString()];
                 mx = margin;
                 row2.forEach((val, i) => {
                     doc.setFontSize(6.5);
@@ -1336,7 +1497,7 @@ class PortfolioAnalyzer {
             y += 6;
             doc.setFontSize(7);
             doc.setTextColor(150, 150, 150);
-            doc.text('BondFX v3 — Net values reflect withholding tax at source on coupon income only. Capital gains not modelled.',
+            doc.text('BondFX v4 — Net values reflect withholding tax at source on coupon income only. Capital gains not modelled.',
                 margin, pageH - 8);
 
             doc.save('BondFX-Portfolio-' + new Date().toISOString().slice(0,10) + '.pdf');
@@ -1350,7 +1511,7 @@ class PortfolioAnalyzer {
             script.onload = doExport;
             document.head.appendChild(script);
         }
-    }
+    }  // end _doExportPDF
 
     exportPortfolio() {
         if (this.portfolio.length === 0) {
@@ -1359,19 +1520,23 @@ class PortfolioAnalyzer {
         }
 
         // New reduced header
-        let csv = 'ISIN,Issuer,Quantity,Investment EUR,Coupon %,Rating,Currency,Maturity,TaxRate %\n';
+        const _exportCcy = _paBaseCcy();
+        const _exportRate = _paFxRates[_exportCcy] || 1.0;
+        let csv = `# BondFX Portfolio Export | baseCurrency=${_exportCcy} | fxRate=${_exportRate.toFixed(6)}\n`;
+        csv += `ISIN,Issuer,Quantity,Investment ${_exportCcy},Coupon %,Rating,Currency,Maturity,TaxRate %\n`;
 
         this.portfolio.forEach(bond => {
             const investment = bond.totalEur ?? 0;
 
-            csv += `${bond.isin},"${bond.issuer}",${bond.quantity},${investment.toFixed(2)},${bond.coupon},"${bond.rating}",${bond.currency},${bond.maturity},${(bond.taxRate ?? 0).toFixed(1)}\n`;
+            const invBase = _paToBase(investment);
+            csv += `${bond.isin},"${bond.issuer}",${bond.quantity},${invBase.toFixed(2)},${bond.coupon},"${bond.rating}",${bond.currency},${bond.maturity},${(bond.taxRate ?? 0).toFixed(1)}\n`;
         });
 
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
         const url = URL.createObjectURL(blob);
         link.setAttribute('href', url);
-        link.setAttribute('download', 'portfolio.csv');
+        link.setAttribute('download', `portfolio_${_exportCcy}.csv`);
         link.style.visibility = 'hidden';
         document.body.appendChild(link);
         link.click();
@@ -1387,8 +1552,27 @@ class PortfolioAnalyzer {
         reader.onload = async (e) => {
             try {
                 const csv = e.target.result;
-                const lines = csv.trim().split('\n');
+                const allLines = csv.trim().split('\n');
 
+                // Detect metadata header: # BondFX Portfolio Export | baseCurrency=CHF | fxRate=0.93
+                let csvBaseCcy = 'EUR';
+                let csvFxRate  = 1.0;
+                let dataStart  = 0;
+                if (allLines[0].startsWith('#')) {
+                    const meta = allLines[0];
+                    const ccyMatch  = meta.match(/baseCurrency=([A-Z]+)/);
+                    const rateMatch = meta.match(/fxRate=([\d.]+)/);
+                    if (ccyMatch)  csvBaseCcy = ccyMatch[1];
+                    if (rateMatch) csvFxRate  = parseFloat(rateMatch[1]);
+                    dataStart = 1; // skip metadata line
+                }
+                const currentCcy  = _paBaseCcy();
+                const currentRate = _paFxRates[currentCcy] || 1.0;
+                // Conversion factor: csvCcy → EUR → currentCcy
+                // investBase(csvCcy) / csvFxRate = EUR; EUR * currentRate = investBase(currentCcy)
+                const needsConversion = (csvBaseCcy !== currentCcy);
+
+                const lines = allLines.slice(dataStart);
                 if (lines.length < 2) {
                     alert('Invalid CSV format');
                     return;
@@ -1399,11 +1583,16 @@ class PortfolioAnalyzer {
                 for (let i = 1; i < lines.length; i++) {
                     const parts = this.parseCSVLine(lines[i]);
                     if (parts.length < 3) continue;
-                    const isin     = parts[0].trim();
-                    const quantity = parseFloat(parts[2]) || 0;
-                    const totalEur = parseFloat((parts[3] || '0').replace(/[^\d.-]/g, '')) || 0;
-                    const taxRate  = parseFloat(parts[8]) || null; // null = use backend default
+                    const isin        = parts[0].trim();
+                    const quantity    = parseFloat(parts[2]) || 0;
+                    const rawInvest   = parseFloat((parts[3] || '0').replace(/[^\d.-]/g, '')) || 0;
+                    // rawInvest is in csvBaseCcy; convert to EUR for internal storage
+                    const totalEur    = rawInvest / csvFxRate; // ccY→EUR
+                    const taxRate     = parseFloat(parts[8]) || null;
                     if (isin && quantity > 0) rows.push({ isin, quantity, totalEur, taxRate });
+                }
+                if (needsConversion) {
+                    console.log(`CSV import: converted ${csvBaseCcy} → EUR (csvRate=${csvFxRate})`);
                 }
 
                 if (rows.length === 0) {
@@ -1538,12 +1727,28 @@ document.addEventListener('DOMContentLoaded', () => {
     window.portfolioAnalyzer = new PortfolioAnalyzer();
 
     // If running as standalone /analyzer page, auto-init with basket from localStorage
-    if (window.location.pathname === '/analyzer') {
-        try {
-            const basket = JSON.parse(localStorage.getItem('bondBasket') || '[]');
-            window.portfolioAnalyzer._initView(basket);
-        } catch(e) {
-            window.portfolioAnalyzer._initView([]);
+    // Load FX rates then apply base currency UI + init view
+    _paLoadFxRates().then(() => {
+        _paApplyBaseCurrencyUI();
+        if (window.location.pathname === '/analyzer') {
+            try {
+                const basket = JSON.parse(localStorage.getItem('bondBasket') || '[]');
+                window.portfolioAnalyzer._initView(basket);
+            } catch(e) {
+                window.portfolioAnalyzer._initView([]);
+            }
+        }
+    });
+});
+
+// React to base currency changes made from the home page (cross-tab via localStorage)
+window.addEventListener('storage', (e) => {
+    if (e.key === 'bondBaseCurrency') {
+        _paApplyBaseCurrencyUI();
+        if (window.portfolioAnalyzer) {
+            window.portfolioAnalyzer.updatePortfolioTable();
+            window.portfolioAnalyzer.updateStatistics();
+            window.portfolioAnalyzer.updateCalendars();
         }
     }
 });

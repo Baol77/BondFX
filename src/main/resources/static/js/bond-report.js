@@ -1013,6 +1013,7 @@ function syncWishlistButtons() {
 function openSettingsModal() {
     document.getElementById('settingsBackdrop').classList.add('open');
     _updateThemeToggleUI();
+    _applyBaseCurrencyUI();
 }
 function closeSettingsModal(e) {
     if (e.target === document.getElementById('settingsBackdrop')) closeSettingsModalDirect();
@@ -1045,6 +1046,107 @@ function loadTheme() {
 loadTheme();
 
 /* =======================
+   BASE CURRENCY SYSTEM
+======================= */
+// All bond values are stored in EUR in the backend.
+// The base currency setting converts them for display only.
+
+const CURRENCY_SYMBOLS = { EUR: '€', CHF: '₣', USD: '$', GBP: '£' };
+const SUPPORTED_CURRENCIES = ['EUR', 'CHF', 'USD', 'GBP'];
+
+// FX rates from ECB via /api/fx-rates (EUR=1, others = units of CCY per 1 EUR)
+// e.g. USD=1.08 means 1 EUR = 1.08 USD
+let _fxRates = { EUR: 1.0, CHF: 0.93, USD: 1.08, GBP: 0.86 }; // sensible defaults
+
+async function _loadFxRates() {
+    try {
+        const res = await fetch('/api/fx-rates');
+        if (res.ok) _fxRates = await res.json();
+    } catch(e) { /* use defaults */ }
+}
+
+function getBaseCurrency() {
+    return localStorage.getItem('bondBaseCurrency') || 'EUR';
+}
+
+function getCurrencySymbol(ccy) {
+    return CURRENCY_SYMBOLS[ccy] || ccy;
+}
+
+/** Convert an EUR amount to the current base currency. */
+function eurToBase(eurAmount) {
+    const ccy = getBaseCurrency();
+    if (ccy === 'EUR') return eurAmount;
+    // _fxRates[ccy] = how many CCY per 1 EUR
+    return eurAmount * (_fxRates[ccy] || 1.0);
+}
+
+/** Format a base-currency amount with its symbol. */
+function fmtBase(eurAmount, decimals = 0) {
+    const sym = getCurrencySymbol(getBaseCurrency());
+    const val = eurToBase(eurAmount);
+    return sym + (decimals > 0 ? val.toFixed(decimals) : Math.round(val).toLocaleString());
+}
+
+function setBaseCurrency(ccy) {
+    if (!SUPPORTED_CURRENCIES.includes(ccy)) return;
+    localStorage.setItem('bondBaseCurrency', ccy);
+    _applyBaseCurrencyUI();
+    _refreshBaseCurrencyCells();
+    // If portfolio analyzer is open, re-render its data too
+    if (window.portfolioAnalyzer) {
+        window.portfolioAnalyzer.updatePortfolioTable();
+        window.portfolioAnalyzer.updateStatistics();
+        window.portfolioAnalyzer.updateCalendars();
+    }
+}
+
+function _applyBaseCurrencyUI() {
+    const ccy = getBaseCurrency();
+    const sym = getCurrencySymbol(ccy);
+    // Update page title
+    const titleEl = document.getElementById('titleCurrency');
+    if (titleEl) titleEl.textContent = '(' + ccy + ')';
+    // Update Price column TH
+    const thPrice = document.getElementById('thPriceCurrency');
+    if (thPrice) thPrice.textContent = ccy;
+    // Update Total Return TH symbol spans
+    document.querySelectorAll('.th-base-ccy').forEach(el => el.textContent = sym);
+    // Update currency selector active button
+    document.querySelectorAll('.currency-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.ccy === ccy);
+    });
+    // Update FX rate note in settings
+    const note = document.getElementById('fxRateNote');
+    if (note) {
+        if (ccy === 'EUR') {
+            note.textContent = '';
+        } else {
+            const rate = (_fxRates[ccy] || 1).toFixed(4);
+            note.textContent = `1 EUR = ${rate} ${ccy} (ECB rate)`;
+        }
+    }
+}
+
+function _refreshBaseCurrencyCells() {
+    // Re-render PRICE_R and CAPITAL_AT_MAT columns from data-* attributes
+    const rows = document.querySelectorAll('#bondTable tbody tr');
+    rows.forEach(r => {
+        // PRICE_R cell (col 6): data-price-eur attribute
+        const priceEur = parseFloat(r.dataset.priceEur || r.cells[COL.PRICE_R]?.dataset?.priceEur || 0);
+        if (priceEur && r.cells[COL.PRICE_R]) {
+            r.cells[COL.PRICE_R].textContent = eurToBase(priceEur).toFixed(2);
+        }
+        // CAPITAL_AT_MAT cell (col 10): data-capital-eur attribute
+        const capEur = parseFloat(r.cells[COL.CAPITAL_AT_MAT]?.dataset?.capitalEur || 0);
+        if (capEur && r.cells[COL.CAPITAL_AT_MAT]) {
+            r.cells[COL.CAPITAL_AT_MAT].textContent = Math.round(eurToBase(capEur));
+        }
+    });
+    applyHeatmap();
+}
+
+/* =======================
    INITIALIZATION
 ======================= */
 document.addEventListener("DOMContentLoaded", () => {
@@ -1055,6 +1157,11 @@ document.addEventListener("DOMContentLoaded", () => {
     syncWishlistButtons();    // restore ★ state on all rows
     checkWishlistAlerts();    // check thresholds and pulse if needed
     _updateThemeToggleUI();   // sync toggle UI with current theme
+    // Base currency: load FX rates then apply UI
+    _loadFxRates().then(() => {
+        _applyBaseCurrencyUI();
+        _refreshBaseCurrencyCells();
+    });
     // Parse emoji once after page load (covers flag column in table)
     if (typeof twemoji !== 'undefined') {
       document

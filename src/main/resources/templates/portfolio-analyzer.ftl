@@ -31,7 +31,7 @@
                 <div class="input-grid">
                     <div class="input-column">
                         <label class="input-label">
-                            Total Investment (€):
+                            <span style="white-space:nowrap;">Total Investment (<span class="pa-base-sym">€</span>):</span>
                             <input type="number" id="amount" min="0" step="1" class="form-input">
                         </label>
 
@@ -92,16 +92,16 @@
                         <tr>
                             <th>ISIN</th>
                             <th style="text-align:center;">Issuer</th>
-                            <th style="text-align:center;">Price (€)</th>
+                            <th style="text-align:center;">Price (<span class="pa-base-sym">€</span>)</th>
                             <th style="text-align:center;">Currency</th>
                             <th style="text-align:center;">Rating</th>
                             <th style="text-align:center;">Qty</th>
-                            <th style="text-align:center;">Invest.(€)</th>
+                            <th style="text-align:center;">Invest.(<span class="pa-base-sym">€</span>)</th>
                             <th style="text-align:center;">Maturity</th>
                             <th style="text-align:center;">Yield (net%)</th>
                             <th style="text-align:center;">SAY (net%)</th>
                             <th style="text-align:center;" title="Withholding tax at source. Editable per bond.">Tax %</th>
-                            <th style="text-align:center;">Profit (€)</th>
+                            <th style="text-align:center;">Profit (<span class="pa-base-sym">€</span>)</th>
                             <th style="text-align:center;" title="Toggle to include/exclude all bonds">
                                 <input type="checkbox" id="toggleAllStatistics" checked
                                        onchange="window.portfolioAnalyzer.toggleAllStatistics(this.checked)">
@@ -184,14 +184,14 @@
             <!-- 4️⃣ DIVIDEND CALENDAR -->
             <div style="margin-bottom:30px;">
                 <h3>4️⃣ Dividend Calendar — Next 12 Months</h3>
-                <p style="font-size:12px;color:#888;margin:0 0 10px;">Estimated coupon income per month (EUR equivalent). Assumes semi-annual coupons paid at coupon date each year.</p>
+                <p style="font-size:12px;color:#888;margin:0 0 10px;">Estimated coupon income per month (converted to base currency). Assumes semi-annual coupons paid at coupon date each year.</p>
                 <div id="dividendCalendar" class="calendar-grid"></div>
             </div>
 
             <!-- 5️⃣ MATURITY CALENDAR -->
             <div style="margin-bottom:30px;">
                 <h3>5️⃣ Maturity Calendar</h3>
-                <p style="font-size:12px;color:#888;margin:0 0 10px;">Capital returned at maturity per bond. Non-EUR bonds shown in original currency.</p>
+                <p style="font-size:12px;color:#888;margin:0 0 10px;">Capital returned at maturity per bond. Non-base-currency bonds also shown in original currency.</p>
                 <div id="maturityCalendar" class="maturity-list"></div>
             </div>
 

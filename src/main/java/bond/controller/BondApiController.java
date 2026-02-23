@@ -51,6 +51,27 @@ public class BondApiController {
     }
 
     /**
+     * Returns current ECB FX rates (EUR-based).
+     * Used by frontend to convert EUR amounts to user's base currency.
+     * Response: { "EUR":1.0, "CHF":0.93, "USD":1.08, "GBP":0.86, ... }
+     */
+    @GetMapping("/fx-rates")
+    public ResponseEntity<Map<String, Double>> getFxRates() {
+        try {
+            Map<String, Double> rates = bond.fx.FxService.getInstance().loadFxRates();
+            // Return only the currencies supported as base currencies + common ones
+            Map<String, Double> subset = new java.util.LinkedHashMap<>();
+            for (String ccy : List.of("EUR","CHF","USD","GBP","JPY","CAD","AUD","NOK","SEK","PLN","RON","HUF","CZK","TRY")) {
+                if (rates.containsKey(ccy)) subset.put(ccy, rates.get(ccy));
+            }
+            subset.put("EUR", 1.0);
+            return ResponseEntity.ok(subset);
+        } catch (Exception e) {
+            return ResponseEntity.ok(Map.of("EUR", 1.0));
+        }
+    }
+
+    /**
      * Search bonds by ISIN or issuer name (partial, case-insensitive).
      * Used by Portfolio Analyzer search box — replaces DOM-based search.
      *

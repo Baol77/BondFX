@@ -55,7 +55,7 @@ Sort by **SAY** descending. For bonds you want to monitor over time, click **★
 
 ### Step 3 — Build a Shortlist
 
-Click **＋** on bonds you want to analyze together. They go into the **Bond Basket** (🛒 in the header), which persists across reloads.
+Click **＋** on bonds you want to analyze together. They go into the **Bond Basket** (basket icon in the header), which persists across reloads.
 
 ### Step 4 — Analyze
 
@@ -87,11 +87,11 @@ On **mobile** (≤ 768px): issuer shows a flag only, maturity shows the year onl
 | **Price** | Current price in native currency | What you pay today per unit |
 | **Currency** | Bond denomination | EUR, USD, GBP, CHF, SEK… |
 | **Rating** | Credit quality | AAA = safest; BB+ and below = speculative |
-| **Price (EUR)** | Price converted to euros | Fair comparison across currencies |
+| **Price (base ccy)** | Price converted to your base currency | Fair comparison across currencies |
 | **Coupon %** | Fixed annual interest rate | 5% coupon on €1,000 = €50/year |
 | **Maturity** | Principal repayment date | How long your money is committed |
 | **Curr. Yield %** | Annual income ÷ current price | More accurate than coupon when off-par |
-| **Total Return (1k€)** | What €1,000 grows to at maturity | End-state absolute profit |
+| **Total Return (1k)** | What 1,000 units of your base currency grow to at maturity | End-state absolute profit |
 | **SAY (%)** | Simple Annual Yield | **The most important column** |
 
 ---
@@ -102,12 +102,12 @@ On **mobile** (≤ 768px): issuer shows a flag only, maturity shows the year onl
 
 ### SAY — Simple Annual Yield
 
-SAY is the annualized total return on a standardized €1,000 investment, combining coupon income, capital gain/loss, and an FX risk adjustment for non-EUR bonds.
+SAY is the annualized total return on a standardized 1,000-unit investment (in your base currency), combining coupon income, capital gain/loss, and an FX risk adjustment for non-base-currency bonds.
 
 **Formula:**
 
 ```
-SAY = (Total Return at Maturity − €1,000) / (10 × Years to Maturity)
+SAY = (Total Return at Maturity − 1,000) / (10 × Years to Maturity)
 ```
 
 **Total Return** is computed as:
@@ -119,7 +119,7 @@ Total Return = (Coupon % × Years to Maturity × Bonds held × FX coupon factor)
 
 The FX factor applies a moderate discount on coupon income and a stronger one on the redemption value for non-EUR bonds, reflecting exchange-rate uncertainty. EUR bonds have an FX factor of 1 (unaffected).
 
-> SAY is expressed per €1,000 invested per year (not as a % of price). SAY = 2.10 means €2.10 of annualized total return per €1,000 invested.
+> SAY is expressed per 1,000 base-currency units invested per year (not as a % of price). SAY = 2.10 means 2.10 units of annualized total return per 1,000 invested.
 
 **Heatmap color coding:**
 
@@ -136,7 +136,7 @@ Annual coupon income as a % of today's price. Does not include capital gains. Us
 
 ### Total Return (1k€)
 
-Projected total received per €1,000 invested at maturity, including all coupons and face-value redemption in EUR. Above 1,000 = gain; below 1,000 = loss.
+Projected total received per 1,000 base-currency units invested at maturity, including all coupons and face-value redemption. Above 1,000 = gain; below 1,000 = loss.
 
 ---
 
@@ -175,7 +175,7 @@ Track bonds you are not yet ready to buy by setting alert conditions.
 
 ### Adding an Alert
 
-Click **★** on any row. A dialog shows the bond's current Price (EUR) and SAY. Enable one or both:
+Click **★** on any row. A dialog shows the bond's current price and SAY. Enable one or both:
 
 - **Price ≤ X** — alert when the bond gets cheaper than your target
 - **SAY ≥ X** — alert when the yield improves past your threshold
@@ -203,10 +203,10 @@ In the ⭐ dropdown:
 
 [↑ Top](#top)
 
-The **🛒 Basket** is your analysis shortlist.
+The **🧺 Basket** is your analysis shortlist.
 
 - **＋** to add (turns green ✓ when in basket)
-- Open 🛒 to see or remove items
+- Open the basket to see or remove items
 - **Open in Portfolio Analyzer** to send all basket bonds to the Analyzer
 - In the Analyzer, basket bonds appear as clickable chips — click one to auto-fill the search
 
@@ -224,7 +224,7 @@ Full-page tool at `/analyzer` for building and evaluating portfolios.
 
 1. Search by ISIN or issuer
 2. Select a result
-3. Enter **Total Investment (€)**
+3. Enter **Total Investment** (in your base currency)
 4. Click **➕ Add to Portfolio**
 
 ### Toolbar
@@ -238,9 +238,9 @@ Full-page tool at `/analyzer` for building and evaluating portfolios.
 
 ### Portfolio Table Columns
 
-ISIN · Issuer · Price (€) · Currency · Rating · Qty · Investment (€) · Maturity · **Yield net%** · **SAY net%** · **Tax %** · Profit · **Σ toggle**
+ISIN · Issuer · Price · Currency · Rating · Qty · Investment · Maturity · **Yield net%** · **SAY net%** · **Tax %** · Profit · **☑ toggle**
 
-The **Σ toggle** includes/excludes a bond from statistics and calendars without removing it.
+The **☑ toggle** (checkbox column) includes/excludes a bond from statistics and calendars without removing it.
 
 Yield and SAY are always shown **net of withholding tax**. The **Tax %** column is editable per bond — changes recalculate everything instantly.
 
@@ -248,7 +248,7 @@ Yield and SAY are always shown **net of withholding tax**. The **Tax %** column 
 
 | Statistic | What It Means |
 |---|---|
-| **Total Investment** | Original euros committed (cost basis) |
+| **Total Investment** | Amount committed in your base currency (cost basis, converted from EUR at current rate) |
 | **Avg Price** | Weighted average purchase price |
 | **Weighted SAY (gross/net)** | Annualized total return before/after withholding tax |
 | **Weighted Yield (gross/net)** | Annual income yield before/after withholding tax |
@@ -257,7 +257,7 @@ Yield and SAY are always shown **net of withholding tax**. The **Tax %** column 
 | **Avg Risk (Maturity)** | Weighted average years to maturity |
 | **Weighted Rating** | Average credit quality |
 | **Total Profit** | Market value minus cost basis (price movement only) |
-| **Coupon Income (net)** | Estimated annual EUR coupon income after withholding tax |
+| **Coupon Income (net)** | Estimated annual coupon income after withholding tax (displayed in base currency) |
 
 ### Statistics Card Colour Coding
 
@@ -289,7 +289,7 @@ Filename: `BondFX-Portfolio-YYYY-MM-DD.pdf`
 
 [↑ Top](#top)
 
-Bar chart of **net coupon income per month** for the next 12 months across your portfolio. Each bar is the total EUR-equivalent income after withholding tax for that month. Payment months are derived from each bond's maturity month and coupon frequency.
+Bar chart of **net coupon income per month** for the next 12 months across your portfolio. Each bar shows total net coupon income after withholding tax for that month, displayed in your base currency. Payment months are derived from each bond's maturity month and coupon frequency.
 
 ---
 
@@ -299,7 +299,7 @@ Bar chart of **net coupon income per month** for the next 12 months across your 
 
 List of portfolio bonds sorted by maturity date, showing:
 
-- **Capital returned** — face value × quantity (with EUR equivalent for non-EUR bonds)
+- **Capital returned** — face value × quantity (with base-currency equivalent shown for bonds in a different currency)
 - **Capital gain/loss** — face value minus cost basis (green if positive, red if negative)
 
 ---
@@ -319,7 +319,33 @@ Toggle in the legend at the bottom of the main page.
 
 [↑ Top](#top)
 
-Click the **⚙️ gear icon** in the top-right header to open the Personal Settings panel.
+Click the **⚙️ gear icon** in the top-right header to open the Personal Settings panel. All settings are stored in your browser (localStorage) and persist across sessions.
+
+### Base Currency *(v4.0)*
+
+Select your preferred display currency: **EUR** (€), **CHF** (₣), **USD** ($), or **GBP** (£).
+
+FX rates are fetched from the **ECB** on each page load. The following values update automatically when you switch currency:
+
+| What changes | Example (EUR → CHF) |
+|---|---|
+| Page title | `BondFX (CHF)` |
+| Price column header & values | `Price (CHF)` |
+| Total Return column symbol | `Total Return (1k₣)` |
+| Portfolio: Investment, Profit, Coupon Income | ₣ values |
+| Portfolio: Maturity Calendar face values | `₣ 10,450` |
+| Portfolio: Dividend Calendar bar tooltips | `₣ 497` |
+| Portfolio: Invest.(₣) & Profit (₣) column TH | ₣ symbol |
+
+> **Internal model:** Bond prices and portfolio cost basis are stored internally in EUR (converted at ECB spot rate at time of scrape/import). SAY and Yield are **percentage ratios** — EUR units cancel out, so they are currency-neutral and correct regardless of base currency. The base currency setting is **display-only**: amounts shown in CHF/USD/GBP are converted from EUR using live ECB rates at page load. Switching base currency does not recompute historical cost basis — it only changes how the stored EUR value is displayed.
+
+**CSV Export** — the file includes a metadata header line:
+```
+# BondFX Portfolio Export | baseCurrency=CHF | fxRate=0.931200
+ISIN,Issuer,Quantity,Investment CHF,...
+```
+
+**CSV Import** — if the file was exported in a different currency than your current setting, investment amounts are automatically converted using the saved `fxRate`. No data loss occurs.
 
 ### Dark Mode
 
@@ -360,7 +386,7 @@ profiles:
 | `minRating` | string | Minimum credit rating (e.g. `BBB-`, `A`, `AA-`) |
 | `minYield` | number | Minimum current yield % |
 | `minSAY` | number | Minimum SAY |
-| `maxPrice` | number | Maximum price in EUR |
+| `maxPrice` | number | Maximum price (in bond's native currency) |
 
 ---
 
@@ -374,7 +400,7 @@ Configure in `src/main/resources/coupon-frequency.yaml`.
 |---|---|---|
 | IT | Semi-annual | 2 |
 | US | Semi-annual | 2 |
-| XS | Semi-annual | 2 |
+| XS | Semi-annual (default, override per ISIN) | 2 |
 | All others | Annual | 1 |
 
 ```yaml
@@ -473,7 +499,7 @@ exceptions:
 
 **Should I always buy the highest SAY bond?**
 
-Not necessarily. Very high SAY often signals lower credit rating, non-EUR currency risk, or very long maturity. A diversified portfolio of 5–10 bonds across countries, ratings, and maturities typically delivers better risk-adjusted returns.
+Not necessarily. Very high SAY often signals lower credit rating, foreign currency risk, or very long maturity. A diversified portfolio of 5–10 bonds across countries, ratings, and maturities typically delivers better risk-adjusted returns.
 
 **What is the difference between SAY and Current Yield?**
 
@@ -504,7 +530,7 @@ Check the Tax % column. Override per bond directly in the table — changes take
 1. Click **⚖️ Balanced Core**
 2. Sort by **SAY** descending
 3. Click **＋** on 5 bonds from different countries
-4. Open 🛒 → **Open in Portfolio Analyzer**
+4. Open the basket → **Open in Portfolio Analyzer**
 5. Click each basket chip, enter investment amount, click ➕ Add
 6. Review **Weighted SAY (net)** and **Weighted Rating**
 7. Adjust **Tax %** per bond if needed
@@ -516,4 +542,4 @@ Set a quarterly reminder to re-import the CSV and review price changes.
 
 ---
 
-*Last updated: February 2026 — BondFX v3.5*
+*Last updated: February 2026 — BondFX v4.0*

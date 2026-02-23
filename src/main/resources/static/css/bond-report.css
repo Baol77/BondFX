@@ -1077,7 +1077,7 @@ body.dark .basket-dropdown__footer { border-color: #2a2d45; }
 body.dark .basket-open-analyzer-btn { background: #1a3a5c; }
 body.dark .wl-triggered         { background: #1a2e1a !important; border-color: #2e7d32; }
 body.dark .wl-criterion         { background: #252840; color: #8890b8; }
-body.dark .wl-criterion.wl-ok   { background: #1a2e1a; color: #80c880; }
+body.dark .wl-criterion.wl-ok   { background: #1e4020; color: #6fdc72; border: 1px solid #3a7a3a; font-weight: 700; }
 
 /* Add-to-basket button */
 body.dark .add-to-basket-btn    { border-color: #4a7cc7; color: #4a7cc7; background: transparent; }
@@ -1148,3 +1148,30 @@ body.dark .info-modal__body tr:nth-child(even) td { background: #1a1d2e; }
 body.dark .info-modal__body a       { color: #6aaeef; }
 body.dark .info-modal__body a:hover { color: #90c8ff; }
 body.dark .info-modal-backdrop      { background: rgba(0,0,0,0.65); }
+
+/* ─── CURRENCY SELECTOR (Settings Modal) ────────────────────────────────── */
+.currency-selector {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.currency-btn {
+    padding: 5px 12px;
+    border: 1.5px solid #ccc;
+    background: #f5f5f5;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    color: #444;
+    transition: all 0.15s;
+}
+.currency-btn:hover { background: #e8edf5; border-color: #4a7cc7; color: #1a3a7c; }
+.currency-btn.active { background: #1a4a9c; border-color: #4a7cc7; color: #fff; }
+.settings-note { font-size: 11px; color: #888; min-height: 14px; }
+
+/* Dark mode */
+body.dark .currency-btn       { background: #1e2338; border-color: #3a3f60; color: #c0c8e8; }
+body.dark .currency-btn:hover { background: #252d4a; border-color: #5a6aaa; color: #e0e8ff; }
+body.dark .currency-btn.active { background: #1a3a7c; border-color: #4a7cc7; color: #d8e8ff; }
+body.dark .settings-note      { color: #5a6080; }

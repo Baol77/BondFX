@@ -224,7 +224,7 @@
 <!-- basket labels auto-loaded by portfolio-analyzer.js on /analyzer -->
 
 <footer class="page-footer">
-    BondFX v3 &nbsp;·&nbsp; &nbsp;
+    BondFX v4.0 &nbsp;·&nbsp; &nbsp;
     <a href="/">← Back to bond table</a>
 </footer>
 

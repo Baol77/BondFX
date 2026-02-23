@@ -22,7 +22,7 @@
 </div>
 
 <h2 class="page-title">
-    <span class="page-title__text">BondFX <span class="page-title__currency">(EUR)</span></span>
+    <span class="page-title__text">BondFX <span class="page-title__currency" id="titleCurrency">(EUR)</span></span>
     <span class="page-title__meta" id="pageMeta">— 📅 <span id="generatedAtLocal"></span> <span id="dataAge"></span></span>
     <span id="generatedAtMs" style="display:none">${generatedAtMs?c}</span>
     <div class="page-title__actions">
@@ -191,7 +191,7 @@
                 <option value="B">≥ B</option>
             </select>
         </th>
-        <th onclick="sortTable(COL.PRICE_R)">Price (${reportCurrency})<span class="arrow"></span></th>
+        <th onclick="sortTable(COL.PRICE_R)">Price (<span id="thPriceCurrency">EUR</span>)<span class="arrow"></span></th>
         <th onclick="sortTable(COL.COUPON)"><span class="column-title">Coupon %</span><span class="col-short">C.%</span><span class="arrow"></span></th>
         <th onclick="sortTable(COL.MATURITY)"><span class="column-title">Maturity</span><span class="col-short">Mat.</span><span class="arrow"></span></th>
         <th title="Supposing an investment of EUR 100, what would the gain be?"
@@ -202,7 +202,7 @@
         </th>
         <th title="Supposing an investment of EUR 1,000, what amount will you have at maturity?"
             onclick="sortTable(COL.CAPITAL_AT_MAT)">
-            <span class="column-title">Total Return (1k€)</span><span class="col-short">Tot.Ret.</span><span class="arrow"></span><br>
+            <span class="column-title">Total Return (1k<span class="th-base-ccy">€</span>)</span><span class="col-short">Tot.Ret.</span><span class="arrow"></span><br>
             <input id="filterMinCapitalAtMat" type="number" step="500" placeholder="min"
                    onclick="event.stopPropagation()" oninput="filterTable()" style="width:80px;">
         </th>
@@ -218,7 +218,7 @@
     <tbody>
     <#assign flagMap = {"ITALIA":"🇮🇹","GERMANIA":"🇩🇪","FRANCIA":"🇫🇷","SPAGNA":"🇪🇸","PORTOGALLO":"🇵🇹","GRECIA":"🇬🇷","AUSTRIA":"🇦🇹","BELGIO":"🇧🇪","OLANDA":"🇳🇱","FINLANDIA":"🇫🇮","IRLANDA":"🇮🇪","SVEZIA":"🇸🇪","DANIMARCA":"🇩🇰","NORVEGIA":"🇳🇴","SVIZZERA":"🇨🇭","REGNO UNITO":"🇬🇧","USA":"🇺🇸","GIAPPONE":"🇯🇵","ROMANIA":"🇷🇴","POLONIA":"🇵🇱","UNGHERIA":"🇭🇺","BULGARIA":"🇧🇬","CROAZIA":"🇭🇷","SLOVENIA":"🇸🇮","SLOVACCHIA":"🇸🇰","REPUBBLICA CECA":"🇨🇿","ESTONIA":"🇪🇪","LETTONIA":"🇱🇻","LITUANIA":"🇱🇹","CIPRO":"🇨🇾","LUSSEMBURGO":"🇱🇺","TURCHIA":"🇹🇷","BRASILE":"🇧🇷","MESSICO":"🇲🇽","CILE":"🇨🇱","SUDAFRICA":"🇿🇦","PERU":"🇵🇪","AUSTRALIA":"🇦🇺"}>
     <#list bonds as b>
-    <tr data-isin="${b.getIsin()}" data-issuer="${b.getIssuer()}" data-coupon="${b.getCouponPct()?string["0.00"]}" data-maturity="${b.getMaturity()}">
+    <tr data-isin="${b.getIsin()}" data-issuer="${b.getIssuer()}" data-coupon="${b.getCouponPct()?string["0.00"]}" data-maturity="${b.getMaturity()}" data-price-eur="${b.getPriceEur()?string.computer}" data-capital-eur="${b.getFinalCapitalToMat()?string.computer}">
         <td class="col-add">
             <div class="col-add-inner">
                 <button class="add-to-wishlist-btn"
@@ -259,7 +259,7 @@
         <td>
             ${b.getCurrentYield()?string["0.00"]}
         </td>
-        <td>
+        <td data-capital-eur="${b.getFinalCapitalToMat()?string.computer}">
             ${b.getFinalCapitalToMat()?string["0"]}
         </td>
         <td>
@@ -326,6 +326,19 @@
                     <span class="theme-toggle__text" id="themeText">Light</span>
                 </div>
             </div>
+            <div class="settings-row" style="margin-top:16px;">
+                <span class="settings-label">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:6px;"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+                    Base Currency
+                </span>
+                <div class="currency-selector" id="currencySelector">
+                    <button class="currency-btn active" data-ccy="EUR" onclick="setBaseCurrency('EUR')">€ EUR</button>
+                    <button class="currency-btn" data-ccy="CHF" onclick="setBaseCurrency('CHF')">₣ CHF</button>
+                    <button class="currency-btn" data-ccy="USD" onclick="setBaseCurrency('USD')">$ USD</button>
+                    <button class="currency-btn" data-ccy="GBP" onclick="setBaseCurrency('GBP')">£ GBP</button>
+                </div>
+            </div>
+            <div class="settings-note" id="fxRateNote" style="margin-top:8px;font-size:11px;color:#888;"></div>
         </div>
     </div>
 </div>
@@ -357,7 +370,7 @@
 
 <!-- Footer -->
 <footer class="page-footer">
-    BondFX v3.5 &nbsp;·&nbsp;<a href="#" onclick="openInfoModal(); return false;">User Manual</a>
+    BondFX v4.0 &nbsp;·&nbsp;<a href="#" onclick="openInfoModal(); return false;">User Manual</a>
 </footer>
 
 <!-- JavaScript (external static files) -->
