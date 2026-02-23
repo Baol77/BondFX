@@ -1117,7 +1117,8 @@ body.dark .basket-dropdown__header { border-color: #2a2d45; color: #c0c8e8; }
 body.dark .basket-item          { border-color: #2a2d45; }
 body.dark .basket-item:hover    { background: #252840; }
 body.dark .basket-item__label   { color: #c0c8e8; }
-body.dark .basket-item__remove  { color: #666; }
+body.dark .basket-item__remove       { color: #666; }
+body.dark .basket-item__remove:hover { color: #ff5252; }
 body.dark .basket-clear-btn     { color: #e88; }
 body.dark .basket-empty         { color: #555; }
 body.dark .basket-dropdown__footer { border-color: #2a2d45; }
