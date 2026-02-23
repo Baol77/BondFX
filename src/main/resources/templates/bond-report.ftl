@@ -131,19 +131,30 @@
         </div>
     </div>
 
-    <!-- Action buttons group -->
-    <div class="control-group-actions">
-        <button onclick="clearColumnFilters()" title="Remove all filters except the maturity range">
-            🧹 Clear column filters
-        </button>
-        <button onclick="exportCSV()">📥 Export CSV</button>
-        <button class="btn-analyzer" onclick="goToAnalyzer()" title="Create and analyze custom bond portfolios">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
-            </svg>
-            Portfolio Analyzer
-        </button>
-    </div>
+</div>
+
+<!-- Action toolbar — above bond table -->
+<div class="control-group-actions">
+    <button class="btn-home-filter btn-home-filter-clear" onclick="clearColumnFilters()" title="Remove all column filters (keeps maturity range)">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+        Clear
+    </button>
+    <button class="btn-home-filter btn-home-csv" onclick="exportCSV()" title="Export visible bonds to CSV">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="16 6 12 2 8 6"/>
+            <line x1="12" y1="2" x2="12" y2="15"/>
+            <path d="M20 17v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2"/>
+        </svg>
+        CSV
+    </button>
+    <button class="btn-analyzer" onclick="goToAnalyzer()" title="Create and analyze custom bond portfolios">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+        </svg>
+        Portfolio Analyzer
+    </button>
 </div>
 
 <table id="bondTable">
@@ -339,6 +350,26 @@
                 </div>
             </div>
             <div class="settings-note" id="fxRateNote" style="margin-top:8px;font-size:11px;color:#888;"></div>
+
+            <!-- Export / Import Settings -->
+            <div style="border-top:1px solid var(--settings-divider, #e0e4ef);margin-top:20px;padding-top:16px;">
+                <div class="settings-label" style="margin-bottom:10px;">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:6px;"><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2z"/><path d="M7 7h.01"/></svg>
+                    Settings Backup
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <button class="settings-backup-btn" onclick="exportSettings()" title="Download all settings as JSON">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                        Export settings
+                    </button>
+                    <button class="settings-backup-btn settings-backup-btn--import" onclick="document.getElementById('settingsFileInput').click()" title="Restore settings from JSON">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        Import settings
+                    </button>
+                    <input type="file" id="settingsFileInput" accept=".json" style="display:none" onchange="importSettings(event)">
+                </div>
+                <div id="settingsBackupNote" style="font-size:11px;color:#888;margin-top:6px;min-height:14px;"></div>
+            </div>
         </div>
     </div>
 </div>
@@ -370,7 +401,7 @@
 
 <!-- Footer -->
 <footer class="page-footer">
-    BondFX v4.0 &nbsp;·&nbsp;<a href="#" onclick="openInfoModal(); return false;">User Manual</a>
+    BondFX v4.1 &nbsp;·&nbsp;<a href="#" onclick="openInfoModal(); return false;">User Manual</a>
 </footer>
 
 <!-- JavaScript (external static files) -->

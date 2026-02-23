@@ -1146,6 +1146,88 @@ function _refreshBaseCurrencyCells() {
     applyHeatmap();
 }
 
+
+/* =======================
+   SETTINGS EXPORT / IMPORT
+======================= */
+
+function exportSettings() {
+    const note = document.getElementById('settingsBackupNote');
+    try {
+        const settings = {
+            _version: '4.1',
+            _exported: new Date().toISOString(),
+            theme:        localStorage.getItem('bondTheme') || 'light',
+            baseCurrency: localStorage.getItem('bondBaseCurrency') || 'EUR',
+            basket:       JSON.parse(localStorage.getItem('bondBasket') || '[]'),
+            wishlist:     JSON.parse(localStorage.getItem('bondWishlist') || '[]'),
+        };
+        const blob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'bondfx-settings-' + new Date().toISOString().slice(0,10) + '.json';
+        link.click();
+        if (note) { note.textContent = '✅ Settings exported successfully.'; note.style.color = '#4CAF50'; }
+    } catch(e) {
+        if (note) { note.textContent = '❌ Export failed: ' + e.message; note.style.color = '#f44336'; }
+    }
+}
+
+function importSettings(event) {
+    const file = event.target.files[0];
+    const note = document.getElementById('settingsBackupNote');
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const s = JSON.parse(e.target.result);
+            if (!s._version) throw new Error('Not a valid BondFX settings file');
+
+            // Apply theme
+            if (s.theme === 'dark') {
+                document.body.classList.add('dark');
+            } else {
+                document.body.classList.remove('dark');
+            }
+            localStorage.setItem('bondTheme', s.theme || 'light');
+
+            // Apply base currency
+            if (s.baseCurrency) {
+                localStorage.setItem('bondBaseCurrency', s.baseCurrency);
+                _applyBaseCurrencyUI();
+                _refreshBaseCurrencyCells();
+            }
+
+            // Restore basket
+            if (Array.isArray(s.basket)) {
+                localStorage.setItem('bondBasket', JSON.stringify(s.basket));
+                if (typeof renderBasket === 'function') renderBasket();
+                if (typeof syncBasketButtons === 'function') syncBasketButtons();
+            }
+
+            // Restore wishlist
+            if (Array.isArray(s.wishlist)) {
+                localStorage.setItem('bondWishlist', JSON.stringify(s.wishlist));
+                if (typeof renderWishlist === 'function') renderWishlist();
+                if (typeof syncWishlistButtons === 'function') syncWishlistButtons();
+            }
+
+            _updateThemeToggleUI();
+
+            const count = (s.basket?.length || 0) + (s.wishlist?.length || 0);
+            if (note) {
+                note.textContent = `✅ Imported: theme, currency, ${s.basket?.length||0} basket item(s), ${s.wishlist?.length||0} alert(s).`;
+                note.style.color = '#4CAF50';
+            }
+        } catch(err) {
+            if (note) { note.textContent = '❌ Import failed: ' + err.message; note.style.color = '#f44336'; }
+        }
+        // Reset file input
+        event.target.value = '';
+    };
+    reader.readAsText(file);
+}
+
 /* =======================
    INITIALIZATION
 ======================= */

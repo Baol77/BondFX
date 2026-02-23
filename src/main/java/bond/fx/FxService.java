@@ -4,6 +4,8 @@ import lombok.SneakyThrows;
 
 import javax.xml.parsers.DocumentBuilderFactory;
 import java.net.URL;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -240,6 +242,19 @@ public class FxService {
     // ─────────────────────────────────────────────────────────────────────────
 
     private Map<String, Double> cachedRates;
+    private Instant lastFetchedAt = null;
+
+    /**
+     * TTL in hours for the FX cache. 0 = never expire (refresh only on restart).
+     * Configurable via bondfx.cache.fx-ttl-hours in application.properties.
+     * Default: 4 hours.
+     */
+    private long ttlHours = 4;
+
+    /** Called once by BondCacheConfig to inject the configured TTL. */
+    public void setTtlHours(long ttlHours) {
+        this.ttlHours = ttlHours;
+    }
 
     private FxService() {}
 
@@ -261,9 +276,13 @@ public class FxService {
      * @return Unmodifiable map: ISO code → rate (1 EUR = X CCY).
      */
     public synchronized Map<String, Double> loadFxRates() throws Exception {
-        if (cachedRates == null) {
-            System.out.println("🌐 Fetching FX rates from ECB...");
+        boolean expired = cachedRates == null
+            || (ttlHours > 0 && lastFetchedAt != null
+                && Duration.between(lastFetchedAt, Instant.now()).toHours() >= ttlHours);
+        if (expired) {
+            System.out.println("🌐 Fetching FX rates from ECB (TTL=" + ttlHours + "h)...");
             cachedRates = fetchFromEcb();
+            lastFetchedAt = Instant.now();
         }
         return cachedRates;
     }
@@ -292,6 +311,7 @@ public class FxService {
     /** Clears the cache to force a fresh ECB fetch on the next call. */
     public synchronized void refresh() {
         this.cachedRates = null;
+        this.lastFetchedAt = null;
     }
 
     // ─────────────────────────────────────────────────────────────────────────

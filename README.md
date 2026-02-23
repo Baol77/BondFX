@@ -321,7 +321,7 @@ Toggle in the legend at the bottom of the main page.
 
 Click the **⚙️ gear icon** in the top-right header to open the Personal Settings panel. All settings are stored in your browser (localStorage) and persist across sessions.
 
-### Base Currency *(v4.0)*
+### Base Currency
 
 Select your preferred display currency: **EUR** (€), **CHF** (₣), **USD** ($), or **GBP** (£).
 
@@ -542,4 +542,4 @@ Set a quarterly reminder to re-import the CSV and review price changes.
 
 ---
 
-*Last updated: February 2026 — BondFX v4.0*
+*Last updated: February 2026 — BondFX v4.1*

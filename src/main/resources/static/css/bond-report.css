@@ -27,10 +27,16 @@ button {
 }
 
 .control-group-actions {
-    margin-bottom: 10px;
     display: flex;
-    gap: 10px;
-        margin-left: auto;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 8px 0px;
+    background: transparent;
+}
+/* push btn-analyzer to the right */
+.control-group-actions .btn-analyzer {
+    margin-left: auto;
 }
 
 .controls .spacer {
@@ -440,15 +446,51 @@ h2.page-title {
     gap: 6px;
     background: #1a3a5c;
     color: #fff;
-    border: none;
-    padding: 7px 14px;
+    border: 1.5px solid #1a3a5c;
+    padding: 6px 14px;
     border-radius: 6px;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 600;
     cursor: pointer;
-    transition: background 0.15s;
+    white-space: nowrap;
+    transition: background 0.15s, border-color 0.15s;
 }
-.btn-analyzer:hover { background: #0f2540; }
+.btn-analyzer:hover { background: #0f2540; border-color: #0f2540; }
+
+/* Home toolbar action buttons — styled like analyzer btn-tool */
+.btn-home-filter {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 11px;
+    border-radius: 5px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1.5px solid;
+    white-space: nowrap;
+    background: #fff;
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.btn-home-filter-clear {
+    border-color: #888;
+    color: #555;
+}
+.btn-home-filter-clear:hover { background: #e53935; border-color: #e53935; color: #fff; }
+.btn-home-csv {
+    border-color: #1a73e8;
+    color: #1a73e8;
+}
+.btn-home-csv:hover { background: #1a73e8; color: #fff; }
+
+/* Dark */
+body.dark .btn-home-filter          { background: #1e2338; }
+body.dark .btn-home-filter-clear    { border-color: #5a6080; color: #9090b8; }
+body.dark .btn-home-filter-clear:hover { background: #6a1a1a; border-color: #cc3333; color: #ffaaaa; }
+body.dark .btn-home-csv             { border-color: #4a7cc7; color: #7ab4f7; }
+body.dark .btn-home-csv:hover       { background: #1a3a7c; color: #c8d8ff; border-color: #4a7cc7; }
+body.dark button.btn-analyzer       { background: #1a3a5c; border-color: #2a5a9c; color: #c8d8ff; }
+body.dark button.btn-analyzer:hover { background: #2a4a7c; border-color: #4a7cc7; }
 
 /* ─── ADD TO BASKET COLUMN ──────────────────────────────────────────────────── */
 th.col-add, td.col-add {
@@ -964,40 +1006,46 @@ td.col-add {
 }
 .theme-toggle__track {
     position: relative;
-    width: 56px;
+    width: 54px;
     height: 28px;
     background: #e0e7ef;
     border-radius: 14px;
     transition: background 0.25s;
-    display: flex;
-    align-items: center;
-    padding: 0 4px;
-    justify-content: space-between;
+    flex-shrink: 0;
 }
 .theme-toggle__label {
-    font-size: 13px;
-    z-index: 1;
+    position: absolute;
+    font-size: 12px;
+    top: 50%;
+    transform: translateY(-50%);
     line-height: 1;
+    pointer-events: none;
+    user-select: none;
+    z-index: 3;
 }
+.theme-toggle__light { left: 5px; }
+.theme-toggle__dark  { right: 5px; }
 .theme-toggle__thumb {
     position: absolute;
+    top: 3px;
     left: 3px;
     width: 22px;
     height: 22px;
     background: #fff;
     border-radius: 50%;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.25);
     transition: left 0.25s, background 0.25s;
+    z-index: 1;
 }
 .theme-toggle__text {
     font-size: 12px;
     color: #666;
-    min-width: 30px;
+    min-width: 32px;
 }
 
 /* Dark state */
 body.dark .theme-toggle__track  { background: #3a3f5c; }
-body.dark .theme-toggle__thumb  { left: 31px; background: #c8d0f0; }
+body.dark .theme-toggle__thumb  { left: 29px; background: #c8d0f0; }
 body.dark .theme-toggle__text   { color: #aab; }
 body.dark .settings-modal       { background: #1e2130; }
 body.dark .settings-modal__header { background: #252840; border-color: #353858; color: #e0e4ff; }
@@ -1045,8 +1093,7 @@ body.dark .preset-button.custom.active { background: #6a3e00; border-color: #c87
 body.dark button.preset-btn      { background: #1e2338; border-color: #3a3f60; color: #c8d0f0; }
 body.dark button.preset-btn:hover,
 body.dark button.preset-btn.active { background: #1a3a7c; border-color: #4a7cc7; color: #d8e8ff; }
-body.dark button.btn-analyzer   { background: #1a3a5c; color: #c8d8ff; border-color: #2a5a9c; }
-body.dark button.btn-analyzer:hover { background: #2a4a7c; }
+
 
 /* Table */
 body.dark #bondTable            { border-color: #2a2d45; }
@@ -1175,3 +1222,31 @@ body.dark .currency-btn       { background: #1e2338; border-color: #3a3f60; colo
 body.dark .currency-btn:hover { background: #252d4a; border-color: #5a6aaa; color: #e0e8ff; }
 body.dark .currency-btn.active { background: #1a3a7c; border-color: #4a7cc7; color: #d8e8ff; }
 body.dark .settings-note      { color: #5a6080; }
+
+/* ─── SETTINGS BACKUP BUTTONS ───────────────────────────────────────────── */
+:root { --settings-divider: #e0e4ef; }
+body.dark { --settings-divider: #2a2d48; }
+
+.settings-backup-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 12px;
+    border: 1.5px solid #1a73e8;
+    background: #fff;
+    color: #1a73e8;
+    border-radius: 5px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+    white-space: nowrap;
+}
+.settings-backup-btn:hover { background: #1a73e8; color: #fff; }
+.settings-backup-btn--import { border-color: #388e3c; color: #388e3c; }
+.settings-backup-btn--import:hover { background: #388e3c; color: #fff; }
+
+body.dark .settings-backup-btn            { background: #1e2338; color: #7ab4f7; border-color: #4a7cc7; }
+body.dark .settings-backup-btn:hover      { background: #1a3a7c; color: #c8d8ff; }
+body.dark .settings-backup-btn--import    { color: #6ac870; border-color: #3a8e40; }
+body.dark .settings-backup-btn--import:hover { background: #1a3a1a; color: #a0e8a0; }

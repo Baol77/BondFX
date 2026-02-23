@@ -5,6 +5,7 @@ import bond.fx.FxService;
 import bond.model.Bond;
 import bond.scrape.BondScraper;
 import bond.scoring.BondScoreEngine;
+import bond.rating.RatingService;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -51,6 +52,9 @@ public class BondService {
     public List<Bond> refreshAndGet() throws Exception {
         lock.lock();
         try {
+            // Check TTL for ratings before scraping (FX TTL is handled inside FxService.loadFxRates)
+            RatingService.refreshIfExpired();
+
             FxService fxService = FxService.getInstance();
             fxRates = fxService.loadFxRates();
 

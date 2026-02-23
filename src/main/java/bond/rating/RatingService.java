@@ -7,6 +7,8 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import java.io.IOException;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -33,6 +35,13 @@ public class RatingService {
 
     private static final String RATINGS_URL = "https://tradingeconomics.com/country-list/rating";
     private static final Map<String, String> COUNTRY_TO_RATING = new ConcurrentHashMap<>();
+    private static volatile Instant lastRatingFetch = null;
+    private static volatile long ratingTtlHours = 4; // default 4h; injectable via setTtlHours()
+
+    /** Called once by BondCacheConfig to inject the configured TTL. */
+    public static void setTtlHours(long hours) {
+        ratingTtlHours = hours;
+    }
     private static final Map<String, String> FALLBACK_MAP = new HashMap<>();
 
     static {
@@ -93,7 +102,6 @@ public class RatingService {
         FALLBACK_MAP.put("CROAZIA", "BBB-");      // Croatia
         FALLBACK_MAP.put("UNGHERIA", "BBB-");     // Hungary
         FALLBACK_MAP.put("MESSICO", "BBB-");      // Mexico
-        FALLBACK_MAP.put("PERU", "BBB-");         // Peru
 
         // BB+ (Speculative - Likely filtered)
         FALLBACK_MAP.put("GRECIA", "BB+");        // Greece
@@ -119,6 +127,7 @@ public class RatingService {
         // --- STEP 2: TRY INITIAL REFRESH FROM WEB ---
         try {
             refreshRatings();
+            lastRatingFetch = Instant.now();
         } catch (Exception e) {
             // Log as ERROR or WARNING, but do NOT throw a RuntimeException
             System.err.println("[CRITICAL FALLBACK] Failed to sync ratings from Trading Economics: " + e.getMessage());
@@ -130,6 +139,25 @@ public class RatingService {
      * Scrapes Trading Economics to update the ratings map.
      * Uses S&P ratings as the standard column from the table.
      */
+    /**
+     * Refreshes ratings from the web if the TTL has expired.
+     * Safe to call on every scrape — no-op when cache is still valid.
+     */
+    public static synchronized void refreshIfExpired() {
+        if (ratingTtlHours <= 0) return; // TTL disabled
+        boolean expired = lastRatingFetch == null
+            || Duration.between(lastRatingFetch, Instant.now()).toHours() >= ratingTtlHours;
+        if (expired) {
+            try {
+                System.out.println("🌐 Refreshing ratings (TTL=" + ratingTtlHours + "h expired)...");
+                refreshRatings();
+                lastRatingFetch = Instant.now();
+            } catch (Exception e) {
+                System.err.println("⚠️ Rating refresh failed, keeping cached data: " + e.getMessage());
+            }
+        }
+    }
+
     public static void refreshRatings() throws Exception {
         try {
             System.out.printf("🌐 Fetching ratings from %s...\n", RATINGS_URL);
