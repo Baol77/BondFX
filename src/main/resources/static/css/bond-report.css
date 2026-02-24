@@ -489,6 +489,25 @@ body.dark .btn-home-filter-clear    { border-color: #5a6080; color: #9090b8; }
 body.dark .btn-home-filter-clear:hover { background: #6a1a1a; border-color: #cc3333; color: #ffaaaa; }
 body.dark .btn-home-csv             { border-color: #4a7cc7; color: #7ab4f7; }
 body.dark .btn-home-csv:hover       { background: #1a3a7c; color: #c8d8ff; border-color: #4a7cc7; }
+.btn-capital-growth {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #fff;
+    color: #2e7d32;
+    border: 1.5px solid #2e7d32;
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s, color 0.15s;
+}
+.btn-capital-growth:hover { background: #2e7d32; color: #fff; }
+
+body.dark .btn-capital-growth       { background: #1a2a1a; color: #6ac870; border-color: #2a5a2a; }
+body.dark .btn-capital-growth:hover { background: #2e7d32; color: #fff; border-color: #2e7d32; }
 body.dark button.btn-analyzer       { background: #1a3a5c; border-color: #2a5a9c; color: #c8d8ff; }
 body.dark button.btn-analyzer:hover { background: #2a4a7c; border-color: #4a7cc7; }
 

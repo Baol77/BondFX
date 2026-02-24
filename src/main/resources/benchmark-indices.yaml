@@ -1,0 +1,46 @@
+# BondFX — Benchmark Indices Configuration
+# Used by the Capital Growth module (/capital-growth)
+#
+# Each entry fetches historical price data from Yahoo Finance.
+# Symbol must be a valid Yahoo Finance ticker.
+# Set enabled: false to hide from the UI without removing the entry.
+#
+# Yahoo Finance API (no key required):
+#   https://query1.finance.yahoo.com/v8/finance/chart/{SYMBOL}?interval=1mo&range=5y
+
+benchmarks:
+
+  - id: sp500
+    label: "S&P 500"
+    symbol: "^GSPC"
+    color: "#e53935"
+    enabled: true
+    description: "US large-cap equities (500 largest US companies)"
+
+  - id: nasdaq100
+    label: "Nasdaq-100"
+    symbol: "^NDX"
+    color: "#8e24aa"
+    enabled: true
+    description: "US tech-heavy index (top 100 non-financial Nasdaq companies)"
+
+  - id: msci_world
+    label: "MSCI World"
+    symbol: "URTH"
+    color: "#00897b"
+    enabled: true
+    description: "Global developed markets equities (iShares MSCI World ETF)"
+
+  - id: msci_europe
+    label: "MSCI Europe"
+    symbol: "IEUR"
+    color: "#fb8c00"
+    enabled: true
+    description: "European developed markets equities (iShares MSCI Europe ETF)"
+
+  - id: eur_govt_bond
+    label: "EUR Govt Bond"
+    symbol: "IBGL.DE"
+    color: "#1e88e5"
+    enabled: true
+    description: "iShares Core EUR Govt Bond ETF — sovereign bond benchmark"

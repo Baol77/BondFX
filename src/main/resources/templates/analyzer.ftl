@@ -36,6 +36,25 @@
             background: #1a73e8;
             color: #fff;
         }
+        .analyzer-header__cg-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: #2e7d32;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 600;
+            padding: 6px 12px;
+            border: 1.5px solid #2e7d32;
+            border-radius: 6px;
+            transition: background 0.15s, color 0.15s;
+            flex-shrink: 0;
+            margin-left: auto;
+        }
+        .analyzer-header__cg-btn:hover {
+            background: #2e7d32;
+            color: #fff;
+        }
         .analyzer-header__title {
             font-size: 20px;
             font-weight: 700;
@@ -125,6 +144,9 @@
         body.dark .page-footer a            { color: #4a7cc7 !important; }
         body.dark .analyzer-header__back         { color: #4a7cc7 !important; border-color: #2a3a5c !important; background: #1e2130 !important; }
         body.dark .analyzer-header__back:hover    { background: #4a7cc7 !important; color: #fff !important; border-color: #4a7cc7 !important; }
+        body.dark .analyzer-header__cg-btn        { color: #43a047 !important; border-color: #1a3a1a !important; background: #1a2a1a !important; }
+        body.dark .analyzer-header__cg-btn:hover  { background: #2e7d32 !important; color: #fff !important; border-color: #2e7d32 !important; }
+        body.dark .analyzer-header__cg-btn svg    { stroke: currentColor !important; }
         body.dark .analyzer-header__title   { color: #e0e4ff !important; }
         body.dark .analyzer-header__title svg { stroke: #7ab4f7 !important; }
         body.dark .analyzer-header          { border-color: #2a2d45 !important; background: #1a1d2e !important; }
@@ -205,6 +227,14 @@
         </svg>
         Portfolio Analyzer
     </h1>
+    <a href="/capital-growth" class="analyzer-header__cg-btn" title="Capital Growth Simulator">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/>
+            <polyline points="16 7 22 7 22 13"/>
+        </svg>
+        Capital Growth
+    </a>
 </div>
 
 <!-- Bond data injected for API simulation (same as homepage) -->
