@@ -42,7 +42,6 @@
         flex-shrink: 0;
     }
     .analyzer-header__title     { font-size: 15px; }
-    .analyzer-header__title svg { display: none; }
 
     /* Portfolio modal overrides for page mode */
     .portfolio-modal-body { padding: 0 !important; }

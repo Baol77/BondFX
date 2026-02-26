@@ -851,25 +851,33 @@ function renderSummaryStats(portfolio, simResult, startCapital) {
     window._cgStatsRefresh = function() {
         const cardsEl = document.getElementById('cgStatsCards');
         if (cardsEl) cardsEl.innerHTML = renderCards();
-        // C: for maturity_replacement scenarios, sync chart visibility with bond checkbox.
-        // Aggregate scenarios (no_reinvest, coupon_reinvest) always stay at their legend state.
-        if (_chart && _lastSimResult) {
+        // C: bond checkboxes filter both stat cards AND the growth chart.
+        // Re-simulate with the filtered portfolio so all scenario lines reflect
+        // only the selected bonds (aggregate scenarios included).
+        if (_chart && _lastSimResult && _lastPortfolio.length) {
             const activeIsins = _getActiveBondIsins();
-            _chart.data.datasets.forEach((ds, dsIdx) => {
-                const scenId = ds._scenId;
-                const sc = _lastSimResult.scenarios.find(s => s.id === scenId);
-                if (!sc) return;
-                const meta = _chart.getDatasetMeta(dsIdx);
-                const legendHidden = _hiddenScenarioIds.has(scenId);
-                if (sc._type === 'maturity_replacement') {
-                    // Hide if source bond is deselected
-                    const bondDeselected = activeIsins.size > 0 && !activeIsins.has(sc._sourceBond?.isin);
-                    meta.hidden = legendHidden || bondDeselected;
-                } else {
-                    meta.hidden = legendHidden;
+            const filteredPortfolio = activeIsins.size === 0
+                ? _lastPortfolio
+                : _lastPortfolio.filter(b => activeIsins.has(b.isin));
+
+            if (filteredPortfolio.length === 0) {
+                // All deselected: hide all datasets
+                _chart.data.datasets.forEach((ds, dsIdx) => {
+                    _chart.getDatasetMeta(dsIdx).hidden = true;
+                });
+                _chart.update('none');
+                return;
+            }
+
+            // Re-simulate with filtered portfolio, keeping existing custom scenarios
+            const perIsinConfigs = new Map();
+            for (const cs of _customScenarios) {
+                if (cs._type === 'coupon_reinvest' && _perIsinOverrides[cs.id]?.size > 0) {
+                    perIsinConfigs.set(cs.id, _perIsinOverrides[cs.id]);
                 }
-            });
-            _chart.update('none');
+            }
+            const filteredSim = simulate(filteredPortfolio, _lastStartCapital, _customScenarios, perIsinConfigs, _injectionConfig);
+            renderGrowthChart(filteredSim, _lastStartCapital);
         }
     };
     window._cgUpdateStats = window._cgStatsRefresh; // alias
@@ -1947,6 +1955,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     // By Bond view suppressed
     document.getElementById('btnBondStacked')?.addEventListener('click', () => setBondChartMode('stacked'));
     document.getElementById('btnBondLine')?.addEventListener('click', () => setBondChartMode('line'));
+
+    // E: mobile label swap for cg-header__back (same pattern as analyzer)
+    function _cgMobileLabels() {
+        document.querySelectorAll('.cg-header__back').forEach(btn => {
+            if (!btn.dataset.full) btn.dataset.full = btn.lastChild.textContent.trim();
+            btn.lastChild.textContent = ' ' + (window.innerWidth <= 768 ? btn.dataset.short : btn.dataset.full);
+        });
+    }
+    _cgMobileLabels();
+    window.addEventListener('resize', _cgMobileLabels);
+
     await runSimulation();
     switchView('year');
 });

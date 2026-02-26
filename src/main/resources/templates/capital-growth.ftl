@@ -20,7 +20,7 @@
 <div class="cg-page">
 
     <div class="cg-header">
-        <a href="/analyzer" class="cg-header__back">
+        <a href="/analyzer" class="cg-header__back" data-short="Analyzer">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
             Portfolio Analyzer
         </a>
