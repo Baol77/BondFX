@@ -38,7 +38,7 @@ public class BondScoreEngine {
             double bondNbr = INIT_INVESTMENT_EUR / (fxInitial * bond.getPrice());
 
             // Cumulative coupon income converted to EUR with a moderate FX penalty
-            double capitalFromBondNbrEUR = bondNbr * bond.getCouponPct() * (int) bond.getYearsToMaturity() * fxCoupon;
+            double capitalFromBondNbrEUR = bondNbr * bond.getCouponPct() * (int)Math.ceil(bond.getYearsToMaturity()) * fxCoupon;
 
             // Redemption value (assuming 100 par) converted to EUR with a strong FX penalty
             double capitalGainEUR = 100 * bondNbr * fxFuture;

@@ -167,6 +167,10 @@
                         <div class="stat-label">Coupon Income (Current Year, net)</div>
                         <p id="statTotalCouponIncome" class="stat-value">€0.00</p>
                     </div>
+                    <div id="card-totalReturn" class="stat-card stat-neutral">
+                        <div class="stat-label">Total Return (lifetime, net)</div>
+                        <p id="statTotalReturn" class="stat-value">€0</p>
+                    </div>
                 </div>
 
                 <p style="font-size:11px;color:#999;margin:8px 0 0;">

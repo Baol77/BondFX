@@ -1,5 +1,32 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect width="32" height="32" rx="6" fill="#1a73e8"/>
-  <text x="50%" y="50%" dominant-baseline="central" text-anchor="middle"
-        font-size="20" font-family="Arial">📊</text>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1a2a4a"/>
+      <stop offset="100%" stop-color="#0f1828"/>
+    </linearGradient>
+    <linearGradient id="area" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#4a90d9" stop-opacity=".55"/>
+      <stop offset="100%" stop-color="#4a90d9" stop-opacity=".04"/>
+    </linearGradient>
+    <clipPath id="clip">
+      <rect width="32" height="32" rx="7"/>
+    </clipPath>
+  </defs>
+
+  <!-- sfondo scuro arrotondato -->
+  <rect width="32" height="32" rx="7" fill="url(#bg)"/>
+
+  <!-- area chart ritagliata dentro il bordo -->
+  <g clip-path="url(#clip)">
+    <!-- area riempita -->
+    <path d="M3,24 L8,18 L13,20 L19,11 L25,14 L29,7 L29,32 L3,32 Z"
+          fill="url(#area)"/>
+    <!-- linea sopra l'area -->
+    <polyline points="3,24 8,18 13,20 19,11 25,14 29,7"
+              stroke="#4a90d9" stroke-width="2.2"
+              stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <!-- dot rosso live sull'ultimo punto -->
+    <circle cx="29" cy="7" r="3" fill="#e53935"/>
+    <circle cx="29" cy="7" r="1.4" fill="#ff6b6b"/>
+  </g>
 </svg>

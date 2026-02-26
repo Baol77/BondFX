@@ -104,21 +104,103 @@ button {
     font-weight: bold;
 }
 
-.preset-button.custom {
-    background: #fff3e0;
-    border: 1px dashed #ff9800;
+/* ── Profile chips (Settings modal) ── */
+.profile-chips {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
 }
 
-.preset-button.custom:hover {
-    background: #ffe0b2;
-    border-color: #f57c00;
+.profile-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 10px;
+    border-radius: 8px;
+    border: 1.5px solid #d0d5e8;
+    background: #f7f9ff;
+    cursor: default;
+    user-select: none;
+    transition: background .15s, border-color .15s, opacity .15s;
+    font-size: 12.5px;
+    position: relative;
 }
 
-.preset-button.custom.active {
-    background: #ff9800;
-    color: white;
-    border: 1px solid #f57c00;
-    font-weight: bold;
+.profile-chip:hover {
+    border-color: #4a90d9;
+    background: #eef4ff;
+}
+
+.profile-chip--dragging {
+    opacity: .45;
+}
+
+.profile-chip--dragover {
+    border-color: #4a90d9;
+    background: #daeeff;
+    box-shadow: 0 0 0 2px #4a90d940;
+}
+
+.profile-chip--custom {
+    border-style: dashed;
+    border-color: #f0a030;
+    background: #fffaf0;
+}
+
+.profile-chip--custom:hover {
+    background: #fff0d0;
+    border-color: #d08000;
+}
+
+.profile-chip__check {
+    font-size: 12px;
+    font-weight: 700;
+    color: #ccc;
+    width: 16px;
+    flex-shrink: 0;
+    transition: color .15s;
+    cursor: pointer;
+}
+
+.profile-chip--selected .profile-chip__check {
+    color: #22c55e;
+}
+
+.profile-chip__label {
+    flex: 1;
+    cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.profile-chip__delete {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #bbb;
+    font-size: 12px;
+    padding: 0 2px;
+    line-height: 1;
+    transition: color .15s;
+    flex-shrink: 0;
+}
+
+.profile-chip__delete:hover {
+    color: #e53935;
+}
+
+.profile-chip__handle {
+    color: #bbb;
+    cursor: grab;
+    font-size: 14px;
+    padding: 0 2px;
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+.profile-chip__handle:active {
+    cursor: grabbing;
 }
 
 .preset-description {
@@ -1081,6 +1163,10 @@ body.dark h2.page-title         { color: #e0e4ff; border-color: #2a2d45; }
 body.dark .page-title__currency { color: #8890b8; }
 body.dark .page-title__meta     { color: #6870a0; }
 
+/* Logo SVG dark mode — schiarisci la parte blu */
+body.dark .page-title__text svg text:first-of-type { fill: #6aaee8 !important; }
+body.dark .page-title__text svg polyline           { stroke: #6aaee8 !important; }
+
 /* Header buttons */
 body.dark .basket-btn           { border-color: #3a3f5c; background: #1e2130; color: #c0c8e8; }
 body.dark .basket-btn:hover     { background: #2a2d45; }
@@ -1106,8 +1192,19 @@ body.dark .preset-description    { color: #6870a0; }
 body.dark .preset-button         { background: #1e2338; border-color: #3a3f60; color: #c8d0f0; }
 body.dark .preset-button:hover   { background: #252d4a; border-color: #5a6aaa; }
 body.dark .preset-button.active  { background: #1a3a7c; border-color: #4a7cc7; color: #d8e8ff; font-weight:bold; }
-body.dark .preset-button.custom  { background: #221a0e; border-color: #7a5a20; color: #d0b870; }
-body.dark .preset-button.custom.active { background: #6a3e00; border-color: #c87a00; color: #ffe0a0; }
+
+/* Profile chips dark mode */
+body.dark .profile-chip              { background: #1e2338; border-color: #3a3f60; color: #c8d0f0; }
+body.dark .profile-chip:hover        { background: #252d4a; border-color: #4a7cc7; }
+body.dark .profile-chip--dragover    { background: #1a3a7c; border-color: #4a7cc7; }
+body.dark .profile-chip--custom      { background: #221a0e; border-color: #7a5a20; color: #d0b870; }
+body.dark .profile-chip--custom:hover{ background: #2e2010; border-color: #c87a00; }
+body.dark .profile-chip__check       { color: #444; }
+body.dark .profile-chip--selected .profile-chip__check { color: #22c55e; }
+body.dark .profile-chip__delete      { color: #555; }
+body.dark .profile-chip__delete:hover{ color: #ff5252; }
+body.dark .profile-chip__handle      { color: #555; }
+
 /* Legacy preset-btn class */
 body.dark button.preset-btn      { background: #1e2338; border-color: #3a3f60; color: #c8d0f0; }
 body.dark button.preset-btn:hover,

@@ -42,7 +42,10 @@ function _paApplyBaseCurrencyUI() {
 function _paFmt(eurVal, decimals = 0) {
     const sym = _paSym(_paBaseCcy());
     const val = _paToBase(eurVal);
-    return sym + (decimals > 0 ? val.toFixed(decimals) : Math.round(val).toLocaleString());
+    // Fix: avoid -0 display
+    const rounded = decimals > 0 ? parseFloat(val.toFixed(decimals)) : Math.round(val);
+    const display = rounded === 0 ? 0 : rounded;
+    return sym + (decimals > 0 ? display.toFixed(decimals) : display.toLocaleString());
 }
 // Embedded in FreeMarker template via <#include "portfolio-analyzer.js" parse=false>
 // No backend required - uses browser localStorage
@@ -408,9 +411,11 @@ class PortfolioAnalyzer {
         this.searchBond();
     }
 
-    showAddBondForm(bond) {
+    async showAddBondForm(bond) {
         this.currentBond = bond;
 
+        // Prefetch FX for this bond before computing SAY (needed for non-EUR bonds)
+        await PortfolioAnalyzer.prefetchFxForBonds([bond]);
         const say = this.computeSAY(bond);
         const currentYield = bond.priceEur > 0
             ? (bond.coupon / bond.priceEur) * 100
@@ -600,17 +605,60 @@ class PortfolioAnalyzer {
 
     // ── Dynamic calculations ─────────────────────────────────────────────────
 
+    // ── FX multipliers — via /api/fx-multipliers (shared cache with capital-growth) ──
+    // Cache: Map stored on window._paFxCache; key = "CCY_REPORTCCY_YEARS"
+    static _getFxCache() {
+        if (!window._paFxCache) window._paFxCache = new Map();
+        return window._paFxCache;
+    }
+
+    // Sync lookup — only valid after prefetchFxForBonds() has been called.
+    _fxGet(currency, years) {
+        if (!currency || currency === 'EUR') return { fxBuy:1, fxCoupon:1, fxFuture:1 };
+        const reportCcy = localStorage.getItem('bondReportCurrency') || 'EUR';
+        const key = `${currency}_${reportCcy}_${Math.max(1, Math.round(years))}`;
+        return PortfolioAnalyzer._getFxCache().get(key) || { fxBuy:1, fxCoupon:1, fxFuture:1 };
+    }
+
+    // Pre-fetch FX for a list of bonds (called at portfolio load time).
+    static async prefetchFxForBonds(bonds) {
+        const reportCcy = localStorage.getItem('bondReportCurrency') || 'EUR';
+        const needed = new Set();
+        bonds.forEach(b => {
+            if (b.currency && b.currency !== reportCcy && b.maturity) {
+                const yrs = Math.max(1, Math.round((new Date(b.maturity)-new Date())/(365.25*24*3600*1000)));
+                needed.add(`${b.currency}:${yrs}`);
+            }
+        });
+        const cache = PortfolioAnalyzer._getFxCache();
+        await Promise.all([...needed].map(async k => {
+            const [ccy, yrs] = k.split(':');
+            const key = `${ccy}_${reportCcy}_${yrs}`;
+            const cached = cache.get(key);
+            if (cached && cached.expiresAt > Date.now()) return;
+            try {
+                const r = await fetch(`/api/fx-multipliers?currency=${ccy}&years=${yrs}&reportCurrency=${reportCcy}`);
+                if (!r.ok) throw new Error(r.status);
+                const data = await r.json();
+                cache.set(key, { ...data, expiresAt: Date.now() + (data.ttlSeconds||3600)*1000 });
+            } catch { /* fallback: no-op, fxGet returns 1,1,1 */ }
+        }));
+    }
+
+    _computeSAYWithFx(bond) {
+        const yrs = Math.max(0.01, (new Date(bond.maturity) - new Date()) / (365.25*24*3600*1000));
+        const price = bond.price || bond.priceEur;
+        if (!price || !bond.priceEur) return 0;
+        const fx = this._fxGet(bond.currency, yrs);
+        const couponNet  = bond.coupon * (1 - (bond.taxRate || 0) / 100);
+        const bondNbr    = 1000 / (fx.fxBuy * price);
+        const capCoupons = bondNbr * couponNet * Math.ceil(yrs) * fx.fxCoupon;
+        const capGain    = 100 * bondNbr * fx.fxFuture;
+        return (capCoupons + capGain - 1000) / (10 * yrs);
+    }
+
     computeSAY(bond) {
-        // SAY = (Annual Coupon % + Capital Gain % per year) / Purchase Price EUR
-        const today     = new Date();
-        const matDate   = new Date(bond.maturity);
-        const years     = Math.max(0.01, (matDate - today) / (365.25 * 24 * 60 * 60 * 1000));
-        const nominal   = bond.nominal || 100;
-        const fxRate    = bond.currency !== 'EUR' ? (bond.priceEur / bond.price) : 1;
-        const nominalEur = nominal * fxRate;
-        const couponEur  = (bond.coupon / 100) * nominalEur;
-        const capitalGain = nominalEur - bond.priceEur;
-        return ((couponEur + capitalGain / years) / bond.priceEur) * 100;
+        return this._computeSAYWithFx(bond);
     }
 
     computeCurrentYield(bond) {
@@ -622,16 +670,7 @@ class PortfolioAnalyzer {
     }
 
     computeSAYNet(bond) {
-        const today      = new Date();
-        const matDate    = new Date(bond.maturity);
-        const years      = Math.max(0.01, (matDate - today) / (365.25 * 24 * 60 * 60 * 1000));
-        const nominal    = bond.nominal || 100;
-        const fxRate     = bond.currency !== 'EUR' ? (bond.priceEur / bond.price) : 1;
-        const nominalEur = nominal * fxRate;
-        const couponEur  = (bond.coupon / 100) * nominalEur;
-        const couponNet  = couponEur * (1 - (bond.taxRate || 0) / 100); // withholding on coupon only
-        const capitalGain = nominalEur - bond.priceEur;                  // capital gain untaxed
-        return ((couponNet + capitalGain / years) / bond.priceEur) * 100;
+        return this._computeSAYWithFx(bond);
     }
 
     computeCurrentYieldNet(bond) {
@@ -723,7 +762,9 @@ class PortfolioAnalyzer {
         this.updateStatistics();
     }
 
-    updateStatistics() {
+    async updateStatistics() {
+        // B: pre-fetch FX multipliers for all non-EUR bonds before computing SAY/totalReturn
+        await PortfolioAnalyzer.prefetchFxForBonds(this.portfolio);
         if (this.portfolio.length === 0) {
             document.getElementById('statTotalInvestment').textContent = _paSym(_paBaseCcy()) + '0';
             document.getElementById('statAvgPrice').textContent = _paSym(_paBaseCcy()) + '0.00';
@@ -738,11 +779,13 @@ class PortfolioAnalyzer {
             document.getElementById('currencyBreakdown').innerHTML = '';
             document.getElementById('statTotalProfit').textContent = _paSym(_paBaseCcy()) + '0';
             document.getElementById('statTotalCouponIncome').textContent = _paSym(_paBaseCcy()) + '0';
+            document.getElementById('statTotalReturn').textContent = _paSym(_paBaseCcy()) + '0';
             this.updateCalendars();
             // reset all cards to neutral when empty
             ['card-totalInvestment','card-avgPrice','card-weightedSAY','card-weightedSAYNet',
              'card-weightedYield','card-weightedYieldNet','card-avgCoupon','card-bondCount',
-             'card-weightedRisk','card-weightedRating','card-totalProfit','card-couponIncome'
+             'card-weightedRisk','card-weightedRating','card-totalProfit','card-couponIncome',
+             'card-totalReturn'
             ].forEach(id => this.setCardColor(id, 'neutral'));
             return;
         }
@@ -758,6 +801,7 @@ class PortfolioAnalyzer {
         let currencyTotals = {}; // Track investment by currency
         let totalProfit = 0;
         let totalCouponIncome = 0;
+        let totalReturn = 0; // lifetime net: coupons * years + face redemption - invested
 
         const bonds = this.portfolio.filter(b => b.includeInStatistics);
         bonds.forEach(bond => {
@@ -776,6 +820,18 @@ class PortfolioAnalyzer {
 
             // TOTAL PROFIT (correct now)
             totalProfit += (currentValue - investedAmount);
+
+            // TOTAL RETURN (lifetime): BondScoreEngine formula with FX haircuts, scaled to investedAmount
+            const years2   = Math.max(0, (new Date(bond.maturity) - new Date()) / (365.25 * 24 * 60 * 60 * 1000));
+            const price2   = bond.price || bond.priceEur || 1;
+            const fx2      = this._fxGet(bond.currency, years2);
+            const coupNet2 = bond.coupon * (1 - (bond.taxRate || 0) / 100);
+            // Scale from 1000€ basis to actual investedAmount
+            const scale2   = investedAmount / 1000;
+            const bondNbr2 = scale2 * 1000 / (fx2.fxBuy * price2);
+            const capC2    = bondNbr2 * coupNet2 * Math.ceil(years2) * fx2.fxCoupon;
+            const capG2    = 100 * bondNbr2 * fx2.fxFuture;
+            totalReturn   += (capC2 + capG2) - investedAmount;
 
             // TOTAL COUPON INCOME (ANNUAL, IN EUR, NET OF WITHHOLDING TAX)
             const nominal = bond.nominal || 100;
@@ -846,6 +902,13 @@ class PortfolioAnalyzer {
             profitElement.style.color = totalProfit >= 0 ? '#4CAF50' : '#f44336';
         }
 
+        // Total Return (lifetime, net)
+        totalReturn = Math.round(totalReturn);
+        const returnElement = document.getElementById('statTotalReturn');
+        if (returnElement) {
+            returnElement.textContent = _paFmt(totalReturn);
+        }
+
         // Total Coupon Income (Current Year)
         totalCouponIncome = Math.round(totalCouponIncome);
         const couponElement = document.getElementById('statTotalCouponIncome');
@@ -859,7 +922,7 @@ class PortfolioAnalyzer {
                                   weightedYieldPercent, weightedYieldNetPercent,
                                   weightedCouponPercent, weightedRiskYears,
                                   weightedRating, avgPrice,
-                                  totalProfit);
+                                  totalProfit, totalReturn, totalInvestment);
         this.updateCalendars();
     }
 
@@ -1037,7 +1100,8 @@ class PortfolioAnalyzer {
     }
 
     updateStatCardColors(sayGross, sayNet, yieldGross, yieldNet,
-                         coupon, riskYears, rating, avgPrice, totalProfit) {
+                         coupon, riskYears, rating, avgPrice, totalProfit,
+                         totalReturn = 0, totalInvestment = 0) {
 
         const ratingOrder = ['AAA','AA+','AA','AA-','A+','A','A-',
                              'BBB+','BBB','BBB-','BB+','BB','BB-',
@@ -1081,6 +1145,15 @@ class PortfolioAnalyzer {
 
         // Total Profit  (≥0 green, <0 yellow)
         this.setCardColor('card-totalProfit', totalProfit >= 0 ? 'green' : 'yellow');
+
+        // Total Return — soglie su % dell'investimento iniziale
+        // ≥50% verde, ≥20% giallo, <20% rosso
+        if (totalInvestment > 0) {
+            const retPct = (totalReturn / totalInvestment) * 100;
+            this.setCardColor('card-totalReturn', retPct >= 50 ? 'green' : retPct >= 20 ? 'yellow' : 'red');
+        } else {
+            this.setCardColor('card-totalReturn', 'neutral');
+        }
 
         // Weighted Rating  (≥A- green, ≥BBB- yellow, <BBB- red)
         const ratingIdx = ratingOrder.indexOf(rating);
@@ -1318,6 +1391,7 @@ class PortfolioAnalyzer {
                 ['Weighted Rating',      document.getElementById('statWeightedRating')?.textContent ?? '-'],
                 ['Total Profit',         document.getElementById('statTotalProfit')?.textContent ?? '-'],
                 ['Coupon Income (net)',   document.getElementById('statTotalCouponIncome')?.textContent ?? '-'],
+                ['Total Return (lifetime, net)', document.getElementById('statTotalReturn')?.textContent ?? '-'],
             ];
             const statColW = (pageW - margin * 2) / 3;
             stats.forEach((s, i) => {

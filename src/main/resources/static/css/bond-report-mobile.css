@@ -226,3 +226,18 @@
         display: table-cell !important;
     }
 }
+
+/* ── Profile chips — mobile (v5.3) ── */
+@media (max-width: 768px) {
+    .profile-chips {
+        max-height: 260px;
+        overflow-y: auto;
+    }
+    .profile-chip {
+        font-size: 12px;
+        padding: 6px 8px;
+    }
+    .profile-chip__label {
+        max-width: calc(100vw - 140px);
+    }
+}

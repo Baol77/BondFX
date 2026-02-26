@@ -118,9 +118,15 @@
 /* ── Summary stats strip ──────────────────────────────────────────── */
 #summaryStats {
     display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin-bottom: 20px;
+}
+#cgStatsCards {
+    display: flex;
     gap: 10px;
     flex-wrap: wrap;
-    margin-bottom: 20px;
+    margin-top: 0;
 }
 .cg-stat-card {
     flex: 1 1 140px;
@@ -266,6 +272,24 @@
 }
 .cg-btn-apply:hover { background: #2560c8; }
 
+/* ── Secondary action button (e.g. + Maturity replacement) ────────── */
+.cg-btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 16px;
+    background: transparent;
+    color: #1565c0;
+    border: 1.5px solid #1565c0;
+    border-radius: 5px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    white-space: nowrap;
+}
+.cg-btn-secondary:hover { background: #1565c0; color: #fff; }
+
 /* =====================================================================
    DARK MODE
 ===================================================================== */
@@ -297,21 +321,83 @@ body.dark .cg-bench-item           { background: #1e2338; border-color: #2a2d45;
 body.dark .cg-bench-item:hover     { border-color: #4a7cc7; background: #252d4a; }
 body.dark .cg-btn-apply            { background: #1a3a7c; }
 body.dark .cg-btn-apply:hover      { background: #2a5aac; }
+body.dark .cg-btn-secondary        { color: #90caf9; border-color: #1976d2; background: transparent; }
+body.dark .cg-btn-secondary:hover  { background: #1976d2; color: #fff; }
 
 /* =====================================================================
    MOBILE  (≤768px)
 ===================================================================== */
 @media (max-width: 768px) {
-    .cg-page         { padding: 0 10px 30px; }
-    .cg-header       { gap: 8px; padding: 10px 0; }
-    .cg-header__title { font-size: 16px; }
-    .cg-header__meta  { display: none; }
-    .cg-controls      { padding: 10px 12px; gap: 10px; }
-    .cg-control-group { min-width: 120px; flex: 1 1 120px; }
-    .cg-chart-wrap    { height: 260px; }
-    #summaryStats .cg-stat-card { flex: 1 1 100px; padding: 8px 10px; }
-    .cg-stat-value    { font-size: 13px; }
-    .cg-scenario-row  { gap: 10px; }
-    .cg-bench-grid    { gap: 8px; }
-    .cg-bench-item    { font-size: 11px; padding: 5px 9px; }
+    /* Page & header */
+    .cg-page              { padding: 0 8px 30px; }
+    .cg-header            { gap: 6px; padding: 10px 0; }
+    .cg-header__title     { font-size: 15px; }
+    .cg-header__meta      { display: none; }
+
+    /* Controls row: stack vertically */
+    .cg-controls          { padding: 8px 10px; gap: 8px; flex-direction: column; align-items: stretch; }
+    .cg-control-group     { min-width: 0; flex: none; width: 100%; }
+    .cg-control-group label { font-size: 11px; }
+    .cg-control-group input,
+    .cg-control-group select { font-size: 13px; width: 100%; box-sizing: border-box; }
+
+    /* Chart */
+    .cg-chart-wrap        { height: 220px; }
+
+    /* Stat cards: 2 per row on mobile */
+    #cgStatsCards         { gap: 6px; }
+    #cgStatsCards .cg-stat-card { flex: 1 1 calc(50% - 6px); min-width: 0; padding: 8px 10px; }
+    .cg-stat-value        { font-size: 13px; }
+    .cg-stat-label        { font-size: 9px; }
+
+    /* Bond checkbox row: wrap tightly */
+    #cgBondChkSel         { gap: 4px; }
+    #cgBondChkSel label   { font-size: 11px; margin: 2px 6px 2px 0; }
+
+    /* Scenario panel tabs: equal width, smaller text */
+    .cg-tab-btn           { font-size: 10px !important; padding: 8px 4px !important; }
+
+    /* Tab bodies: full-width inputs */
+    #cgTabBody_coupon table,
+    #cgTabBody_replacement table,
+    #cgTabBody_injection table { font-size: 10px; }
+    #cgTabBody_coupon input[type=number],
+    #cgTabBody_replacement input[type=number],
+    #cgTabBody_injection input[type=number] { width: 60px; }
+
+    /* Replacement tab: stack per-bond rows */
+    #cgTabBody_replacement > div > div { flex-direction: column; align-items: flex-start; }
+    #cgTabBody_replacement .cg-repl-fields { flex-wrap: wrap; gap: 6px; }
+
+    /* Injection tab */
+    #cgTabBody_injection > div:first-child { flex-direction: column; align-items: flex-start; gap: 8px; }
+
+    /* Year modal: full screen on mobile */
+    #cgYearModal > div   { max-width: 100%; max-height: 90vh; border-radius: 8px; }
+    #cgYearModal table   { font-size: 10px; }
+    #cgYearModal th,
+    #cgYearModal td      { padding: 5px 6px; }
+    /* Modal nav buttons: make bigger tap targets */
+    #cgModalPrev,
+    #cgModalNext         { padding: 6px 16px !important; font-size: 18px !important; }
+
+    /* Scenario misc */
+    .cg-scenario-row      { gap: 8px; }
+}
+
+@media (max-width: 420px) {
+    /* Extra-small: 1 stat card per row */
+    #cgStatsCards .cg-stat-card { flex: 1 1 100%; }
+    .cg-tab-btn { font-size: 9px !important; padding: 7px 2px !important; }
+}
+
+/* ── Scenario panel tabs ─────────────────────────────────────────────────── */
+.cg-tab-btn {
+    transition: color 0.15s, border-bottom-color 0.15s;
+}
+.cg-tab-btn:hover {
+    color: #4a7cc7 !important;
+}
+body.dark .cg-tab-btn:hover {
+    color: #7ab0f5 !important;
 }

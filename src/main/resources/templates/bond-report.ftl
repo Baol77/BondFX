@@ -22,7 +22,23 @@
 </div>
 
 <h2 class="page-title">
-    <span class="page-title__text">BondFX <span class="page-title__currency" id="titleCurrency">(EUR)</span></span>
+    <span class="page-title__text">
+        <svg width="128" height="28" viewBox="0 0 128 28" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="BondFX" role="img" style="display:inline-block;vertical-align:middle;margin-right:4px">
+            <defs>
+                <linearGradient id="cgAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#4a90d9" stop-opacity=".42"/>
+                    <stop offset="100%" stop-color="#4a90d9" stop-opacity=".03"/>
+                </linearGradient>
+            </defs>
+            <path d="M2,21 L8,15 L16,17 L24,9 L32,11 L38,5 L38,28 L2,28 Z" fill="url(#cgAreaGrad)"/>
+            <polyline points="2,21 8,15 16,17 24,9 32,11 38,5"
+                stroke="#4a90d9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            <circle cx="38" cy="5" r="3" fill="#e53935"/>
+            <text x="46" y="22" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="18" font-weight="800" fill="#4a90d9" letter-spacing="-0.5">Bond</text>
+            <text x="96" y="22" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif" font-size="18" font-weight="800" fill="#e53935" letter-spacing="-0.5">FX</text>
+        </svg>
+        <span class="page-title__currency" id="titleCurrency">(EUR)</span>
+    </span>
     <span class="page-title__meta" id="pageMeta">— 📅 <span id="generatedAtLocal"></span> <span id="dataAge"></span></span>
     <span id="generatedAtMs" style="display:none">${generatedAtMs?c}</span>
     <div class="page-title__actions">
@@ -87,25 +103,9 @@
     </div>
 </div>
 
-<div class="profile-presets">
+<div class="profile-presets" id="profilePresetsBar">
     <label>Investor profiles:</label>
-    <#list presets as p>
-    <button class="preset-button"
-            id="${p.id}"
-            onclick="applyPreset('${p.id}')"
-            title="${p.description}">
-        ${p.emoji} ${p.label}
-    </button>
-    </#list>
-    <button class="preset-button" id="preset-reset"
-            onclick="applyPreset('reset')">🧹 Reset
-    </button>
-    <button class="preset-button" id="import-yaml-btn"
-            onclick="document.getElementById('yamlFileInput').click()"
-            title="Import custom profiles from YAML file">
-        📁 Import YAML
-    </button>
-    <input type="file" id="yamlFileInput" accept=".yaml,.yml" style="display: none;" onchange="handleYamlImport(event)">
+    <!-- populated dynamically by renderProfileBar() -->
     <span class="preset-description" id="presetDesc"></span>
 </div>
 
@@ -357,6 +357,25 @@
                 </div>
             </div>
             <div class="settings-note" id="fxRateNote" style="margin-top:8px;font-size:11px;color:#888;"></div>
+
+            <!-- Investor Profiles -->
+            <div style="border-top:1px solid var(--settings-divider,#e0e4ef);margin-top:20px;padding-top:16px;">
+                <div class="settings-label" style="margin-bottom:10px;">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:6px;"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+                    Investor Profiles
+                </div>
+                <div class="profile-chips" id="profileChips">
+                    <!-- populated by renderProfileChips() -->
+                </div>
+                <div style="margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                    <button class="settings-backup-btn" onclick="document.getElementById('yamlFileInput').click()" title="Import custom profiles from YAML file">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        Import YAML
+                    </button>
+                    <span id="profileImportNote" style="font-size:11px;color:#888;min-height:14px;"></span>
+                </div>
+                <input type="file" id="yamlFileInput" accept=".yaml,.yml" style="display:none" onchange="handleYamlImport(event)">
+            </div>
 
             <!-- Export / Import Settings -->
             <div style="border-top:1px solid var(--settings-divider, #e0e4ef);margin-top:20px;padding-top:16px;">
