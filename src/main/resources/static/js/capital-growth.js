@@ -869,6 +869,12 @@ function renderSummaryStats(portfolio, simResult, startCapital) {
                 return;
             }
 
+            // Scale startCapital proportionally to the selected bonds' share of portfolio cost
+            const totalCost    = _lastPortfolio.reduce((s, b) => s + (b.totalEur || (b.priceEur||0)*b.quantity), 0);
+            const filteredCost = filteredPortfolio.reduce((s, b) => s + (b.totalEur || (b.priceEur||0)*b.quantity), 0);
+            const share = (totalCost > 0) ? filteredCost / totalCost : 1;
+            const filteredStartCapital = _lastStartCapital * share;
+
             // Re-simulate with filtered portfolio, keeping existing custom scenarios
             const perIsinConfigs = new Map();
             for (const cs of _customScenarios) {
@@ -876,8 +882,8 @@ function renderSummaryStats(portfolio, simResult, startCapital) {
                     perIsinConfigs.set(cs.id, _perIsinOverrides[cs.id]);
                 }
             }
-            const filteredSim = simulate(filteredPortfolio, _lastStartCapital, _customScenarios, perIsinConfigs, _injectionConfig);
-            renderGrowthChart(filteredSim, _lastStartCapital);
+            const filteredSim = simulate(filteredPortfolio, filteredStartCapital, _customScenarios, perIsinConfigs, _injectionConfig);
+            renderGrowthChart(filteredSim, filteredStartCapital);
         }
     };
     window._cgUpdateStats = window._cgStatsRefresh; // alias
