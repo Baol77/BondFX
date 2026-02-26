@@ -351,8 +351,20 @@ body.dark .cg-btn-secondary:hover  { background: #1976d2; color: #fff; }
     .cg-stat-label        { font-size: 9px; }
 
     /* Bond checkbox row: wrap tightly */
-    #cgBondChkSel         { gap: 4px; }
-    #cgBondChkSel label   { font-size: 11px; margin: 2px 6px 2px 0; }
+    #cgBondChkSel > div:last-child {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 4px;
+    }
+    #cgBondChkSel label {
+        display: flex !important;
+        width: 100%;
+        box-sizing: border-box;
+        font-size: 11px;
+        margin: 0;
+        padding: 2px 0;
+    }
 
     /* Scenario panel tabs: equal width, smaller text */
     .cg-tab-btn           { font-size: 10px !important; padding: 8px 4px !important; }

@@ -13,6 +13,7 @@
         .analyzer-header {
             display: flex;
             align-items: center;
+            flex-wrap: wrap;
             gap: 14px;
             margin-bottom: 20px;
             padding-bottom: 12px;
@@ -194,6 +195,41 @@
         /* ── Toolbar ── */
         body.dark .portfolio-table-toolbar  { background: transparent !important; }
         body.dark .portfolio-table-toolbar h3 { color: #e0e4ff !important; }
+
+        @media (max-width: 768px) {
+            .analyzer-header {
+                gap: 8px;
+            }
+            .analyzer-header__back,
+            .analyzer-header__cg-btn {
+                padding: 6px 9px;
+                font-size: 12px;
+            }
+            .analyzer-header__title {
+                order: 3;
+                width: 100%;
+                margin-top: 4px;
+                font-size: 17px;
+            }
+        }
+
+        @media (max-width: 520px) {
+            .analyzer-header__back-text--full,
+            .analyzer-header__cg-text--full {
+                display: none;
+            }
+            .analyzer-header__back-text--mobile,
+            .analyzer-header__cg-text--mobile {
+                display: inline;
+            }
+        }
+
+        @media (min-width: 521px) {
+            .analyzer-header__back-text--mobile,
+            .analyzer-header__cg-text--mobile {
+                display: none;
+            }
+        }
     </style>
     <script>
         // Apply theme to <html> immediately (body doesn't exist yet in <head>)
@@ -217,7 +253,8 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="15 18 9 12 15 6"/>
         </svg>
-        Back to BondFX
+        <span class="analyzer-header__back-text--full">Back to BondFX</span>
+        <span class="analyzer-header__back-text--mobile">Home</span>
     </a>
     <h1 class="analyzer-header__title">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1a3a5c" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -233,7 +270,8 @@
             <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/>
             <polyline points="16 7 22 7 22 13"/>
         </svg>
-        Capital Growth
+        <span class="analyzer-header__cg-text--full">Capital Growth</span>
+        <span class="analyzer-header__cg-text--mobile">Growth</span>
     </a>
 </div>
 

@@ -823,8 +823,9 @@ class PortfolioAnalyzer {
 
             // TOTAL RETURN (lifetime): BondScoreEngine formula with FX haircuts, scaled to investedAmount
             const years2   = Math.max(0, (new Date(bond.maturity) - new Date()) / (365.25 * 24 * 60 * 60 * 1000));
+            const years2Int = Math.max(1, Math.round(years2));
             const price2   = bond.price || bond.priceEur || 1;
-            const fx2      = this._fxGet(bond.currency, years2);
+            const fx2      = this._fxGet(bond.currency, years2Int);
             const coupNet2 = bond.coupon * (1 - (bond.taxRate || 0) / 100);
             // Scale from 1000€ basis to actual investedAmount
             const scale2   = investedAmount / 1000;
