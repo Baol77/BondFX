@@ -207,7 +207,7 @@
         <th onclick="sortTable(COL.MATURITY)"><span class="column-title">Maturity</span><span class="col-short">Mat.</span><span class="arrow"></span></th>
         <th title="Supposing an investment of EUR 100, what would the gain be?"
             onclick="sortTable(COL.CURR_YIELD)" data-short="CY%">
-            <span class="column-title">Curr. Yield %</span><span class="arrow"></span><br>
+            <span class="column-title">Curr. Yield %</span><span class="col-short">Yld %</span><span class="arrow"></span><br>
             <input id="filterminYield" type="number" step="0.5" placeholder="min %"
                    onclick="event.stopPropagation()" oninput="filterTable()" style="width:70px;">
         </th>

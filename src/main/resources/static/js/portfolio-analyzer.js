@@ -1802,13 +1802,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function _paMobileLabels() {
         const isMobile = window.innerWidth <= 768;
-        const backBtn = document.querySelector('.analyzer-header__back');
-        const cgBtn   = document.querySelector('.analyzer-header__cg-btn');
-        if (backBtn) backBtn.childNodes.forEach(n => {
-            if (n.nodeType === 3) n.textContent = isMobile ? ' Home' : ' Back to BondFX';
-        });
-        if (cgBtn) cgBtn.childNodes.forEach(n => {
-            if (n.nodeType === 3) n.textContent = isMobile ? ' Growth' : ' Capital Growth';
+        document.querySelectorAll('.analyzer-header__back, .analyzer-header__cg-btn').forEach(btn => {
+            if (!btn.dataset.full) btn.dataset.full = btn.lastChild.textContent.trim();
+            btn.lastChild.textContent = ' ' + (isMobile ? btn.dataset.short : btn.dataset.full);
         });
     }
     _paMobileLabels();

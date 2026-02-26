@@ -616,3 +616,75 @@ body.dark .portfolio-table-toolbar h3 { color: #c8d8ff; }
 /* Footer */
 body.dark .page-footer             { color: #4a4f70; border-color: #2a2d45; }
 body.dark .page-footer a           { color: #4a7cc7; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   ANALYZER PAGE LAYOUT  (moved from analyzer.ftl <style>)
+═══════════════════════════════════════════════════════════════════ */
+
+/* ── Header ── */
+.analyzer-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #e8edf2;
+}
+.analyzer-header__back {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #1a73e8;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 6px 12px;
+    border: 1.5px solid #1a73e8;
+    border-radius: 6px;
+    transition: background 0.15s, color 0.15s;
+    flex-shrink: 0;
+}
+.analyzer-header__back:hover { background: #1a73e8; color: #fff; }
+.analyzer-header__cg-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #2e7d32;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 6px 12px;
+    border: 1.5px solid #2e7d32;
+    border-radius: 6px;
+    transition: background 0.15s, color 0.15s;
+    flex-shrink: 0;
+    margin-left: auto;
+}
+.analyzer-header__cg-btn:hover { background: #2e7d32; color: #fff; }
+.analyzer-header__title {
+    font-size: 20px;
+    font-weight: 700;
+    color: #1a3a5c;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.analyzer-header__title svg { flex-shrink: 0; }
+.analyzer-header__meta { margin-left: auto; font-size: 11px; color: #999; }
+
+/* ── Override modal → plain page (analyzer uses modal markup as page) ── */
+.portfolio-modal         { display: block !important; position: static !important; background: none !important; z-index: auto !important; }
+.portfolio-modal-content { max-width: 100% !important; width: 100% !important; height: auto !important; max-height: none !important; border-radius: 0 !important; box-shadow: none !important; display: block !important; }
+.portfolio-modal-header  { display: none !important; }
+.portfolio-modal-body    { overflow: visible !important; height: auto !important; padding: 0 !important; }
+
+/* ── Dark mode — analyzer header ── */
+body.dark .analyzer-header                   { border-color: #2a2d45 !important; background: #1a1d2e !important; }
+body.dark .analyzer-header__title            { color: #e0e4ff !important; }
+body.dark .analyzer-header__title svg        { stroke: #7ab4f7 !important; }
+body.dark .analyzer-header__back             { color: #4a7cc7 !important; border-color: #2a3a5c !important; background: #1e2130 !important; }
+body.dark .analyzer-header__back:hover       { background: #4a7cc7 !important; color: #fff !important; border-color: #4a7cc7 !important; }
+body.dark .analyzer-header__cg-btn           { color: #43a047 !important; border-color: #1a3a1a !important; background: #1a2a1a !important; }
+body.dark .analyzer-header__cg-btn:hover     { background: #2e7d32 !important; color: #fff !important; border-color: #2e7d32 !important; }
+body.dark .analyzer-header__cg-btn svg       { stroke: currentColor !important; }

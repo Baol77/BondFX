@@ -1,0 +1,70 @@
+/* =====================================================================
+   BondFX — Portfolio Analyzer  Mobile Styles
+   Extracted from analyzer.ftl <style> + porfolio-analyzer.css
+   (desktop-first; overrides applied at breakpoints below)
+===================================================================== */
+
+/* ── ≤600px  — dividend/maturity calendars ── */
+@media (max-width: 600px) {
+    .calendar-grid { gap: 4px; }
+    .cal-month     { min-width: 40px; }
+    .cal-bar       { width: 22px; }
+
+    .maturity-row-item {
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: auto auto;
+    }
+    .mat-date  { grid-column: 1; }
+    .mat-gain  { grid-column: 2; }
+    .mat-info  { grid-column: 1 / -1; }
+    .mat-face  { grid-column: 1 / -1; text-align: left; }
+}
+
+/* ── ≤500px  — add-bond input grid ── */
+@media (max-width: 500px) {
+    .input-grid { grid-template-columns: 1fr; }
+}
+
+/* ── ≤768px  — main mobile layout ── */
+@media (max-width: 768px) {
+
+    /* Analyzer header: compact */
+    .analyzer-header {
+        gap: 6px;
+        padding: 8px 0;
+        margin-bottom: 12px;
+    }
+    .analyzer-header__back,
+    .analyzer-header__cg-btn {
+        font-size: 11px;
+        padding: 5px 8px;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+    .analyzer-header__title     { font-size: 15px; }
+    .analyzer-header__title svg { display: none; }
+
+    /* Portfolio modal overrides for page mode */
+    .portfolio-modal-body { padding: 0 !important; }
+
+    /* Stats grid: 2 cards per row */
+    .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .stat-card  { padding: 8px 10px; }
+    .stat-value { font-size: 13px; }
+    .stat-label { font-size: 9px; }
+
+    /* Search results dropdown */
+    .search-results { max-width: 100%; }
+
+    /* Basket chips scrollable */
+    .basket-labels__chips { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; }
+}
+
+/* ── ≤420px  — extra-small ── */
+@media (max-width: 420px) {
+    .analyzer-header__back,
+    .analyzer-header__cg-btn { font-size: 10px; padding: 4px 7px; }
+
+    /* 1 stat card per row */
+    .stats-grid { grid-template-columns: 1fr; }
+}

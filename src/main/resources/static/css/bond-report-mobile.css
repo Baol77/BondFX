@@ -96,7 +96,7 @@
     #bondTable th:nth-child(5),  #bondTable td:nth-child(5),
     #bondTable th:nth-child(6),  #bondTable td:nth-child(6),
     #bondTable th:nth-child(7),  #bondTable td:nth-child(7),
-    #bondTable th:nth-child(10), #bondTable td:nth-child(10) {
+    #bondTable th:nth-child(11), #bondTable td:nth-child(11) {
         display: none !important;
     }
 
@@ -183,7 +183,7 @@
     #bondTable th:nth-child(2),  #bondTable td:nth-child(2),
     #bondTable th:nth-child(6),  #bondTable td:nth-child(6),
     #bondTable th:nth-child(7),  #bondTable td:nth-child(7),
-    #bondTable th:nth-child(10), #bondTable td:nth-child(10) {
+    #bondTable th:nth-child(11), #bondTable td:nth-child(11) {
         display: none !important;
     }
 
