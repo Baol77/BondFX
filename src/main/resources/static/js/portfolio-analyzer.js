@@ -1800,6 +1800,20 @@ class PortfolioAnalyzer {
 document.addEventListener('DOMContentLoaded', () => {
     window.portfolioAnalyzer = new PortfolioAnalyzer();
 
+    function _paMobileLabels() {
+        const isMobile = window.innerWidth <= 768;
+        const backBtn = document.querySelector('.analyzer-header__back');
+        const cgBtn   = document.querySelector('.analyzer-header__cg-btn');
+        if (backBtn) backBtn.childNodes.forEach(n => {
+            if (n.nodeType === 3) n.textContent = isMobile ? ' Home' : ' Back to BondFX';
+        });
+        if (cgBtn) cgBtn.childNodes.forEach(n => {
+            if (n.nodeType === 3) n.textContent = isMobile ? ' Growth' : ' Capital Growth';
+        });
+    }
+    _paMobileLabels();
+    window.addEventListener('resize', _paMobileLabels);
+
     // If running as standalone /analyzer page, auto-init with basket from localStorage
     // Load FX rates then apply base currency UI + init view
     _paLoadFxRates().then(() => {

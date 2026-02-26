@@ -350,9 +350,10 @@ body.dark .cg-btn-secondary:hover  { background: #1976d2; color: #fff; }
     .cg-stat-value        { font-size: 13px; }
     .cg-stat-label        { font-size: 9px; }
 
-    /* Bond checkbox row: wrap tightly */
-    #cgBondChkSel         { gap: 4px; }
-    #cgBondChkSel label   { font-size: 11px; margin: 2px 6px 2px 0; }
+    /* Bond checkbox row: one per line on mobile */
+    /* Bond checkbox list: one per line on mobile */
+    .cg-bond-chk-list     { flex-direction: column !important; align-items: flex-start; gap: 2px; }
+    #cgBondChkSel label   { font-size: 11px; margin: 1px 0; width: 100%; }
 
     /* Scenario panel tabs: equal width, smaller text */
     .cg-tab-btn           { font-size: 10px !important; padding: 8px 4px !important; }
@@ -383,12 +384,22 @@ body.dark .cg-btn-secondary:hover  { background: #1976d2; color: #fff; }
 
     /* Scenario misc */
     .cg-scenario-row      { gap: 8px; }
+
+    /* Analyzer header: compact on mobile */
+    .analyzer-header               { gap: 6px; padding: 8px 0; }
+    .analyzer-header__back,
+    .analyzer-header__cg-btn       { font-size: 11px !important; padding: 5px 8px !important; white-space: nowrap; flex-shrink: 0; }
+    .analyzer-header__title        { font-size: 15px; }
+    .analyzer-header__title svg    { display: none; }
 }
 
 @media (max-width: 420px) {
     /* Extra-small: 1 stat card per row */
     #cgStatsCards .cg-stat-card { flex: 1 1 100%; }
     .cg-tab-btn { font-size: 9px !important; padding: 7px 2px !important; }
+    /* Analyzer header: even more compact */
+    .analyzer-header__back,
+    .analyzer-header__cg-btn   { font-size: 10px !important; padding: 4px 7px !important; }
 }
 
 /* ── Scenario panel tabs ─────────────────────────────────────────────────── */
