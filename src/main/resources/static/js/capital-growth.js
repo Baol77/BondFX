@@ -1582,6 +1582,7 @@ function deleteScenario(id) {
 }
 
 function selectScenario(id) {
+    if (_activeScenarioId === id) return;
     _activeScenarioId = id;
     const panel = document.getElementById('perIsinPanel');
     const prevSubTab = panel?._activeSubTab || 'coupon';
@@ -2355,6 +2356,26 @@ function openYearDetailModal(yr, yearIdx, simResult, startCapital, allLabels) {
     const thBg   = isDark ? '#252840' : '#f0f4ff';
     const chartLabels = allLabels || simResult.years;
 
+    const _baseYearFlows = (() => {
+        const map = new Map();
+        for (const y of chartLabels) {
+            const activeBonds = _lastPortfolio.filter(b => new Date(b.maturity).getFullYear() >= y);
+            let coupons = 0, redemptions = 0;
+            activeBonds.forEach(b => {
+                const matYr  = new Date(b.maturity).getFullYear();
+                const qty    = b.quantity || 0;
+                const cached = _cgComputeCache.get(b.isin);
+                const fxBuy  = cached?.fxBuy ?? ((b.currency && b.currency !== 'EUR' && b.price > 0) ? (b.priceEur / b.price) : 1.0);
+                const nomEur = 100 * fxBuy;
+                const netCpn = (b.coupon / 100) * nomEur * qty * (1 - (b.taxRate || 0) / 100);
+                coupons += netCpn;
+                if (matYr === y) redemptions += nomEur * qty;
+            });
+            map.set(y, { coupons, redemptions });
+        }
+        return map;
+    })();
+
     // _expandedScenarios: module-level Set, persists across modal re-opens
     const expanded = _expandedScenarios;
 
@@ -2380,16 +2401,18 @@ function openYearDetailModal(yr, yearIdx, simResult, startCapital, allLabels) {
             && !ev?.replacementActivated;
         const isReplActivation = sc._type === 'maturity_replacement' && ev?.replacementActivated;
 
+        const baseFlows = _baseYearFlows.get(yr) || { coupons: 0, redemptions: 0 };
+
         // At replacement activation: coupons/redemptions show 0 (new bond just purchased,
         // original bond proceeds are implicit in the → switch shown in Reinvested)
         const couponCell = isReplPreActivation || isReplActivation
             ? '<span style="color:#888">—</span>'
             : sc._type === 'maturity_replacement'
                 ? sc2(ev?.replCoupons || 0)
-                : sc2(ev?.coupons || 0);
+                : sc2(baseFlows.coupons);
         const redempCell = isReplPreActivation || isReplActivation
             ? '<span style="color:#888">—</span>'
-            : sc2(ev?.redemptions || 0);
+            : sc2(baseFlows.redemptions);
         // Reinvested column:
         // - builtins/coupon_reinvest: total cashIn reinvested (coupons + redemptions reinvested)
         // - replacement pre-activation: —
@@ -2405,6 +2428,9 @@ function openYearDetailModal(yr, yearIdx, simResult, startCapital, allLabels) {
                 // Post-activation: show reinvested coupons (0 if take-as-cash)
                 reinvestedCell = sc2(ev?.replCoupons || 0);
             }
+        } else if (sc._type === 'coupon_reinvest') {
+            // Keep modal subtotals aligned with visible bond sub-rows (exclude synthetic carry income).
+            reinvestedCell = sc2(baseFlows.coupons + baseFlows.redemptions);
         } else {
             // Standard: show total reinvested (coupons + redemptions that were reinvested)
             reinvestedCell = sc2(ev?.reinvested || 0);
