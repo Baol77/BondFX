@@ -391,7 +391,8 @@ function runScenario(slots, years, globalMode, globalPriceShift, globalReinvestY
             s.reinvested = (reinvested > 0 && cashInTot > 0)
                 ? reinvested * (s.coupon + s.redemption) / cashInTot : 0;
         });
-        yearEvents.push({ yr, coupons: yearCoupons, redemptions: yearRedemptions, cashIn, reinvested, cash, perSlot });
+        const bondsVal = pool.reduce((s, sl) => sl.matYear >= yr ? s + slotValue(sl) : s, 0);
+        yearEvents.push({ yr, coupons: yearCoupons, redemptions: yearRedemptions, cashIn, reinvested, cash, bondsVal, perSlot });
         dataPoints.push(portfolioVal());
     }
     return { dataPoints, yearEvents };
@@ -2454,7 +2455,9 @@ function openYearDetailModal(yr, yearIdx, simResult, startCapital, allLabels) {
             reinvestedCell = sc2(ev?.reinvested || 0);
         }
         // Note: redemption capital reinvestment is implicit in Portfolio Value delta
-        const valDisplay  = val != null ? `${sym}${Math.round(_cgToBase(val)).toLocaleString(undefined,{maximumFractionDigits:0})}` : '—';
+        // Portfolio Value: use bonds-only value (ev.bondsVal * scale), not portfolioVal() which includes cash.
+        const bondsOnlyVal = (ev?.bondsVal != null) ? ev.bondsVal * (sc.scale || 1) : val;
+        const valDisplay  = bondsOnlyVal != null ? `${sym}${Math.round(_cgToBase(bondsOnlyVal)).toLocaleString(undefined,{maximumFractionDigits:0})}` : '—';
         const deltaDisplay = delta != null
             ? `<span style="color:${delta>=0?'#43a047':'#e53935'};font-weight:600;">${sign}${sym}${Math.abs(Math.round(_cgToBase(delta))).toLocaleString(undefined,{maximumFractionDigits:0})}</span>`
             : '<span style="color:#888">—</span>';
@@ -2469,7 +2472,9 @@ function openYearDetailModal(yr, yearIdx, simResult, startCapital, allLabels) {
             const slotItems = ev?.perSlot || [];
 
             if (slotItems.length > 0) {
-                perBondRows = slotItems.map(s => {
+                const K = sc.scale || 1; // apply same scale as sc.data
+                const fs = v => fmtSmall(v * K);
+                const bondRows = slotItems.map(s => {
                     const pb    = _lastPortfolio.find(b => b.isin === s.isin);
                     const matYr = pb ? new Date(pb.maturity).getFullYear() : '?';
                     return `<tr style="opacity:0.78;font-size:10.5px;background:${isDark?'rgba(255,255,255,0.03)':'rgba(0,0,0,0.02)'};">
@@ -2478,13 +2483,23 @@ function openYearDetailModal(yr, yearIdx, simResult, startCapital, allLabels) {
                             <span style="margin-left:6px;">${s.issuer}</span>
                             <span style="margin-left:6px;opacity:0.6;">mat.${matYr}</span>
                         </td>
-                        <td style="padding:3px 10px;text-align:right;">${fmtSmall(s.coupon)}</td>
-                        <td style="padding:3px 10px;text-align:right;">${s.redemption > 0 ? fmtSmall(s.redemption) : '<span style="color:#888">—</span>'}</td>
-                        <td style="padding:3px 10px;text-align:right;">${s.reinvested > 0 ? fmtSmall(s.reinvested) : '<span style="color:#888">—</span>'}</td>
-                        <td style="padding:3px 10px;text-align:right;">${fmtSmall(s.portVal)}</td>
+                        <td style="padding:3px 10px;text-align:right;">${fs(s.coupon)}</td>
+                        <td style="padding:3px 10px;text-align:right;">${s.redemption > 0 ? fs(s.redemption) : '<span style="color:#888">—</span>'}</td>
+                        <td style="padding:3px 10px;text-align:right;">${s.reinvested > 0 ? fs(s.reinvested) : '<span style="color:#888">—</span>'}</td>
+                        <td style="padding:3px 10px;text-align:right;">${fs(s.portVal)}</td>
                         <td style="padding:3px 10px;text-align:right;color:#888;">—</td>
                     </tr>`;
                 }).join('');
+                // Cash row only for no-reinvest when there is uninvested cash
+                const cashHeld = (ev?.cash || 0) * K;
+                const cashRow = cashHeld > 0.5
+                    ? `<tr style="font-size:10.5px;opacity:0.7;">
+                        <td style="padding:2px 10px 2px 28px;color:${isDark?'#5a6080':'#aaa'};font-style:italic;">💵 cash (uninvested)</td>
+                        <td colspan="3" style="padding:2px 10px;text-align:right;color:${isDark?'#5a6080':'#aaa'};font-size:10px;">proceeds from matured bonds, not reinvested</td>
+                        <td style="padding:2px 10px;text-align:right;color:${isDark?'#5a6080':'#aaa'};">${fmtSmall(cashHeld)}</td>
+                        <td style="padding:2px 10px;text-align:right;color:#888;">—</td>
+                    </tr>` : '';
+                perBondRows = bondRows + cashRow;
             }
         }
 
