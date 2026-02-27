@@ -352,7 +352,7 @@
             <div class="settings-note" id="fxRateNote" style="margin-top:8px;font-size:11px;color:#888;"></div>
 
             <!-- Investor Profiles -->
-            <div style="border-top:1px solid var(--settings-divider,#e0e4ef);margin-top:20px;padding-top:16px;">
+            <div style="border-top:1px solid var(--settings-divider,#e0e4ef);padding-top:16px;">
                 <div class="settings-label" style="margin-bottom:10px;">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:6px;"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
                     Investor Profiles
@@ -420,7 +420,7 @@
 
 <!-- Footer -->
 <footer class="page-footer">
-    BondFX v4.1 &nbsp;·&nbsp;<a href="#" onclick="openInfoModal(); return false;">User Manual</a>
+    BondFX v5 &nbsp;·&nbsp;<a href="#" onclick="openInfoModal(); return false;">User Manual</a>
 </footer>
 
 <!-- JavaScript (external static files) -->

@@ -306,14 +306,30 @@ The header back button shows **← Analyzer** (mobile) / **← Portfolio Analyze
 
 ### Scenarios
 
+Each scenario is configured independently via the tab panel below the chart. Multiple scenarios can coexist and are shown as separate lines on the chart.
+
 | Scenario | What It Models |
 |---|---|
-| **No reinvestment (cash)** | Coupons paid out as cash; no reinvesting. Always shown. |
-| **📈 Coupon reinvest** | Coupons reinvested into the same bond at a configured price |
-| **🔄 Maturity replacement** | When a bond matures, proceeds buy a new synthetic bond (per ISIN) |
-| **💰 Annual injection** | A fixed amount added each year, distributed across bonds by % |
+| **No reinvestment (cash)** | Coupons paid out as cash; no reinvesting. Always shown as baseline. |
+| **📈 Coupon reinvest** | Coupons reinvested into the same bond at a configured price shift |
+| **🔄 Maturity replacement** | When a bond matures, all proceeds are routed into a new synthetic bond with a configured net coupon % and maturity year |
+| **💰 Annual injection** | A fixed EUR amount added each year, distributed across active bonds by configurable % allocation |
 
-The **No reinvestment** line is always visible. Additional scenarios are configured via the 3-tab panel below the chart and are hidden by default until enabled.
+The **No reinvestment** line is always visible as a baseline. Additional scenarios are added via **＋ New scenario** and configured in the 3-tab panel.
+
+### Scenario Configuration Tabs
+
+Each scenario has three independent tabs:
+
+**📈 Coupon reinvest** — enable coupon reinvestment with an optional global price shift (e.g. +5% = buy at 5% above current price). Per-bond price overrides are also available.
+
+**🔄 Maturity replacement** — configure one synthetic replacement bond per ISIN. When the source bond matures, its full redemption proceeds plus final coupon are invested into the replacement at the configured net coupon % and maturity year. The replacement can itself reinvest coupons or pay them as cash.
+
+**💰 Annual injection** — enable a fixed annual cash injection (e.g. €1,000/year) between a configurable `from` and `to` year. The amount is split across active (non-matured) bonds proportionally to the % allocation table. Allocations must sum to 100%; the panel shows the running total in real time. When a bond matures mid-horizon, its allocation % is automatically redistributed to the remaining active bonds.
+
+### Export / Import Scenarios
+
+Use **↑ Export** to save all scenarios (including portfolio snapshot and configuration) as a JSON file. Use **↓ Import** to restore a previously saved configuration. The export format is self-contained: it includes the full `portfolioSnapshot`, all scenario parameters, and `verifyYears` for test fixtures.
 
 ### Bond Filter (Stats by Bond)
 
@@ -326,7 +342,7 @@ Deselecting all bonds hides all chart lines. Selecting all is equivalent to no f
 
 ### Chart Views
 
-Click any year on the chart to open the **Year Detail modal** showing coupons, redemptions, and reinvestment amounts for that year.
+Click any year on the chart to open the **Year Detail modal** showing coupons, redemptions, reinvestment amounts, and per-bond breakdown for that year. For years with a maturity replacement activation, the modal highlights the source bond and the newly created synthetic replacement slot.
 
 ### Benchmark Overlay
 
@@ -528,6 +544,8 @@ exceptions:
 
 **Growth chart scale seems wrong after filtering bonds** — The chart re-simulates using only the selected bonds and a proportional starting capital. Selecting 1 bond out of 8 reduces both the simulated portfolio and the capital axis accordingly. This is the correct behavior.
 
+**Annual injection total shows 0% on first enable** — Click the checkbox to enable injection; the allocation table is initialized automatically with equal distribution across active bonds. The total will immediately show 100%.
+
 **Benchmark not loading in Capital Growth** — The ETF ticker may be temporarily unavailable on Yahoo Finance. Try reloading. Check that the ticker is valid at finance.yahoo.com.
 
 **Custom profile disappeared after reload** — Profiles are stored in local storage. If storage was cleared, re-import the YAML file or restore from a Settings Backup JSON.
@@ -575,6 +593,14 @@ Check the Tax % column. Override per bond directly in the table — changes take
 
 Open ⚙️ Personal Settings → Settings Backup → **Export settings**. The JSON file includes your custom profiles, profile order, selection, basket, wishlist, theme, and currency. Import it on any device to restore everything.
 
+**What happens to the annual injection when a bond matures mid-horizon?**
+
+The matured bond's allocation % is automatically redistributed proportionally among the remaining active bonds. The total injected amount per year stays the same — only the per-bond split changes.
+
+**Can I combine coupon reinvestment with a maturity replacement in the same scenario?**
+
+Yes. In the same scenario, enable **📈 Coupon reinvest** for bonds you want to compound, and configure a **🔄 Maturity replacement** for the bond that will mature. The two features operate independently: coupons from surviving bonds are reinvested, while the maturing bond's full proceeds are routed to the synthetic replacement.
+
 ---
 
 ## First Portfolio: Step-by-Step
@@ -596,4 +622,4 @@ Set a quarterly reminder to re-import the CSV and review price changes.
 
 ---
 
-*Last updated: February 2026 — BondFX v5.3*
+*Last updated: February 2026 — BondFX v5.0*
