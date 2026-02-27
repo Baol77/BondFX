@@ -77,7 +77,7 @@ Copy the ISIN and give it to your broker.
 
 [↑ Top](#top)
 
-On **mobile** (≤ 768px): issuer shows a flag only, maturity shows the year only, headers are abbreviated.
+On **mobile** (≤ 768px): issuer shows a flag only, maturity shows the year only, column headers are abbreviated (e.g. "Yld %" instead of "Curr. Yield %").
 
 | Column | What It Represents | Practical Use |
 |---|---|---|
@@ -235,6 +235,14 @@ Persists across reloads via local storage.
 
 Full-page tool at `/analyzer` for building and evaluating portfolios.
 
+### Navigation
+
+The header shows:
+- **← Home** (mobile) / **← Back to BondFX** (desktop) — returns to the bond table
+- **↗ Growth** (mobile) / **Capital Growth** (desktop) — opens the Capital Growth Simulator
+
+Labels adapt automatically to screen width.
+
 ### Adding a Bond
 
 1. Search by ISIN or issuer
@@ -292,23 +300,33 @@ Shows face-value redemptions month by month.
 
 Full-page tool at `/capital-growth` that projects how your portfolio grows year by year under different reinvestment assumptions.
 
+### Navigation
+
+The header back button shows **← Analyzer** (mobile) / **← Portfolio Analyzer** (desktop).
+
 ### Scenarios
 
 | Scenario | What It Models |
 |---|---|
-| **No reinvestment** | Coupons paid out as cash; no reinvesting |
-| **Same bond** | Coupons reinvested into the same bond at current price and SAY |
-| **Market avg +10%** | Reinvestment into a hypothetical bond 10% more expensive (lower SAY) |
-| **Market avg −10%** | Reinvestment into a hypothetical bond 10% cheaper (higher SAY) |
+| **No reinvestment (cash)** | Coupons paid out as cash; no reinvesting. Always shown. |
+| **📈 Coupon reinvest** | Coupons reinvested into the same bond at a configured price |
+| **🔄 Maturity replacement** | When a bond matures, proceeds buy a new synthetic bond (per ISIN) |
+| **💰 Annual injection** | A fixed amount added each year, distributed across bonds by % |
 
-You can also add **custom scenarios** with per-ISIN overrides for mode, SAY, and price shift.
+The **No reinvestment** line is always visible. Additional scenarios are configured via the 3-tab panel below the chart and are hidden by default until enabled.
+
+### Bond Filter (Stats by Bond)
+
+Above the stat cards, checkboxes let you select individual bonds. Selecting a subset **simultaneously** updates both:
+
+- The **stat cards** (Initial Capital, Final Value, CAGR, etc.)
+- The **growth chart** — re-simulated with only the selected bonds, at a proportional start capital
+
+Deselecting all bonds hides all chart lines. Selecting all is equivalent to no filter.
 
 ### Chart Views
 
-- **Portfolio view** — stacked area or line chart, total portfolio value over time
-- **Bond view** — per-ISIN breakdown, select individual bonds to compare
-
-Click any year bar to open the **Year Detail modal** showing coupons, redemptions, and reinvestment amounts for that year.
+Click any year on the chart to open the **Year Detail modal** showing coupons, redemptions, and reinvestment amounts for that year.
 
 ### Benchmark Overlay
 
@@ -508,6 +526,8 @@ exceptions:
 
 **Data is outdated** — Reload to fetch current data. The age indicator (🟢/🟡/🔴) shows freshness.
 
+**Growth chart scale seems wrong after filtering bonds** — The chart re-simulates using only the selected bonds and a proportional starting capital. Selecting 1 bond out of 8 reduces both the simulated portfolio and the capital axis accordingly. This is the correct behavior.
+
 **Benchmark not loading in Capital Growth** — The ETF ticker may be temporarily unavailable on Yahoo Finance. Try reloading. Check that the ticker is valid at finance.yahoo.com.
 
 **Custom profile disappeared after reload** — Profiles are stored in local storage. If storage was cleared, re-import the YAML file or restore from a Settings Backup JSON.
@@ -541,7 +561,7 @@ On every page load. The timestamp and age indicator at the top show how fresh th
 
 **Can I use this on mobile?**
 
-Yes. The table adapts: flag instead of country name, year-only maturity, abbreviated headers. The Portfolio Analyzer and Capital Growth Simulator are full-page views that work well on mobile too.
+Yes. The table adapts on screens ≤ 768px: flag instead of country name, year-only maturity, abbreviated column headers. Navigation buttons in the Portfolio Analyzer and Capital Growth Simulator also shorten automatically ("Home", "Growth", "Analyzer"). Both sub-pages are fully functional on mobile.
 
 **What does a price above 100 mean?**
 
