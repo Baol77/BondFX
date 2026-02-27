@@ -98,7 +98,8 @@ public class BondComputeController {
         double fxBuy,
         double fxCoupon,
         double fxFuture,
-        double yearsToMat
+        double yearsToMat,
+        double nomEur       // face value per unit in report currency (100 / fxBuy for non-EUR)
     ) {}
 
     // ── Cache ─────────────────────────────────────────────────────────────────
@@ -191,6 +192,11 @@ public class BondComputeController {
         double say = (finalCapital - 1000.0) / (10.0 * years);
 
         // ── 5. Build per-1000-EUR result (quantity-independent) ───────────────
+        // nomEur: face value of 1 unit in report currency = 100 EUR-equivalent / fxBuy
+        // For EUR bonds: nomEur = 100. For USD bonds at 0.92 fxBuy: nomEur = 100/0.92 ≈ 108.7
+        // Used by JS subrows to keep coupon/redemption consistent with the simulation engine.
+        double nomEur = (fxBuy > 0) ? round4(100.0 / fxBuy) : 100.0;
+
         BondComputeResult base = new BondComputeResult(
             req.isin(),
             round4(say),
@@ -202,7 +208,8 @@ public class BondComputeController {
             round4(fxBuy),
             round4(fxCoupon),
             round4(fxFuture),
-            round4(years)
+            round4(years),
+            nomEur
         );
 
         cache.put(key, new CacheEntry(base, System.currentTimeMillis()));
@@ -242,7 +249,8 @@ public class BondComputeController {
             base.fxBuy(),
             base.fxCoupon(),
             base.fxFuture(),
-            base.yearsToMat()
+            base.yearsToMat(),
+            base.nomEur()
         );
     }
 
@@ -257,7 +265,7 @@ public class BondComputeController {
 
     private BondComputeResult fallback(BondComputeRequest req) {
         return new BondComputeResult(
-            req.isin(), 0, 0, 0, 0, 0, 0, 0, 1.0, 1.0, 1.0, 0
+            req.isin(), 0, 0, 0, 0, 0, 0, 0, 1.0, 1.0, 1.0, 0, 100.0
         );
     }
 

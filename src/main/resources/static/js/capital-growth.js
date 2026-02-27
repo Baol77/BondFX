@@ -133,10 +133,12 @@ async function _computePortfolio(portfolio, priceShifts = {}, reportCcy = 'EUR')
         console.error('[BondFX] /api/bonds/compute unavailable — stats and simulation will be empty.', e.message);
         portfolio.forEach(b => {
             if (!_cgComputeCache.has(b.isin)) {
+                const fxRateFb = (b.currency && b.currency !== 'EUR' && b.price > 0) ? (b.priceEur / b.price) : 1.0;
                 _cgComputeCache.set(b.isin, {
                     isin: b.isin, say: 0, finalCapital: 0, bondNbr: 0,
                     capCoupons: 0, capGain: 0, totalCoupons: 0, totalFace: 0,
                     fxBuy: 1, fxCoupon: 1, fxFuture: 1, yearsToMat: 0,
+                    nomEur: (b.nominal || 100) * fxRateFb,
                 });
             }
         });
@@ -844,7 +846,8 @@ const SCENARIO_COLORS = [
 ];
 
 let _scenarios       = [];   // array of scenario objects (see above)
-let _activeScenarioId = null; // which scenario the tabs are currently editing
+let _activeScenarioId  = null; // which scenario the tabs are currently editing
+let _scenariosDirty   = false; // true if scenarios modified since last export
 
 // ── Chart state ───────────────────────────────────────────────────────────────
 let _chart            = null;
@@ -852,7 +855,8 @@ let _chartBond        = null;
 let _lastSimResult    = null;
 let _lastStartCapital = 0;
 let _lastPortfolio    = [];
-let _hiddenScenarioIds = new Set();  // scenario ids hidden via legend click
+let _hiddenScenarioIds    = new Set();
+let _expandedScenarios    = new Set(); // which scenario IDs have per-bond rows shown in modal  // scenario ids hidden via legend click
 
 // Compat: build flat list of maturity_replacement objects from new _scenarios model
 // Used by buildBondTimeline, openYearDetailModal, renderBondYearChart
@@ -911,6 +915,7 @@ function _defaultScenario(portfolio) {
         couponReinvest: { enabled: false, globalPriceShift: 0, perIsin: new Map() },
         maturityReplacement: new Map(),  // isin → cfg
         injection: { enabled: false, amountEur: 1000, from: today, to: lastYear, pct: {} },
+        _autoDefault: false, // set to true only for the initial auto-created scenario
     };
 }
 
@@ -1193,9 +1198,13 @@ function renderSummaryStats(portfolio, simResult, startCapital) {
 
         const scenLabel = _scenarios.find(s => s.id === activeScId)?.label || 'No reinvestment';
 
-        return `<div style="font-size:10px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px;">
-                    Stats — <span style="color:${_scenarios.find(s=>s.id===activeScId)?.color||'#888'}">${scenLabel}</span>
-                </div>` +
+        const activeSc2 = _scenarios.find(s => s.id === activeScId);
+        const scColor2  = activeSc2?.color || '#888';
+        const statsHeader = `<div style="width:100%;font-size:10px;font-weight:600;color:#888;
+            text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px;">
+            Stats — <span style="color:${scColor2};font-size:11px;">${scenLabel}</span>
+        </div>`;
+        return statsHeader +
             card('Initial Capital',   fmt(totStart)) +
             card('Final Value',       fmt(totFinal), 'at horizon') +
             card('Total Net Coupons', fmt(totCoupons), 'over full horizon') +
@@ -1326,6 +1335,32 @@ function renderGrowthChart(simResult, startCapital) {
 //  PER-ISIN PANEL  — scenario tabs + 3 sub-tabs
 // ═══════════════════════════════════════════════════════════════════════════
 
+// Sub-tab HTML helper — extracted to avoid triple template literal nesting
+function _buildSubTabHtml(isDark, border) {
+    const sc = _scenarios.find(s => s.id === _activeScenarioId);
+    // Only hide sub-tabs for the initial auto-created scenario (before user touches anything)
+    if (sc?._autoDefault) return '';
+    const color = isDark ? '#8890b8' : '#888';
+    const bg    = isDark ? '#1a1d2e' : '#fafbff';
+    const tabs  = {coupon:'📈 Coupon reinvest', replacement:'🔄 Maturity replacement', injection:'💰 Annual injection'};
+    const btnHtml = Object.entries(tabs).map(([t, lbl]) =>
+        '<button id="cgTab_' + t + '" class="cg-tab-btn" data-subtab="' + t + '"'
+        + ' style="flex:1;padding:8px 6px;font-size:11px;font-weight:600;border:none;cursor:pointer;'
+        + 'border-bottom:2px solid transparent;background:transparent;color:' + color + ';">'
+        + lbl + '</button>'
+    ).join('');
+    return '<div>'
+        + '<div style="display:flex;align-items:stretch;background:' + bg + ';border-bottom:1px solid ' + border + ';">'
+        + btnHtml
+        + '</div>'
+        + '<div style="padding:12px 14px;">'
+        + '<div id="cgTabBody_coupon" style="display:none;"></div>'
+        + '<div id="cgTabBody_replacement" style="display:none;"></div>'
+        + '<div id="cgTabBody_injection" style="display:none;"></div>'
+        + '</div></div>';
+}
+
+
 function buildPerIsinPanel(portfolio, simResult) {
     const panel = document.getElementById('perIsinPanel');
     if (!panel) return;
@@ -1349,15 +1384,33 @@ function buildPerIsinPanel(portfolio, simResult) {
         const actStyle = isActive
             ? `background:${bg};border-bottom:2px solid ${sc.color};font-weight:700;color:${isDark?'#e0e4ff':'#1a2a4a'};`
             : `background:transparent;border-bottom:2px solid transparent;font-weight:600;color:${isDark?'#8890b8':'#888'};`;
-        return `<div class="cg-sc-tab" data-scid="${sc.id}" style="display:inline-flex;align-items:center;gap:6px;padding:8px 12px;cursor:pointer;font-size:12px;border:none;border-bottom:2px solid transparent;white-space:nowrap;${actStyle}"
-            onclick="selectScenario('${sc.id}')">
+        return `<div class="cg-sc-tab" data-scid="${sc.id}"
+            style="display:inline-flex;align-items:center;gap:6px;padding:8px 12px;cursor:pointer;font-size:12px;border:none;border-bottom:2px solid transparent;white-space:nowrap;${actStyle}"
+            onclick="if(!this._editMode)selectScenario('${sc.id}')">
             <span class="cg-sc-color-dot" style="width:9px;height:9px;border-radius:50%;background:${sc.color};flex-shrink:0;cursor:pointer;"
                 title="Change color" onclick="event.stopPropagation();pickScenarioColor('${sc.id}',this)"></span>
-            <span class="cg-sc-label" data-scid="${sc.id}" contenteditable="true" spellcheck="false"
-                style="outline:none;min-width:40px;max-width:120px;overflow:hidden;white-space:nowrap;"
-                onblur="renameScenario('${sc.id}',this.textContent.trim())"
-                onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}"
-                onclick="event.stopPropagation();">${sc.label}</span>
+            <span class="cg-sc-label" data-scid="${sc.id}" contenteditable="false" spellcheck="false"
+                style="outline:none;min-width:40px;max-width:120px;overflow:hidden;white-space:nowrap;cursor:pointer;user-select:none;"
+                ondblclick="event.stopPropagation();(function(el){
+                    const tab=el.closest('.cg-sc-tab');
+                    if(tab)tab._editMode=true;
+                    el.contentEditable='true';
+                    el.style.cursor='text';
+                    el.style.userSelect='text';
+                    el.focus();
+                    const r=document.createRange();r.selectNodeContents(el);
+                    window.getSelection().removeAllRanges();window.getSelection().addRange(r);
+                })(this)"
+                onclick="event.stopPropagation();"
+                onblur="(function(el){
+                    const tab=el.closest('.cg-sc-tab');
+                    if(tab)tab._editMode=false;
+                    el.contentEditable='false';
+                    el.style.cursor='pointer';
+                    el.style.userSelect='none';
+                    renameScenario('${sc.id}',el.textContent.trim());
+                })(this)"
+                onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">${sc.label}</span>
             <button title="Delete scenario" onclick="event.stopPropagation();deleteScenario('${sc.id}')"
                 style="background:none;border:none;cursor:pointer;color:#999;font-size:13px;line-height:1;padding:0 1px;margin-left:2px;"
                 onmouseover="this.style.color='#e53935'" onmouseout="this.style.color='#999'">×</button>
@@ -1390,27 +1443,19 @@ function buildPerIsinPanel(portfolio, simResult) {
             <div style="padding:20px;text-align:center;color:#888;font-size:12px;">
                 No scenarios yet. Click <strong>＋ New scenario</strong> to begin.
             </div>` : `
-            <!-- Sub-tab row (only when a scenario is active) -->
-            <div style="display:flex;align-items:stretch;background:${isDark?'#1a1d2e':'#fafbff'};border-bottom:1px solid ${border};">
-                ${['coupon','replacement','injection'].map(t => {
-                    const labels = {coupon:'📈 Coupon reinvest', replacement:'🔄 Maturity replacement', injection:'💰 Annual injection'};
-                    return `<button id="cgTab_${t}" class="cg-tab-btn" onclick="switchScenarioSubTab('${t}')"
-                        style="flex:1;padding:8px 6px;font-size:11px;font-weight:600;border:none;cursor:pointer;border-bottom:2px solid transparent;background:transparent;color:${isDark?'#8890b8':'#888'};">
-                        ${labels[t]}
-                    </button>`;
-                }).join('')}
-            </div>
-            <div style="padding:12px 14px;">
-                <div id="cgTabBody_coupon"      style="display:none;"></div>
-                <div id="cgTabBody_replacement" style="display:none;"></div>
-                <div id="cgTabBody_injection"   style="display:none;"></div>
-            </div>`}
+            <!-- Sub-tab row (hidden for virgin no-config scenarios) -->
+            ${_buildSubTabHtml(isDark, border)}
+            `}
 
         </div>`;
 
     panel._activeSubTab = prevSubTab;
 
     if (_scenarios.length > 0) {
+        // Wire data-subtab buttons (no inline onclick to avoid escaping issues)
+        panel.querySelectorAll('[data-subtab]').forEach(btn => {
+            btn.addEventListener('click', () => switchScenarioSubTab(btn.dataset.subtab));
+        });
         renderCouponTab(portfolio, simResult?.weightedSAY || 3, isDark, border);
         renderReplacementTab(portfolio, isDark, border);
         renderInjectionTab(portfolio, isDark, border);
@@ -1447,6 +1492,7 @@ function addScenario() {
     _scenarios.push(sc);
     _activeScenarioId = sc.id;
     _hiddenScenarioIds.delete(sc.id);
+    _scenariosDirty = true;
     buildPerIsinPanel(_lastPortfolio, _lastSimResult || { weightedSAY: 3 });
     triggerSimulation();
 }
@@ -1464,6 +1510,7 @@ function deleteScenario(id) {
             _activeScenarioId = _scenarios[Math.max(0, idx - 1)]?.id || _scenarios[0]?.id || null;
         }
     }
+    _scenariosDirty = true;
     buildPerIsinPanel(_lastPortfolio, _lastSimResult || { weightedSAY: 3 });
     triggerSimulation();
 }
@@ -1481,6 +1528,7 @@ function renameScenario(id, newLabel) {
     const sc = _scenarios.find(s => s.id === id);
     if (!sc || !newLabel || sc.label === newLabel) return;
     sc.label = newLabel;
+    _scenariosDirty = true;
     triggerSimulation();
 }
 
@@ -2041,6 +2089,7 @@ function importScenarios(event) {
             }
 
             _showImportFeedback(html);
+            _scenariosDirty = false;
             buildPerIsinPanel(_lastPortfolio, _lastSimResult || { weightedSAY: 3 });
             triggerSimulation();
         } catch(err) {
@@ -2157,6 +2206,14 @@ async function runSimulation() {
     _fxCache.clear();
     await _computePortfolio(portfolio, {}, reportCcy);
 
+    // Ensure at least one scenario exists (first load or after clearing all)
+    if (_scenarios.length === 0) {
+        const sc = _defaultScenario(portfolio);
+        sc._autoDefault = true; // hide sub-tabs until user explicitly configures something
+        _scenarios.push(sc);
+        _activeScenarioId = sc.id;
+    }
+
     // startCapital: auto-computed from portfolio cost (read-only)
     const costEur      = portfolio.reduce((s, b) => s + (b.totalEur || (b.priceEur || 0) * b.quantity), 0);
     const startCapital = costEur;
@@ -2196,6 +2253,30 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     await runSimulation();
     switchView('year');
+
+    // E: warn on navigation away if scenarios were modified but not exported
+    function _hasUnsavedConfig() {
+        if (!_scenariosDirty) return false;
+        return _scenarios.some(sc =>
+            sc.couponReinvest.enabled || sc.maturityReplacement.size > 0 || sc.injection.enabled
+        );
+    }
+
+    // E1: browser tab close / reload
+    window.addEventListener('beforeunload', e => {
+        if (!_hasUnsavedConfig()) return;
+        e.preventDefault();
+        e.returnValue = 'Hai scenari non esportati. Vuoi davvero uscire?';
+    });
+
+    // E2: back-link to Portfolio Analyzer (and any other internal <a> nav)
+    document.querySelectorAll('a[href="/analyzer"], a[href*="analyzer"]').forEach(link => {
+        link.addEventListener('click', e => {
+            if (!_hasUnsavedConfig()) return;
+            const ok = confirm('Hai scenari non esportati. Tornare all\u0027Analyzer far\u00e0 perdere le modifiche. Continuare?');
+            if (!ok) e.preventDefault();
+        });
+    });
 });
 function openYearDetailModal(yr, yearIdx, simResult, startCapital, allLabels) {
     document.getElementById('cgYearModal')?.remove();
@@ -2207,6 +2288,9 @@ function openYearDetailModal(yr, yearIdx, simResult, startCapital, allLabels) {
     const text   = isDark ? '#c0c8e8' : '#1a2a4a';
     const thBg   = isDark ? '#252840' : '#f0f4ff';
     const chartLabels = allLabels || simResult.years;
+
+    // _expandedScenarios: module-level Set, persists across modal re-opens
+    const expanded = _expandedScenarios;
 
     let rows = simResult.scenarios.map(sc => {
         // For extended scenarios, find event by year, not by chart index
@@ -2265,17 +2349,68 @@ function openYearDetailModal(yr, yearIdx, simResult, startCapital, allLabels) {
             ? `<span style="color:${delta>=0?'#43a047':'#e53935'};font-weight:600;">${sign}${sym}${Math.abs(Math.round(_cgToBase(delta))).toLocaleString(undefined,{maximumFractionDigits:0})}</span>`
             : '<span style="color:#888">—</span>';
 
+        const isExpanded = expanded.has(sc.id);
+        const toggleId   = `cgBondExpand_${sc.id}_${yr}`;
+
+        // Per-bond subrows: one row per bond showing its coupon contribution
+        let perBondRows = '';
+        if (isExpanded) {
+            // Show bonds active this year (not matured before yr) + bonds maturing this year
+            const activeBonds = _lastPortfolio.filter(b => new Date(b.maturity).getFullYear() >= yr);
+            const isReinvest  = sc._type === 'coupon_reinvest';
+            const fmtSmall    = v => sym + Math.round(_cgToBase(v)).toLocaleString(undefined,{maximumFractionDigits:0});
+
+            perBondRows = activeBonds.map(b => {
+                const matYr     = new Date(b.maturity).getFullYear();
+                const qty       = b.quantity || 0;
+                // Use same formula as buildSlots: nomEur from cache (accounts for FX on non-EUR bonds)
+                const cached    = _cgComputeCache.get(b.isin);
+                const fxRate    = (b.currency && b.currency !== 'EUR' && b.price > 0) ? (b.priceEur / b.price) : 1.0;
+                const nomEur    = cached?.nomEur ?? ((b.nominal || 100) * fxRate);
+                // Net annual coupon = (coupon%/100) * nomEur * qty * (1 - taxRate/100)
+                const netCoupon = (b.coupon / 100) * nomEur * qty * (1 - (b.taxRate || 0) / 100);
+                // Redemption: face value (nomEur * qty) returned at maturity year only
+                const redemp    = (matYr === yr) ? nomEur * qty : 0;
+                // Reinvested: for coupon_reinvest scenario → coupon (+ redemption reinvested back)
+                const reinv     = isReinvest ? netCoupon + (matYr === yr ? redemp : 0) : 0;
+                // Portfolio value subrow: face returned if maturing, else priceEur×qty (current mkt)
+                const portVal   = (matYr === yr) ? redemp : (b.priceEur || 0) * qty;
+
+                return `<tr style="opacity:0.78;font-size:10.5px;background:${isDark?'rgba(255,255,255,0.03)':'rgba(0,0,0,0.02)'};">
+                    <td style="padding:3px 10px 3px 28px;color:${isDark?'#8890b8':'#888'};">
+                        <span style="font-family:monospace;font-size:10px;">${b.isin}</span>
+                        <span style="margin-left:6px;">${b.issuer}</span>
+                        <span style="margin-left:6px;opacity:0.6;">mat.${matYr}</span>
+                    </td>
+                    <td style="padding:3px 10px;text-align:right;">${fmtSmall(netCoupon)}</td>
+                    <td style="padding:3px 10px;text-align:right;">${redemp > 0 ? fmtSmall(redemp) : '<span style="color:#888">—</span>'}</td>
+                    <td style="padding:3px 10px;text-align:right;">${reinv > 0 ? fmtSmall(reinv) : '<span style="color:#888">—</span>'}</td>
+                    <td style="padding:3px 10px;text-align:right;">${fmtSmall(portVal)}</td>
+                    <td style="padding:3px 10px;text-align:right;color:#888;">—</td>
+                </tr>`;
+            }).join('');
+        }
+
         return `<tr>
             <td style="padding:7px 10px;">
-                <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${sc.color};margin-right:6px;vertical-align:middle;"></span>
-                ${sc.label}
+                <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;">
+                    <input type="checkbox" id="${toggleId}" ${isExpanded?'checked':''}
+                        style="cursor:pointer;accent-color:${sc.color};"
+                        onchange="(function(chk){
+                            if(chk.checked)_expandedScenarios.add('${sc.id}');
+                            else _expandedScenarios.delete('${sc.id}');
+                            openYearDetailModal(${yr},${yearIdx},_lastSimResult,_lastStartCapital,${JSON.stringify(allLabels)});
+                        })(this)">
+                    <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${sc.color};vertical-align:middle;"></span>
+                    ${sc.label}
+                </label>
             </td>
             <td style="padding:7px 10px;text-align:right;">${couponCell}</td>
             <td style="padding:7px 10px;text-align:right;">${redempCell}</td>
             <td style="padding:7px 10px;text-align:right;">${reinvestedCell}</td>
             <td style="padding:7px 10px;text-align:right;font-weight:700;">${valDisplay}</td>
             <td style="padding:7px 10px;text-align:right;">${deltaDisplay}</td>
-        </tr>`;
+        </tr>${perBondRows}`;
     }).join('');
 
     const maturingBonds = _lastPortfolio.filter(b => new Date(b.maturity).getFullYear() === yr);
@@ -2305,10 +2440,7 @@ function openYearDetailModal(yr, yearIdx, simResult, startCapital, allLabels) {
         matHtml = `<div style="margin-top:12px;padding:10px 12px;border-radius:6px;background:${isDark?'#1a2e1a':'#e8f5e9'};border:1px solid ${isDark?'#2a5a2a':'#a5d6a7'};">
             <strong style="color:${isDark?'#70c172':'#2e7d32'}">🏁 Maturing bonds:</strong>
             ${maturingBonds.map(b => {
-                const label = issuerCount[b.issuer] > 1
-                    ? `${b.issuer} <span style="font-family:monospace;font-size:10px;opacity:0.75">${b.isin}</span>`
-                    : b.issuer;
-                return `<span style="font-size:12px;margin-right:16px;">${label}</span>`;
+                return `<span style="font-size:12px;margin-right:16px;">${b.issuer} <span style="font-family:monospace;font-size:10px;opacity:0.75">${b.isin}</span></span>`;
             }).join('')}
             ${replHtml}
         </div>`;
@@ -2342,7 +2474,7 @@ function openYearDetailModal(yr, yearIdx, simResult, startCapital, allLabels) {
                         <th style="padding:7px 10px;text-align:right;">Coupons (net)</th>
                         <th style="padding:7px 10px;text-align:right;">Redemptions</th>
                         <th style="padding:7px 10px;text-align:right;">Reinvested</th>
-                        <th style="padding:7px 10px;text-align:right;">Portfolio Value</th>
+                        <th style="padding:7px 10px;text-align:right;" title="Subrows show bond value only (excl. cash)">Portfolio Value</th>
                         <th style="padding:7px 10px;text-align:right;">Δ vs prev yr</th>
                     </tr></thead>
                     <tbody>${rows}</tbody>
@@ -2350,6 +2482,7 @@ function openYearDetailModal(yr, yearIdx, simResult, startCapital, allLabels) {
                 ${matHtml}
                 <p style="font-size:10px;color:${isDark?'#5a6080':'#aaa'};margin-top:10px;">
                     Coupons net of withholding tax. Redemptions = face value returned. Sudden growth = bond maturation + reinvestment.
+                    Subrow <em>Portfolio Value</em> = bond holding value only (excl. cash/reinvested proceeds).
                     All values in ${_cgBaseCcy()} &nbsp;·&nbsp;
                     <span style="opacity:0.7;">← → arrows or buttons to navigate years</span>
                 </p>
@@ -2378,9 +2511,6 @@ function openYearDetailModal(yr, yearIdx, simResult, startCapital, allLabels) {
 }
 
 // ── Bond year chart ───────────────────────────────────────────────────────────
-const BOND_COLORS_DARK  = ['#5b9bd5','#70c172','#ffd740','#ff7043','#ba68c8','#4dd0e1','#fff176','#a5d6a7','#ef9a9a','#90caf9'];
-const BOND_COLORS_LIGHT = ['#1565c0','#2e7d32','#e65100','#6a1b9a','#00838f','#f9a825','#558b2f','#ad1457','#4527a0','#37474f'];
-let _bondChartMode = 'stacked';
 
 function renderBondYearChart(portfolio, years, selectedIsins) {
     const canvas = document.getElementById('bondYearChart');
@@ -2586,5 +2716,4 @@ async function toggleBenchmark(id, symbol, label, color, checked) {
 }
 
 // ── View toggles ──────────────────────────────────────────────────────────────
-let _currentView = 'year';
 
