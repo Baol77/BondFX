@@ -193,8 +193,12 @@ function buildSlots(portfolio) {
         // nomEur and net coupon come from _cgComputeCache (populated by _computePortfolio).
         // This eliminates the JS replica of Bond.priceEur/price FX normalisation.
         const cached = _cgComputeCache.get(b.isin);
-        const nomEur = cached?.nomEur ?? ((b.nominal || 100) * ((b.currency !== 'EUR' && b.price > 0) ? b.priceEur / b.price : 1));
-        const pxEur  = (b.priceEur > 0) ? b.priceEur : nomEur;
+        // nomEur = face value of 1 unit in report currency = 100 * fxBuy(bondCCY→EUR)
+        // Use fxBuy from cache (not cached.nomEur which was stored with inverted formula).
+        // Fallback: fxBuy ≈ spot = priceEur/price for non-EUR bonds.
+        const fxBuySlot = cached?.fxBuy ?? ((b.currency !== 'EUR' && b.price > 0) ? b.priceEur / b.price : 1.0);
+        const nomEur    = 100 * fxBuySlot;
+        const pxEur     = (b.priceEur > 0) ? b.priceEur : nomEur;
         return {
             isin:           b.isin,
             issuer:         b.issuer,
@@ -889,6 +893,84 @@ let _selectedIsins    = new Set();
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+// Inline rename for scenario tab label.
+// Creates a temporary <input> positioned over the label span.
+function _startTabRename(scId, labelEl) {
+    const sc = _scenarios.find(s => s.id === scId);
+    if (!sc) return;
+
+    // Measure label position for overlay input
+    const rect = labelEl.getBoundingClientRect();
+    const inp  = document.createElement('input');
+    inp.type   = 'text';
+    inp.value  = sc.label;
+    inp.style.cssText = [
+        'position:fixed',
+        'left:'  + rect.left + 'px',
+        'top:'   + rect.top  + 'px',
+        'width:' + Math.max(rect.width + 20, 80) + 'px',
+        'height:' + rect.height + 'px',
+        'font-size:12px',
+        'font-weight:700',
+        'padding:0 4px',
+        'border:1px solid #5b8dee',
+        'border-radius:3px',
+        'background:' + (document.body.classList.contains('dark') ? '#252840' : '#fff'),
+        'color:inherit',
+        'z-index:99999',
+        'outline:none',
+    ].join(';');
+
+    document.body.appendChild(inp);
+    inp.focus();
+    inp.select();
+
+    const finish = () => {
+        const newLabel = inp.value.trim();
+        if (inp.parentNode) inp.parentNode.removeChild(inp);
+        if (newLabel && newLabel !== sc.label) {
+            renameScenario(scId, newLabel);
+        }
+    };
+
+    inp.addEventListener('blur',  finish);
+    inp.addEventListener('keydown', e => {
+        if (e.key === 'Enter')  { e.preventDefault(); inp.blur(); }
+        if (e.key === 'Escape') { inp.value = sc.label; inp.blur(); }
+    });
+}
+
+// Inline rename for scenario tab label — overlays a real <input> on dblclick
+function _startTabRename(scId, labelEl) {
+    const sc = _scenarios.find(s => s.id === scId);
+    if (!sc) return;
+    const rect = labelEl.getBoundingClientRect();
+    const isDark = document.body.classList.contains('dark');
+    const inp  = document.createElement('input');
+    inp.type   = 'text';
+    inp.value  = sc.label;
+    inp.style.cssText =
+        'position:fixed;left:' + rect.left + 'px;top:' + rect.top + 'px;' +
+        'width:' + Math.max(rect.width + 20, 80) + 'px;height:' + rect.height + 'px;' +
+        'font-size:12px;font-weight:700;padding:0 4px;' +
+        'border:1px solid #5b8dee;border-radius:3px;' +
+        'background:' + (isDark ? '#252840' : '#fff') + ';color:inherit;' +
+        'z-index:99999;outline:none;box-sizing:border-box;';
+    document.body.appendChild(inp);
+    inp.focus();
+    inp.select();
+    const finish = () => {
+        const newLabel = inp.value.trim();
+        if (inp.parentNode) inp.parentNode.removeChild(inp);
+        if (newLabel && newLabel !== sc.label) renameScenario(scId, newLabel);
+    };
+    inp.addEventListener('blur', finish);
+    inp.addEventListener('keydown', e => {
+        if (e.key === 'Enter')  { e.preventDefault(); inp.blur(); }
+        if (e.key === 'Escape') { inp.value = sc.label; inp.blur(); }
+    });
+}
+
 function _nextScenarioId() {
     let i = 1;
     while (_scenarios.find(s => s.id === 'sc_' + i)) i++;
@@ -1384,37 +1466,21 @@ function buildPerIsinPanel(portfolio, simResult) {
         const actStyle = isActive
             ? `background:${bg};border-bottom:2px solid ${sc.color};font-weight:700;color:${isDark?'#e0e4ff':'#1a2a4a'};`
             : `background:transparent;border-bottom:2px solid transparent;font-weight:600;color:${isDark?'#8890b8':'#888'};`;
-        return `<div class="cg-sc-tab" data-scid="${sc.id}"
-            style="display:inline-flex;align-items:center;gap:6px;padding:8px 12px;cursor:pointer;font-size:12px;border:none;border-bottom:2px solid transparent;white-space:nowrap;${actStyle}"
-            onclick="if(!this._editMode)selectScenario('${sc.id}')">
+        // Tab is a <button> so entire area is clickable natively.
+        // Double-click on label activates an <input> overlay for inline rename.
+        return `<button class="cg-sc-tab" data-scid="${sc.id}" type="button"
+            style="display:inline-flex;align-items:center;gap:6px;padding:8px 12px;cursor:pointer;font-size:12px;border:none;border-bottom:2px solid transparent;white-space:nowrap;background:transparent;${actStyle}"
+            onclick="selectScenario('${sc.id}')">
             <span class="cg-sc-color-dot" style="width:9px;height:9px;border-radius:50%;background:${sc.color};flex-shrink:0;cursor:pointer;"
                 title="Change color" onclick="event.stopPropagation();pickScenarioColor('${sc.id}',this)"></span>
-            <span class="cg-sc-label" data-scid="${sc.id}" contenteditable="false" spellcheck="false"
-                style="outline:none;min-width:40px;max-width:120px;overflow:hidden;white-space:nowrap;cursor:pointer;user-select:none;"
-                ondblclick="event.stopPropagation();(function(el){
-                    const tab=el.closest('.cg-sc-tab');
-                    if(tab)tab._editMode=true;
-                    el.contentEditable='true';
-                    el.style.cursor='text';
-                    el.style.userSelect='text';
-                    el.focus();
-                    const r=document.createRange();r.selectNodeContents(el);
-                    window.getSelection().removeAllRanges();window.getSelection().addRange(r);
-                })(this)"
-                onclick="event.stopPropagation();"
-                onblur="(function(el){
-                    const tab=el.closest('.cg-sc-tab');
-                    if(tab)tab._editMode=false;
-                    el.contentEditable='false';
-                    el.style.cursor='pointer';
-                    el.style.userSelect='none';
-                    renameScenario('${sc.id}',el.textContent.trim());
-                })(this)"
-                onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">${sc.label}</span>
-            <button title="Delete scenario" onclick="event.stopPropagation();deleteScenario('${sc.id}')"
-                style="background:none;border:none;cursor:pointer;color:#999;font-size:13px;line-height:1;padding:0 1px;margin-left:2px;"
-                onmouseover="this.style.color='#e53935'" onmouseout="this.style.color='#999'">×</button>
-        </div>`;
+            <span class="cg-sc-label" data-scid="${sc.id}"
+                style="position:relative;min-width:40px;max-width:120px;overflow:hidden;white-space:nowrap;display:inline-block;vertical-align:middle;"
+                ondblclick="event.stopPropagation();_startTabRename('${sc.id}',this)">${sc.label}</span>
+            <span onclick="event.stopPropagation();deleteScenario('${sc.id}')"
+                title="Delete scenario"
+                style="cursor:pointer;color:#999;font-size:13px;line-height:1;padding:0 1px;margin-left:2px;display:inline-block;"
+                onmouseover="this.style.color='#e53935'" onmouseout="this.style.color='#999'">×</span>
+        </button>`;
     }).join('');
 
     const newBtnStyle = `display:inline-flex;align-items:center;gap:4px;padding:8px 12px;cursor:pointer;font-size:12px;font-weight:600;background:transparent;border:none;border-bottom:2px solid transparent;color:${isDark?'#4a7cc7':'#1a73e8'};white-space:nowrap;`;
@@ -2365,8 +2431,12 @@ function openYearDetailModal(yr, yearIdx, simResult, startCapital, allLabels) {
                 const qty       = b.quantity || 0;
                 // Use same formula as buildSlots: nomEur from cache (accounts for FX on non-EUR bonds)
                 const cached    = _cgComputeCache.get(b.isin);
-                const fxRate    = (b.currency && b.currency !== 'EUR' && b.price > 0) ? (b.priceEur / b.price) : 1.0;
-                const nomEur    = cached?.nomEur ?? ((b.nominal || 100) * fxRate);
+                // nomEur = face value of 1 unit in EUR = 100 * fxBuy(bondCCY→EUR)
+                // fxBuy=1 for EUR bonds; fxBuy=spot for USD/GBP bonds
+                // Do NOT use cached.nomEur (Java formula was inverted).
+                // Use fxBuy from cache, fallback to priceEur/price spot estimate.
+                const fxBuy     = cached?.fxBuy ?? ((b.currency && b.currency !== 'EUR' && b.price > 0) ? (b.priceEur / b.price) : 1.0);
+                const nomEur    = 100 * fxBuy;
                 // Net annual coupon = (coupon%/100) * nomEur * qty * (1 - taxRate/100)
                 const netCoupon = (b.coupon / 100) * nomEur * qty * (1 - (b.taxRate || 0) / 100);
                 // Redemption: face value (nomEur * qty) returned at maturity year only
