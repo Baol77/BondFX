@@ -281,6 +281,9 @@ function runScenario(slots, years, globalMode, globalPriceShift, globalReinvestY
                 alive.push(sl);
             }
         }
+        // bondsVal: total bond value at START of year (before reinvestment changes unitsHeld)
+        // This matches perSlot.portVal which is also captured before reinvestment.
+        const bondsVal = alive.reduce((s, sl) => s + slotValue(sl), 0);
         pool = alive;
 
         // Apply annual injection: buy new units of active bonds
@@ -391,7 +394,6 @@ function runScenario(slots, years, globalMode, globalPriceShift, globalReinvestY
             s.reinvested = (reinvested > 0 && cashInTot > 0)
                 ? reinvested * (s.coupon + s.redemption) / cashInTot : 0;
         });
-        const bondsVal = pool.reduce((s, sl) => sl.matYear >= yr ? s + slotValue(sl) : s, 0);
         yearEvents.push({ yr, coupons: yearCoupons, redemptions: yearRedemptions, cashIn, reinvested, cash, bondsVal, perSlot });
         dataPoints.push(portfolioVal());
     }
@@ -574,6 +576,7 @@ function runMaturityReplacement(slots, years, matReplacement, injectionByYear) {
             switched: replacementActivated ? reinvested : 0,
             replCoupons,
             cash,
+            bondsVal: bondsValR,
             replacementActivated,
             replacementBond: replacementActivated
                 ? { netCouponPct, maturityYear, reinvestCoupons }
@@ -1434,6 +1437,85 @@ function renderGrowthChart(simResult, startCapital) {
             },
         },
     });
+
+    // ── Zoom / Pan via mouse wheel + drag ──────────────────────────────────
+    // We store zoom state in _chart._cgZoom: { minIdx, maxIdx }
+    const nLabels = allLabels.length;
+    _chart._cgZoom = { minIdx: 0, maxIdx: nLabels - 1 };
+
+    function _applyZoom() {
+        const { minIdx, maxIdx } = _chart._cgZoom;
+        _chart.options.scales.x.min = allLabels[minIdx];
+        _chart.options.scales.x.max = allLabels[maxIdx];
+        _chart.update('none');
+    }
+    function _resetZoom() {
+        _chart._cgZoom = { minIdx: 0, maxIdx: nLabels - 1 };
+        _chart.options.scales.x.min = undefined;
+        _chart.options.scales.x.max = undefined;
+        _chart.update('none');
+    }
+
+    canvas.addEventListener('wheel', e => {
+        e.preventDefault();
+        const z = _chart._cgZoom;
+        const span = z.maxIdx - z.minIdx;
+        const delta = Math.sign(e.deltaY);
+        const step = Math.max(1, Math.round(span * 0.12));
+        if (delta > 0) {
+            // zoom out
+            z.minIdx = Math.max(0, z.minIdx - step);
+            z.maxIdx = Math.min(nLabels - 1, z.maxIdx + step);
+        } else {
+            // zoom in (toward cursor position)
+            const rect = canvas.getBoundingClientRect();
+            const ratio = (e.clientX - rect.left) / rect.width;
+            const shrinkLeft  = Math.round(step * ratio);
+            const shrinkRight = step - shrinkLeft;
+            const newMin = Math.min(z.minIdx + shrinkLeft, z.maxIdx - 4);
+            const newMax = Math.max(z.maxIdx - shrinkRight, z.minIdx + 4);
+            z.minIdx = newMin; z.maxIdx = newMax;
+        }
+        if (z.maxIdx - z.minIdx >= nLabels - 1) { _resetZoom(); return; }
+        _applyZoom();
+    }, { passive: false });
+
+    // Double-click to reset zoom
+    canvas.addEventListener('dblclick', () => _resetZoom());
+
+    // Drag to pan
+    let _dragStart = null;
+    canvas.addEventListener('mousedown', e => {
+        if (e.button !== 0) return;
+        const z = _chart._cgZoom;
+        if (z.maxIdx - z.minIdx >= nLabels - 1) return; // no zoom → no pan
+        _dragStart = { x: e.clientX, minIdx: z.minIdx, maxIdx: z.maxIdx };
+        canvas.style.cursor = 'grabbing';
+    });
+    canvas.addEventListener('mousemove', e => {
+        if (!_dragStart) return;
+        const z = _chart._cgZoom;
+        const span = z.maxIdx - z.minIdx;
+        const rect = canvas.getBoundingClientRect();
+        const pxPerLabel = rect.width / (span + 1);
+        const dx = Math.round((_dragStart.x - e.clientX) / pxPerLabel);
+        const newMin = Math.max(0, Math.min(_dragStart.minIdx + dx, nLabels - 1 - span));
+        z.minIdx = newMin;
+        z.maxIdx = newMin + span;
+        _applyZoom();
+    });
+    const _stopDrag = () => { _dragStart = null; canvas.style.cursor = 'pointer'; };
+    canvas.addEventListener('mouseup', _stopDrag);
+    canvas.addEventListener('mouseleave', _stopDrag);
+
+    // Show hint in chart title area
+    const titleEl = canvas.closest('.cg-chart-section')?.querySelector('.cg-chart-title');
+    if (titleEl && !titleEl.querySelector('.cg-zoom-hint')) {
+        titleEl.insertAdjacentHTML('beforeend',
+            `<span class="cg-zoom-hint" style="margin-left:auto;font-size:10px;color:#5a6080;white-space:nowrap;">
+                scroll to zoom &nbsp;·&nbsp; drag to pan &nbsp;·&nbsp; double-click to reset
+            </span>`);
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1766,10 +1848,13 @@ function renderReplacementTab(portfolio, isDark, border) {
                 </label>
                 <label style="display:flex;flex-direction:column;gap:3px;">
                     <span style="color:#888;font-size:10px;">Coupons</span>
-                    <select onchange="updateReplacement('${b.isin}','reinvestCoupons',this.value==='true')" style="${inpSt}">
-                        <option value="true"  ${cfg.reinvestCoupons ? 'selected' : ''}>Reinvest</option>
-                        <option value="false" ${!cfg.reinvestCoupons ? 'selected' : ''}>Cash</option>
-                    </select>
+                    ${sc.couponReinvest?.enabled
+                        ? `<select onchange="updateReplacement('${b.isin}','reinvestCoupons',this.value==='true')" style="${inpSt}">
+                            <option value="true"  ${cfg.reinvestCoupons ? 'selected' : ''}>Reinvest</option>
+                            <option value="false" ${!cfg.reinvestCoupons ? 'selected' : ''}>Cash</option>
+                          </select>`
+                        : `<span style="font-size:11px;padding:3px 6px;color:#888;font-style:italic;">Cash</span>`
+                    }
                 </label>
             </div>
         </div>`;
@@ -2490,16 +2575,7 @@ function openYearDetailModal(yr, yearIdx, simResult, startCapital, allLabels) {
                         <td style="padding:3px 10px;text-align:right;color:#888;">—</td>
                     </tr>`;
                 }).join('');
-                // Cash row only for no-reinvest when there is uninvested cash
-                const cashHeld = (ev?.cash || 0) * K;
-                const cashRow = cashHeld > 0.5
-                    ? `<tr style="font-size:10.5px;opacity:0.7;">
-                        <td style="padding:2px 10px 2px 28px;color:${isDark?'#5a6080':'#aaa'};font-style:italic;">💵 cash (uninvested)</td>
-                        <td colspan="3" style="padding:2px 10px;text-align:right;color:${isDark?'#5a6080':'#aaa'};font-size:10px;">proceeds from matured bonds, not reinvested</td>
-                        <td style="padding:2px 10px;text-align:right;color:${isDark?'#5a6080':'#aaa'};">${fmtSmall(cashHeld)}</td>
-                        <td style="padding:2px 10px;text-align:right;color:#888;">—</td>
-                    </tr>` : '';
-                perBondRows = bondRows + cashRow;
+                perBondRows = bondRows;
             }
         }
 
