@@ -1894,7 +1894,8 @@ function renderInjectionTab(portfolio, isDark, border) {
     const sym   = _cgSym();
     const today = new Date().getFullYear();
     const activeBonds = portfolio.filter(b => new Date(b.maturity).getFullYear() > today);
-    const totalPct = activeBonds.reduce((s, b) => s + (inj.pct[b.isin] ?? 0), 0);
+    const defaultPct = activeBonds.length > 0 ? 100 / activeBonds.length : 0;
+    const totalPct = activeBonds.reduce((s, b) => s + (inj.pct[b.isin] ?? defaultPct), 0);
 
     const bondRows = activeBonds.map(b => {
         const matYear = new Date(b.maturity).getFullYear();
@@ -2030,6 +2031,16 @@ function updateReplacement(isin, field, value) {
 function setInjectionEnabled(enabled) {
     const sc = _activeSc(); if (!sc) return;
     sc.injection.enabled = enabled;
+    // Initialise pct with equal distribution if still empty (first enable)
+    if (enabled && _lastPortfolio?.length) {
+        const today       = new Date().getFullYear();
+        const activeBonds = _lastPortfolio.filter(b => new Date(b.maturity).getFullYear() > today);
+        const isEmpty     = Object.keys(sc.injection.pct).length === 0;
+        if (isEmpty && activeBonds.length > 0) {
+            const share = 100 / activeBonds.length;
+            activeBonds.forEach(b => { sc.injection.pct[b.isin] = share; });
+        }
+    }
     _rebuildInjectionTab();
     triggerSimulation();
 }

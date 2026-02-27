@@ -1,0 +1,122 @@
+{
+  "_comment": "Scenario export from bondfx-scenarios-2026-02-27-23-13-53.json — BELGIO replacement",
+  "bondFxVersion": "6.0",
+  "portfolioSnapshot": [
+    {
+      "isin": "IT0005441883",
+      "issuer": "ITALIA",
+      "investedEur": 2000,
+      "quantity": 32.7547,
+      "priceEur": 61.06,
+      "coupon": 2.15,
+      "maturity": "2072-03-01",
+      "taxRate": 0,
+      "currency": "EUR"
+    },
+    {
+      "isin": "BE0000291972",
+      "issuer": "BELGIO",
+      "investedEur": 2009,
+      "quantity": 18.8038,
+      "priceEur": 106.84,
+      "coupon": 5.5,
+      "maturity": "2028-03-28",
+      "taxRate": 30,
+      "currency": "EUR"
+    },
+    {
+      "isin": "IT0005692410",
+      "issuer": "ITALIA",
+      "investedEur": 4000,
+      "quantity": 39.976,
+      "priceEur": 100.06,
+      "coupon": 2.2,
+      "maturity": "2028-02-28",
+      "taxRate": 12.5,
+      "currency": "EUR"
+    },
+    {
+      "isin": "DE000BU22122",
+      "issuer": "GERMANIA",
+      "investedEur": 11000,
+      "quantity": 94.8483,
+      "priceEur": 100.19,
+      "coupon": 2.1,
+      "maturity": "2028-03-15",
+      "taxRate": 0,
+      "currency": "EUR"
+    },
+    {
+      "isin": "IT0005641029",
+      "issuer": "ITALIA",
+      "investedEur": 30000,
+      "quantity": 297.17679999999996,
+      "priceEur": 100.95,
+      "coupon": 2.65,
+      "maturity": "2028-06-15",
+      "taxRate": 12.5,
+      "currency": "EUR"
+    },
+    {
+      "isin": "FI4000037635",
+      "issuer": "FINLANDIA",
+      "investedEur": 5000,
+      "quantity": 49.2611,
+      "priceEur": 101.5,
+      "coupon": 2.75,
+      "maturity": "2028-07-04",
+      "taxRate": 0,
+      "currency": "EUR"
+    },
+    {
+      "isin": "US912810SP49",
+      "issuer": "USA",
+      "investedEur": 1095.0503723171266,
+      "quantity": 23.1321,
+      "priceEur": 43.23,
+      "coupon": 1.38,
+      "maturity": "2050-08-15",
+      "taxRate": 15,
+      "currency": "USD"
+    },
+    {
+      "isin": "GB00BN65R313",
+      "issuer": "REGNO UNITO",
+      "investedEur": 2291.4757103574702,
+      "quantity": 24.5471,
+      "priceEur": 93.35,
+      "coupon": 3.5,
+      "maturity": "2045-01-22",
+      "taxRate": 0,
+      "currency": "GBP"
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "sc_1",
+      "label": "no reinv.",
+      "color": "#9e9e9e",
+      "couponReinvest": { "enabled": false, "globalPriceShift": 0, "perIsin": {} },
+      "maturityReplacement": {},
+      "injection": { "enabled": false, "amountEur": 1000, "from": 2026, "to": 2072, "pct": {} }
+    },
+    {
+      "id": "sc_2",
+      "label": "reinv.",
+      "color": "#1e88e5",
+      "couponReinvest": { "enabled": true, "globalPriceShift": 0, "perIsin": {} },
+      "maturityReplacement": {
+        "BE0000291972": {
+          "enabled": true,
+          "_matYear": 2028,
+          "netCouponPct": 2.79,
+          "priceShift": 0,
+          "maturityYear": 2038,
+          "reinvestCoupons": true
+        }
+      },
+      "injection": { "enabled": false, "amountEur": 1000, "from": 2026, "to": 2072, "pct": {} }
+    }
+  ],
+  "verifyYears": [2028, 2029, 2038]
+}

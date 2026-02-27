@@ -1,6 +1,5 @@
 package bond.controller;
 
-import bond.config.BenchmarkIndicesConfig;
 import bond.config.BondProfile;
 import bond.config.BondProfilesConfig;
 import bond.model.Bond;
@@ -87,13 +86,7 @@ public class BondController {
     @GetMapping("/capital-growth")
     public String capitalGrowth(Model model) throws Exception {
         List<Bond> bonds = bondService.getAll();
-        BenchmarkIndicesConfig benchmarkConfig = BenchmarkIndicesConfig.load();
         model.addAttribute("bonds", bonds);
-        model.addAttribute("benchmarks", benchmarkConfig.getBenchmarks() != null
-            ? benchmarkConfig.getBenchmarks().stream()
-                .filter(BenchmarkIndicesConfig.BenchmarkIndex::isEnabled)
-                .collect(java.util.stream.Collectors.toList())
-            : java.util.List.of());
         model.addAttribute("generatedAtMs",
             java.time.Instant.now().toEpochMilli());
         return "capital-growth";
