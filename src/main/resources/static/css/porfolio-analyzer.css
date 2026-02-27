@@ -69,10 +69,6 @@ pointer-events: auto;
 }
 
 /* --- 2. Search Section --- */
-.search-section {
-  margin-bottom: 30px;
-}
-
 .search-bar {
   display: flex;
   gap: 10px;

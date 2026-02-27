@@ -60,8 +60,8 @@
             </div>
 
             <div class="portfolio-table-wrapper">
+                <h3>2️⃣ Your Portfolio</h3>
                 <div class="portfolio-table-toolbar">
-                    <h3 style="margin:0;">2️⃣ Your Portfolio</h3>
                     <div class="portfolio-action-btns">
                         <button onclick="window.portfolioAnalyzer.exportPortfolio()" class="btn-tool btn-tool-export" title="Export CSV">
                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/><path d="M20 17v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2"/></svg>

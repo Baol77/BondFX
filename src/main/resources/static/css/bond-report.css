@@ -993,14 +993,12 @@ td.col-add {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 10px;
     flex-wrap: wrap;
     gap: 8px;
 }
 .portfolio-action-btns {
     display: flex;
     gap: 6px;
-    align-items: center;
 }
 .btn-tool {
     display: inline-flex;
