@@ -446,10 +446,16 @@ function runMaturityReplacement(slots, years, matReplacement, injectionByYear) {
             if (sl.matYear < yr) continue;
 
             const couponCash = sl.unitsHeld * sl.couponPerUnit;
-            if (!sl.isin?.startsWith('_')) {
+            if (!sl.isin?.startsWith('_') || sl._isReplacement) {
                 const slRedemp2 = (sl.matYear === yr) ? sl.unitsHeld * sl.facePerUnit : 0;
-                perSlot.push({ isin: sl.isin, issuer: sl.issuer || '',
-                    coupon: couponCash, redemption: slRedemp2, portVal: slotValue(sl), reinvested: 0 });
+                const displayIsin   = sl._isReplacement ? (sourceBond.isin + '_repl') : sl.isin;
+                const displayIssuer = sl._isReplacement ? (sl.issuer + ' \u2192 repl.') : (sl.issuer || '');
+                perSlot.push({ isin: displayIsin, issuer: displayIssuer,
+                    coupon: sl._isReplacement ? 0 : couponCash,
+                    replCoupon: sl._isReplacement ? couponCash : 0,
+                    redemption: slRedemp2, portVal: slotValue(sl), reinvested: 0,
+                    _isReplacement: !!sl._isReplacement,
+                    matYear: sl._isReplacement ? sl.matYear : undefined });
             }
 
             if (sl._isReplacement) {
@@ -475,6 +481,7 @@ function runMaturityReplacement(slots, years, matReplacement, injectionByYear) {
                 alive.push(sl);
             }
         }
+        const bondsValR = alive.reduce((s, sl) => s + slotValue(sl), 0);
         pool = alive;
 
         // Apply annual injection: buy new units of active bonds
@@ -1200,7 +1207,8 @@ function _runScenarioSim(sc, portfolio, startCapital) {
         scale,
         _custom:  true,
         _extendedYears: extYears,
-        _type:    hasCoupon ? 'coupon_reinvest' : hasReplace ? 'maturity_replacement' : 'no_reinvest',
+        _type:    hasReplace ? 'maturity_replacement' : hasCoupon ? 'coupon_reinvest' : 'no_reinvest',
+        _sourceBond: hasReplace ? customScenarios.find(cs => cs._type==='maturity_replacement')?.sourceBond : null,
         _wSAY:    wSAY,
         _years:   extYears || years,
     };
@@ -2560,15 +2568,31 @@ function openYearDetailModal(yr, yearIdx, simResult, startCapital, allLabels) {
                 const K = sc.scale || 1; // apply same scale as sc.data
                 const fs = v => fmtSmall(v * K);
                 const bondRows = slotItems.map(s => {
-                    const pb    = _lastPortfolio.find(b => b.isin === s.isin);
-                    const matYr = pb ? new Date(pb.maturity).getFullYear() : '?';
-                    return `<tr style="opacity:0.78;font-size:10.5px;background:${isDark?'rgba(255,255,255,0.03)':'rgba(0,0,0,0.02)'};">
-                        <td style="padding:3px 10px 3px 28px;color:${isDark?'#8890b8':'#888'};">
-                            <span style="font-family:monospace;font-size:10px;">${s.isin}</span>
+                    // For replacement bonds: matYear is stored directly in perSlot
+                    // For real bonds: look up in portfolio
+                    let matYr;
+                    if (s._isReplacement) {
+                        matYr = s.matYear || '?';
+                    } else {
+                        const pb = _lastPortfolio.find(b => b.isin === s.isin);
+                        matYr = pb ? new Date(pb.maturity).getFullYear() : '?';
+                    }
+                    // Display isin: strip '_repl' suffix for display
+                    const dispIsin = s._isReplacement ? s.isin.replace('_repl', '') : s.isin;
+                    // Coupon: real bonds use s.coupon; replacement bonds use s.replCoupon
+                    const couponVal = s._isReplacement ? (s.replCoupon || 0) : s.coupon;
+                    const rowStyle = s._isReplacement
+                        ? `opacity:0.78;font-size:10.5px;background:${isDark?'rgba(30,100,30,0.15)':'rgba(0,100,0,0.05)'};`
+                        : `opacity:0.78;font-size:10.5px;background:${isDark?'rgba(255,255,255,0.03)':'rgba(0,0,0,0.02)'};`;
+                    const isinColor = s._isReplacement ? (isDark?'#70c172':'#2e7d32') : (isDark?'#8890b8':'#888');
+                    const replBadge = s._isReplacement ? `<span style="font-size:9px;color:#70c172;margin-left:4px;">🔄 repl.</span>` : '';
+                    return `<tr style="${rowStyle}">
+                        <td style="padding:3px 10px 3px 28px;color:${isinColor};">
+                            <span style="font-family:monospace;font-size:10px;">${dispIsin}</span>
                             <span style="margin-left:6px;">${s.issuer}</span>
-                            <span style="margin-left:6px;opacity:0.6;">mat.${matYr}</span>
+                            <span style="margin-left:6px;opacity:0.6;">mat.${matYr}</span>${replBadge}
                         </td>
-                        <td style="padding:3px 10px;text-align:right;">${fs(s.coupon)}</td>
+                        <td style="padding:3px 10px;text-align:right;">${fs(couponVal)}</td>
                         <td style="padding:3px 10px;text-align:right;">${s.redemption > 0 ? fs(s.redemption) : '<span style="color:#888">—</span>'}</td>
                         <td style="padding:3px 10px;text-align:right;">${s.reinvested > 0 ? fs(s.reinvested) : '<span style="color:#888">—</span>'}</td>
                         <td style="padding:3px 10px;text-align:right;">${fs(s.portVal)}</td>
