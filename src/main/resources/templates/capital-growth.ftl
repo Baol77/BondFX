@@ -30,7 +30,7 @@
             </svg>
             Capital Growth Simulator
         </h1>
-        <span class="cg-header__meta">BondFX v5.2</span>
+        <span class="cg-header__meta">BondFX v6.0</span>
     </div>
 
     <div id="cgEmptyMsg" class="cg-empty" style="display:none;">
@@ -40,16 +40,7 @@
 
     <div id="cgMain" style="display:none;">
 
-        <!-- Top controls -->
-        <div class="cg-controls">
-            <div class="cg-control-group">
-                <label class="cg-control-label">Initial Capital (<span class="cg-ccy-sym">€</span>)</label>
-                <input id="cgCapital" type="number" min="0" step="1000" class="cg-control-input" placeholder="auto from portfolio" style="width:150px;">
-            </div>
-
-        </div>
-
-        <!-- Summary stats -->
+        <!-- Summary stats + bond list -->
         <div id="summaryStats"></div>
 
         <!-- YEAR VIEW -->
@@ -64,14 +55,10 @@
                 <div class="cg-chart-wrap"><canvas id="growthChart"></canvas></div>
             </div>
 
-            <!-- Custom scenarios + per-ISIN panel (filled by JS) -->
+            <!-- Scenario panel (filled by JS) -->
             <div class="cg-scenario-panel" id="perIsinPanel"></div>
 
-
-
         </div><!-- /wrap_year -->
-
-
 
     </div><!-- /cgMain -->
 </div><!-- /cg-page -->
@@ -81,7 +68,7 @@
 <script src="/js/bond-report-mobile-adapter.js"></script>
 
 <footer class="page-footer">
-    BondFX v5.2 &nbsp;&middot;&nbsp;
+    BondFX v6.0 &nbsp;&middot;&nbsp;
     <a href="/analyzer">&larr; Portfolio Analyzer</a> &nbsp;&middot;&nbsp;
     <a href="/">Bond Table</a>
 </footer>
