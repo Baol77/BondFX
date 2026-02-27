@@ -243,12 +243,19 @@ function runScenario(slots, years, globalMode, globalPriceShift, globalReinvestY
         const yr = years[i];
         let yearCoupons = 0, yearRedemptions = 0, reinvested = 0;
         const alive = [];
+        const perSlot = [];
 
         for (const sl of pool) {
             if (sl.matYear < yr) continue;
 
             const couponCash = sl.unitsHeld * sl.couponPerUnit;
             yearCoupons += couponCash;
+            // Track per-slot for bottom-up subrow display (skip synthetic aggregate slots)
+            if (!sl.isin?.startsWith('_')) {
+                const slRedemp = (sl.matYear === yr) ? sl.unitsHeld * sl.facePerUnit : 0;
+                perSlot.push({ isin: sl.isin, issuer: sl.issuer || '',
+                    coupon: couponCash, redemption: slRedemp, portVal: slotValue(sl), reinvested: 0 });
+            }
 
             if (sl.synthetic) {
                 // Only market_avg slots compound via accruedPerUnit
@@ -378,7 +385,13 @@ function runScenario(slots, years, globalMode, globalPriceShift, globalReinvestY
             }
         }
 
-        yearEvents.push({ yr, coupons: yearCoupons, redemptions: yearRedemptions, cashIn, reinvested, cash });
+        // Distribute reinvested proportionally across per-slot items
+        const cashInTot = yearCoupons + yearRedemptions;
+        perSlot.forEach(s => {
+            s.reinvested = (reinvested > 0 && cashInTot > 0)
+                ? reinvested * (s.coupon + s.redemption) / cashInTot : 0;
+        });
+        yearEvents.push({ yr, coupons: yearCoupons, redemptions: yearRedemptions, cashIn, reinvested, cash, perSlot });
         dataPoints.push(portfolioVal());
     }
     return { dataPoints, yearEvents };
@@ -424,11 +437,17 @@ function runMaturityReplacement(slots, years, matReplacement, injectionByYear) {
         let yearCoupons = 0, yearRedemptions = 0, reinvested = 0, replCoupons = 0;
         let replacementActivated = false;
         const alive = [];
+        const perSlot = [];
 
         for (const sl of pool) {
             if (sl.matYear < yr) continue;
 
             const couponCash = sl.unitsHeld * sl.couponPerUnit;
+            if (!sl.isin?.startsWith('_')) {
+                const slRedemp2 = (sl.matYear === yr) ? sl.unitsHeld * sl.facePerUnit : 0;
+                perSlot.push({ isin: sl.isin, issuer: sl.issuer || '',
+                    coupon: couponCash, redemption: slRedemp2, portVal: slotValue(sl), reinvested: 0 });
+            }
 
             if (sl._isReplacement) {
                 // Replacement bond coupon handling:
@@ -540,22 +559,25 @@ function runMaturityReplacement(slots, years, matReplacement, injectionByYear) {
             cash += cashIn;
         }
 
+        const cashInTotR = yearCoupons + yearRedemptions;
+        perSlot.forEach(s => {
+            s.reinvested = (reinvested > 0 && cashInTotR > 0)
+                ? reinvested * (s.coupon + s.redemption) / cashInTotR : 0;
+        });
         yearEvents.push({
             yr,
-            // For replacement scenarios: coupons = non-replacement bond coupons + replacement coupons
             coupons: yearCoupons + replCoupons,
             redemptions: yearRedemptions,
             cashIn,
-            // 'reinvested' = capital switched into replacement bond (at activation year)
-            // In subsequent years, reinvested=0 (coupon reinvestment is internal to slot)
             reinvested: replacementActivated ? 0 : reinvested,
-            switched: replacementActivated ? reinvested : 0,  // capital transfer at maturity
-            replCoupons,   // coupons FROM the replacement bond
+            switched: replacementActivated ? reinvested : 0,
+            replCoupons,
             cash,
             replacementActivated,
             replacementBond: replacementActivated
                 ? { netCouponPct, maturityYear, reinvestCoupons }
                 : null,
+            perSlot,
         });
         dataPoints.push(portfolioVal());
     }
@@ -1582,6 +1604,7 @@ function deleteScenario(id) {
 }
 
 function selectScenario(id) {
+    if (_activeScenarioId === id) return;
     _activeScenarioId = id;
     const panel = document.getElementById('perIsinPanel');
     const prevSubTab = panel?._activeSubTab || 'coupon';
@@ -2355,6 +2378,26 @@ function openYearDetailModal(yr, yearIdx, simResult, startCapital, allLabels) {
     const thBg   = isDark ? '#252840' : '#f0f4ff';
     const chartLabels = allLabels || simResult.years;
 
+    const _baseYearFlows = (() => {
+        const map = new Map();
+        for (const y of chartLabels) {
+            const activeBonds = _lastPortfolio.filter(b => new Date(b.maturity).getFullYear() >= y);
+            let coupons = 0, redemptions = 0;
+            activeBonds.forEach(b => {
+                const matYr  = new Date(b.maturity).getFullYear();
+                const qty    = b.quantity || 0;
+                const cached = _cgComputeCache.get(b.isin);
+                const fxBuy  = cached?.fxBuy ?? ((b.currency && b.currency !== 'EUR' && b.price > 0) ? (b.priceEur / b.price) : 1.0);
+                const nomEur = 100 * fxBuy;
+                const netCpn = (b.coupon / 100) * nomEur * qty * (1 - (b.taxRate || 0) / 100);
+                coupons += netCpn;
+                if (matYr === y) redemptions += nomEur * qty;
+            });
+            map.set(y, { coupons, redemptions });
+        }
+        return map;
+    })();
+
     // _expandedScenarios: module-level Set, persists across modal re-opens
     const expanded = _expandedScenarios;
 
@@ -2380,8 +2423,7 @@ function openYearDetailModal(yr, yearIdx, simResult, startCapital, allLabels) {
             && !ev?.replacementActivated;
         const isReplActivation = sc._type === 'maturity_replacement' && ev?.replacementActivated;
 
-        // At replacement activation: coupons/redemptions show 0 (new bond just purchased,
-        // original bond proceeds are implicit in the → switch shown in Reinvested)
+        // Use simulation yearEvent values for header (guaranteed consistent with subrows)
         const couponCell = isReplPreActivation || isReplActivation
             ? '<span style="color:#888">—</span>'
             : sc._type === 'maturity_replacement'
@@ -2405,6 +2447,8 @@ function openYearDetailModal(yr, yearIdx, simResult, startCapital, allLabels) {
                 // Post-activation: show reinvested coupons (0 if take-as-cash)
                 reinvestedCell = sc2(ev?.replCoupons || 0);
             }
+        } else if (sc._type === 'coupon_reinvest') {
+            reinvestedCell = sc2(ev?.reinvested || 0);
         } else {
             // Standard: show total reinvested (coupons + redemptions that were reinvested)
             reinvestedCell = sc2(ev?.reinvested || 0);
@@ -2418,47 +2462,30 @@ function openYearDetailModal(yr, yearIdx, simResult, startCapital, allLabels) {
         const isExpanded = expanded.has(sc.id);
         const toggleId   = `cgBondExpand_${sc.id}_${yr}`;
 
-        // Per-bond subrows: one row per bond showing its coupon contribution
+        // Per-bond subrows: bottom-up from perSlot in yearEvents (same source as header)
         let perBondRows = '';
         if (isExpanded) {
-            // Show bonds active this year (not matured before yr) + bonds maturing this year
-            const activeBonds = _lastPortfolio.filter(b => new Date(b.maturity).getFullYear() >= yr);
-            const isReinvest  = sc._type === 'coupon_reinvest';
-            const fmtSmall    = v => sym + Math.round(_cgToBase(v)).toLocaleString(undefined,{maximumFractionDigits:0});
+            const fmtSmall  = v => sym + Math.round(_cgToBase(v)).toLocaleString(undefined,{maximumFractionDigits:0});
+            const slotItems = ev?.perSlot || [];
 
-            perBondRows = activeBonds.map(b => {
-                const matYr     = new Date(b.maturity).getFullYear();
-                const qty       = b.quantity || 0;
-                // Use same formula as buildSlots: nomEur from cache (accounts for FX on non-EUR bonds)
-                const cached    = _cgComputeCache.get(b.isin);
-                // nomEur = face value of 1 unit in EUR = 100 * fxBuy(bondCCY→EUR)
-                // fxBuy=1 for EUR bonds; fxBuy=spot for USD/GBP bonds
-                // Do NOT use cached.nomEur (Java formula was inverted).
-                // Use fxBuy from cache, fallback to priceEur/price spot estimate.
-                const fxBuy     = cached?.fxBuy ?? ((b.currency && b.currency !== 'EUR' && b.price > 0) ? (b.priceEur / b.price) : 1.0);
-                const nomEur    = 100 * fxBuy;
-                // Net annual coupon = (coupon%/100) * nomEur * qty * (1 - taxRate/100)
-                const netCoupon = (b.coupon / 100) * nomEur * qty * (1 - (b.taxRate || 0) / 100);
-                // Redemption: face value (nomEur * qty) returned at maturity year only
-                const redemp    = (matYr === yr) ? nomEur * qty : 0;
-                // Reinvested: for coupon_reinvest scenario → coupon (+ redemption reinvested back)
-                const reinv     = isReinvest ? netCoupon + (matYr === yr ? redemp : 0) : 0;
-                // Portfolio value subrow: face returned if maturing, else priceEur×qty (current mkt)
-                const portVal   = (matYr === yr) ? redemp : (b.priceEur || 0) * qty;
-
-                return `<tr style="opacity:0.78;font-size:10.5px;background:${isDark?'rgba(255,255,255,0.03)':'rgba(0,0,0,0.02)'};">
-                    <td style="padding:3px 10px 3px 28px;color:${isDark?'#8890b8':'#888'};">
-                        <span style="font-family:monospace;font-size:10px;">${b.isin}</span>
-                        <span style="margin-left:6px;">${b.issuer}</span>
-                        <span style="margin-left:6px;opacity:0.6;">mat.${matYr}</span>
-                    </td>
-                    <td style="padding:3px 10px;text-align:right;">${fmtSmall(netCoupon)}</td>
-                    <td style="padding:3px 10px;text-align:right;">${redemp > 0 ? fmtSmall(redemp) : '<span style="color:#888">—</span>'}</td>
-                    <td style="padding:3px 10px;text-align:right;">${reinv > 0 ? fmtSmall(reinv) : '<span style="color:#888">—</span>'}</td>
-                    <td style="padding:3px 10px;text-align:right;">${fmtSmall(portVal)}</td>
-                    <td style="padding:3px 10px;text-align:right;color:#888;">—</td>
-                </tr>`;
-            }).join('');
+            if (slotItems.length > 0) {
+                perBondRows = slotItems.map(s => {
+                    const pb    = _lastPortfolio.find(b => b.isin === s.isin);
+                    const matYr = pb ? new Date(pb.maturity).getFullYear() : '?';
+                    return `<tr style="opacity:0.78;font-size:10.5px;background:${isDark?'rgba(255,255,255,0.03)':'rgba(0,0,0,0.02)'};">
+                        <td style="padding:3px 10px 3px 28px;color:${isDark?'#8890b8':'#888'};">
+                            <span style="font-family:monospace;font-size:10px;">${s.isin}</span>
+                            <span style="margin-left:6px;">${s.issuer}</span>
+                            <span style="margin-left:6px;opacity:0.6;">mat.${matYr}</span>
+                        </td>
+                        <td style="padding:3px 10px;text-align:right;">${fmtSmall(s.coupon)}</td>
+                        <td style="padding:3px 10px;text-align:right;">${s.redemption > 0 ? fmtSmall(s.redemption) : '<span style="color:#888">—</span>'}</td>
+                        <td style="padding:3px 10px;text-align:right;">${s.reinvested > 0 ? fmtSmall(s.reinvested) : '<span style="color:#888">—</span>'}</td>
+                        <td style="padding:3px 10px;text-align:right;">${fmtSmall(s.portVal)}</td>
+                        <td style="padding:3px 10px;text-align:right;color:#888;">—</td>
+                    </tr>`;
+                }).join('');
+            }
         }
 
         return `<tr>
