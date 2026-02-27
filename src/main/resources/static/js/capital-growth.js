@@ -503,11 +503,20 @@ function runMaturityReplacement(slots, years, matReplacement, injectionByYear) {
         const totalFace = refPool.reduce((s, sl) => s + sl.unitsHeld * sl.facePerUnit, 0);
 
         if (cashIn > 0 && totalFace > 0) {
-            for (const sl of refPool) {
+            // Build the full pool for share calculation: active bonds + matured source bond
+            // (source bond is not in refPool after maturity, but its capital still needs routing)
+            const allSlotsForShare = [...refPool];
+            if (replacementActivated && !allSlotsForShare.find(s => s.isin === sourceBond.isin)) {
+                const srcOrig = slots.find(s => s.isin === sourceBond.isin);
+                if (srcOrig) allSlotsForShare.push(srcOrig);
+            }
+            const totalFaceForShare = allSlotsForShare.reduce((s, sl) => s + sl.unitsHeld * sl.facePerUnit, 0);
+
+            for (const sl of allSlotsForShare) {
                 // Skip replacement slots — their coupons are handled directly in the loop above
                 if (sl._isReplacement) continue;
 
-                const share   = (sl.unitsHeld * sl.facePerUnit) / totalFace;
+                const share   = (sl.unitsHeld * sl.facePerUnit) / totalFaceForShare;
                 const myShare = cashIn * share;
 
                 if (sl.isin === sourceBond.isin && replacementActivated) {
@@ -2520,9 +2529,7 @@ function openYearDetailModal(yr, yearIdx, simResult, startCapital, allLabels) {
         // Use simulation yearEvent values for header (guaranteed consistent with subrows)
         const couponCell = isReplPreActivation || isReplActivation
             ? '<span style="color:#888">—</span>'
-            : sc._type === 'maturity_replacement'
-                ? sc2(ev?.replCoupons || 0)
-                : sc2(ev?.coupons || 0);
+            : sc2(ev?.coupons || 0);
         const redempCell = isReplPreActivation || isReplActivation
             ? '<span style="color:#888">—</span>'
             : sc2(ev?.redemptions || 0);
@@ -2538,8 +2545,8 @@ function openYearDetailModal(yr, yearIdx, simResult, startCapital, allLabels) {
             } else if (isReplActivation) {
                 reinvestedCell = `<span style="color:#90caf9;font-size:10px" title="Capital switched to new bond">→ ${sc2(ev.switched||0)}</span>`;
             } else {
-                // Post-activation: show reinvested coupons (0 if take-as-cash)
-                reinvestedCell = sc2(ev?.replCoupons || 0);
+                // Post-activation: other bonds reinvested + replacement coupons if reinvesting
+                reinvestedCell = sc2((ev?.reinvested || 0) + (ev?.replCoupons || 0));
             }
         } else if (sc._type === 'coupon_reinvest') {
             reinvestedCell = sc2(ev?.reinvested || 0);
