@@ -478,22 +478,25 @@ function runScenario(slots, years, globalMode, globalPriceShift, globalReinvestY
 //   basePriceShift: number         // price% for coupon reinvest on other bonds
 // }
 
-function runMaturityReplacement(slots, years, matReplacement, injectionByYear, fxOpts = {}) {
+function runMaturityReplacement(slots, years, matReplacementOrArray, injectionByYear, fxOpts = {}) {
+    // Accept single replacement or array of replacements
+    const replacements = Array.isArray(matReplacementOrArray)
+        ? matReplacementOrArray : [matReplacementOrArray];
+    // For backward compat: primary replacement is the first (used for display metadata)
+    const primary = replacements[0];
     const { sourceBond, netCouponPct, maturityYear, reinvestCoupons,
-            priceShift } = matReplacement;
+            priceShift } = primary;
     const startYear = fxOpts.startYear ?? years[0];
     const reportCcy = fxOpts.reportCcy ?? 'EUR';
-    // priceShift: +100 = buy at 2× face, −50 = buy at 0.5× face
-    // adjFact: 1.0 = par, 0.5 = 50% of face, 2.0 = 200% of face
-    const replAdjFact = Math.max(0.01, 1 + (priceShift || 0) / 100);
 
     // Build initial pool same as a coupon-reinvest scenario
     let pool = slots.map(s => ({ ...s }));
     let cash = 0;
     const simEndYear = years[years.length - 1];
-    // Extend years array if replacement bond matures after portfolio end
+    // Extend years array to cover the latest maturity across all replacements
+    const maxRepMatYear = Math.max(...replacements.map(r => r.maturityYear || 0));
     const allYears = [...years];
-    for (let y = simEndYear + 1; y <= maturityYear; y++) allYears.push(y);
+    for (let y = simEndYear + 1; y <= maxRepMatYear; y++) allYears.push(y);
 
     const dataPoints   = [pool.reduce((s, sl) => s + slotValue(sl, startYear, startYear, reportCcy), 0) + cash];
     const yearEvents   = [];
@@ -542,7 +545,8 @@ function runMaturityReplacement(slots, years, matReplacement, injectionByYear, f
                 yearRedemptions += sl.synthetic
                     ? sl.unitsHeld * (sl.facePerUnit + sl.accruedPerUnit)
                     : sl.unitsHeld * sl.facePerUnit;
-                if (sl.isin === sourceBond.isin) replacementActivated = true;
+                // Check if this slot's ISIN matches ANY configured replacement
+                if (replacements.some(r => r.sourceBond?.isin === sl.isin)) replacementActivated = true;
             } else {
                 alive.push(sl);
             }
@@ -569,45 +573,58 @@ function runMaturityReplacement(slots, years, matReplacement, injectionByYear, f
         const totalFace = refPool.reduce((s, sl) => s + sl.unitsHeld * sl.facePerUnit, 0);
 
         if (cashIn > 0 && totalFace > 0) {
-            // Separate totalFace into sourceBond portion and others
-            const srcOrigSlot     = maturedOrigSlots.find(s => s.isin === sourceBond.isin);
-            const srcFace         = srcOrigSlot ? srcOrigSlot.unitsHeld * srcOrigSlot.facePerUnit : 0;
-            const otherFace       = totalFace - srcFace;
-            const srcCashFraction = totalFace > 0 ? srcFace / totalFace : 0;
-            const srcCash         = cashIn * srcCashFraction;
-            const otherCash       = cashIn - srcCash;
+            // For each replacement that activates this year, compute actual proceeds
+            // (redemption + coupon of that bond only) and create a replacement slot.
+            // "otherCash" = everything not claimed by any replacement.
+            let totalSrcCash = 0;
+            let totalSrcFace = 0;
 
-            // Handle replacement bond creation for sourceBond proceeds
-            if (replacementActivated && srcCash > 0) {
-                const replCouponPerUnit = netCouponPct / 100;
-                const replMatYear       = maturityYear;
-                if (replMatYear > yr) {
+            for (const rep of replacements) {
+                const repSrcSlot = maturedOrigSlots.find(s => s.isin === rep.sourceBond?.isin);
+                if (!repSrcSlot) continue; // this replacement's bond doesn't mature this year
+                const repFxM = repSrcSlot.currency
+                    ? _fxCurveGet(repSrcSlot.currency, reportCcy, yr, startYear) : 1.0;
+                const repFxC = repSrcSlot.currency
+                    ? _fxCurveGet(repSrcSlot.currency, reportCcy, yr, startYear) : 1.0;
+                const repRedemption = repSrcSlot.unitsHeld * repSrcSlot.facePerUnit * repFxM;
+                const repCoupon     = repSrcSlot.unitsHeld * repSrcSlot.couponPerUnit * repFxC;
+                const repSrcCash    = repRedemption + repCoupon;
+                const repAdjFact    = Math.max(0.01, 1 + (rep.priceShift || 0) / 100);
+
+                if (rep.maturityYear > yr && repSrcCash > 0) {
                     const replSlot = {
-                        isin:           sourceBond.isin + '_repl_' + yr,
-                        issuer:         '\u2192 Replacement bond',
-                        matYear:        replMatYear,
-                        unitsHeld:      srcCash / replAdjFact,
-                        facePerUnit:    1,
-                        couponPerUnit:  replCouponPerUnit,
-                        pricePerUnit:   replAdjFact,
-                        accruedPerUnit: 0,
-                        synthetic:      true,
-                        _type:          'same_bond',
-                        _takeCouponAsCash: !reinvestCoupons,
-                        _isReplacement: true,
+                        isin:              rep.sourceBond.isin + '_repl_' + yr,
+                        issuer:            '→ Replacement bond',
+                        matYear:           rep.maturityYear,
+                        unitsHeld:         repSrcCash / repAdjFact,
+                        facePerUnit:       1,
+                        couponPerUnit:     (rep.netCouponPct || 0) / 100,
+                        pricePerUnit:      repAdjFact,
+                        accruedPerUnit:    0,
+                        synthetic:         true,
+                        _type:             'same_bond',
+                        _takeCouponAsCash: !rep.reinvestCoupons,
+                        _isReplacement:    true,
                     };
                     pool.push(replSlot);
-                    reinvested += srcCash;
-                } else {
-                    cash += srcCash;
+                    reinvested   += repSrcCash;
+                    totalSrcCash += repSrcCash;
+                    totalSrcFace += repSrcSlot.unitsHeld * repSrcSlot.facePerUnit;
+                } else if (repSrcCash > 0) {
+                    cash         += repSrcCash;
+                    totalSrcCash += repSrcCash;
+                    totalSrcFace += repSrcSlot.unitsHeld * repSrcSlot.facePerUnit;
                 }
             }
+
+            const otherFace = totalFace - totalSrcFace;
+            const otherCash = cashIn - totalSrcCash;
 
             for (const sl of refPool) {
                 // Skip replacement slots — their coupons are handled directly in the loop above
                 if (sl._isReplacement) continue;
-                // Skip source bond — handled above
-                if (sl.isin === sourceBond.isin) continue;
+                // Skip ALL source bonds — each handled above in the replacements loop
+                if (replacements.some(r => r.sourceBond?.isin === sl.isin)) continue;
 
                 // Use otherFace/otherCash so shares are proportional only among surviving bonds
                 const share   = otherFace > 0 ? (sl.unitsHeld * sl.facePerUnit) / otherFace : 0;
@@ -1240,15 +1257,16 @@ function _runScenarioSim(sc, portfolio, startCapital) {
         // (current engine supports one replacement per call; run the first enabled one)
         const repCs = customScenarios.filter(cs => cs._type === 'maturity_replacement');
         // Run all replacements stacked on no_reinvest base (use last one if multiple)
-        const lastRep = repCs[repCs.length - 1];
         const { dataPoints, yearEvents, extendedYears } =
-            runMaturityReplacement(slots, years, lastRep, injectionByYear, fxOpts);
+            runMaturityReplacement(slots, years, repCs, injectionByYear, fxOpts);
         // Prefix with no_reinvest before activation year
         const noReinvByYear = new Map();
         noRDP.forEach((v, i) => noReinvByYear.set(years[i], v));
-        const srcMatYear = lastRep.sourceBond?.matYear || 0;
+        // srcMatYear = earliest replacement activation (first bond to mature)
+        const srcMatYear = Math.min(...repCs.map(r => r.sourceBond?.matYear || 9999));
+        const maxRepMat  = Math.max(...repCs.map(r => r.maturityYear || 0));
         const allYears   = [...years];
-        for (let y = endYear + 1; y <= lastRep.maturityYear; y++) allYears.push(y);
+        for (let y = endYear + 1; y <= maxRepMat; y++) allYears.push(y);
         mainData = allYears.map((yr, idx) => {
             if (yr < srcMatYear) return noReinvByYear.has(yr) ? noReinvByYear.get(yr) : null;
             return (idx < dataPoints.length && isFinite(dataPoints[idx])) ? dataPoints[idx] : null;
@@ -1258,14 +1276,14 @@ function _runScenarioSim(sc, portfolio, startCapital) {
     } else {
         // Both coupon reinvest + replacement — coupon reinvest wins for non-replaced bonds
         const repCs = customScenarios.filter(cs => cs._type === 'maturity_replacement');
-        const lastRep = repCs[repCs.length - 1];
         const { dataPoints, yearEvents, extendedYears } =
-            runMaturityReplacement(slots, years, lastRep, injectionByYear, fxOpts);
+            runMaturityReplacement(slots, years, repCs, injectionByYear, fxOpts);
         const noReinvByYear = new Map();
         noRDP.forEach((v, i) => noReinvByYear.set(years[i], v));
-        const srcMatYear = lastRep.sourceBond?.matYear || 0;
+        const srcMatYear = Math.min(...repCs.map(r => r.sourceBond?.matYear || 9999));
+        const maxRepMat  = Math.max(...repCs.map(r => r.maturityYear || 0));
         const allYears   = [...years];
-        for (let y = endYear + 1; y <= lastRep.maturityYear; y++) allYears.push(y);
+        for (let y = endYear + 1; y <= maxRepMat; y++) allYears.push(y);
         mainData = allYears.map((yr, idx) => {
             if (yr < srcMatYear) return noReinvByYear.has(yr) ? noReinvByYear.get(yr) : null;
             return (idx < dataPoints.length && isFinite(dataPoints[idx])) ? dataPoints[idx] : null;
@@ -2097,6 +2115,16 @@ function updateReplacement(isin, field, value) {
 function setInjectionEnabled(enabled) {
     const sc = _activeSc(); if (!sc) return;
     sc.injection.enabled = enabled;
+    // When enabling: if pct map is empty, populate with equal-split defaults so totalPct = 100%
+    if (enabled && _lastPortfolio?.length) {
+        const today = new Date().getFullYear();
+        const activeBonds = _lastPortfolio.filter(b => new Date(b.maturity).getFullYear() > today);
+        const hasPct = activeBonds.some(b => (sc.injection.pct[b.isin] ?? 0) > 0);
+        if (!hasPct && activeBonds.length > 0) {
+            const defaultPct = +(100 / activeBonds.length).toFixed(4);
+            activeBonds.forEach(b => { sc.injection.pct[b.isin] = defaultPct; });
+        }
+    }
     _rebuildInjectionTab();
     triggerSimulation();
 }

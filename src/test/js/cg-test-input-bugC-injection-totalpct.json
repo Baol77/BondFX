@@ -1,0 +1,153 @@
+{
+  "bondFxVersion": "6.0",
+  "exportedAt": "2026-02-28T23:07:07",
+  "portfolioSnapshot": [
+    {
+      "isin": "IT0005582421",
+      "issuer": "ITALIA",
+      "investedEur": 149332.61,
+      "quantity": 1500,
+      "priceEur": 106.10,
+      "coupon": 4.15,
+      "maturity": "2039-10-01",
+      "taxRate": 12.5,
+      "currency": "EUR"
+    },
+    {
+      "isin": "IT0005273013",
+      "issuer": "ITALIA",
+      "investedEur": 100204.31,
+      "quantity": 1000,
+      "priceEur": 92.50,
+      "coupon": 3.45,
+      "maturity": "2048-03-01",
+      "taxRate": 12.5,
+      "currency": "EUR"
+    },
+    {
+      "isin": "IT0003934657",
+      "issuer": "ITALIA",
+      "investedEur": 27342.92,
+      "quantity": 310,
+      "priceEur": 106.34,
+      "coupon": 4.00,
+      "maturity": "2037-02-01",
+      "taxRate": 12.5,
+      "currency": "EUR"
+    },
+    {
+      "isin": "XS2829810923",
+      "issuer": "ROMANIA",
+      "investedEur": 20279.72,
+      "quantity": 210,
+      "priceEur": 101.84,
+      "coupon": 5.63,
+      "maturity": "2037-05-30",
+      "taxRate": 12.5,
+      "currency": "EUR"
+    },
+    {
+      "isin": "XS2109813142",
+      "issuer": "ROMANIA",
+      "investedEur": 5544.68,
+      "quantity": 90,
+      "priceEur": 67.79,
+      "coupon": 3.38,
+      "maturity": "2050-01-28",
+      "taxRate": 12.5,
+      "currency": "EUR"
+    },
+    {
+      "isin": "IT0001278511",
+      "issuer": "ITALIA",
+      "investedEur": 5079.51,
+      "quantity": 50,
+      "priceEur": 110.15,
+      "coupon": 5.25,
+      "maturity": "2029-11-01",
+      "taxRate": 12.5,
+      "currency": "EUR"
+    },
+    {
+      "isin": "XS2971937672",
+      "issuer": "UNGHERIA",
+      "investedEur": 5040.23,
+      "quantity": 50,
+      "priceEur": 102.70,
+      "coupon": 4.88,
+      "maturity": "2040-03-22",
+      "taxRate": 12.5,
+      "currency": "EUR"
+    },
+    {
+      "isin": "XS2434895806",
+      "issuer": "ROMANIA",
+      "investedEur": 4157.43,
+      "quantity": 50,
+      "priceEur": 92.98,
+      "coupon": 3.75,
+      "maturity": "2034-02-07",
+      "taxRate": 12.5,
+      "currency": "EUR"
+    },
+    {
+      "isin": "IT0005398406",
+      "issuer": "ITALIA",
+      "investedEur": 5508.31,
+      "quantity": 60,
+      "priceEur": 75.36,
+      "coupon": 2.45,
+      "maturity": "2050-09-01",
+      "taxRate": 12.5,
+      "currency": "EUR"
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "sc_1",
+      "label": "no reinv no injection",
+      "color": "#9e9e9e",
+      "couponReinvest": {
+        "enabled": false,
+        "globalPriceShift": 0,
+        "perIsin": {}
+      },
+      "maturityReplacement": {},
+      "injection": {
+        "enabled": false,
+        "amountEur": 0,
+        "from": 2026,
+        "to": 2050,
+        "pct": {}
+      }
+    },
+    {
+      "id": "sc_2",
+      "label": "injection equal split 9 bonds",
+      "color": "#1e88e5",
+      "couponReinvest": {
+        "enabled": false,
+        "globalPriceShift": 0,
+        "perIsin": {}
+      },
+      "maturityReplacement": {},
+      "injection": {
+        "enabled": true,
+        "amountEur": 10000,
+        "from": 2026,
+        "to": 2035,
+        "pct": {
+          "IT0005582421": 11.1111,
+          "IT0005273013": 11.1111,
+          "IT0003934657": 11.1111,
+          "XS2829810923": 11.1111,
+          "XS2109813142": 11.1111,
+          "IT0001278511": 11.1111,
+          "XS2971937672": 11.1111,
+          "XS2434895806": 11.1111,
+          "IT0005398406": 11.1112
+        }
+      }
+    }
+  ]
+}

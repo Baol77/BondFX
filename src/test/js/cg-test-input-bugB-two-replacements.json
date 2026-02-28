@@ -1,0 +1,116 @@
+{
+  "bondFxVersion": "6.0",
+  "exportedAt": "2026-02-28T23:07:07",
+  "portfolioSnapshot": [
+    {
+      "isin": "IT0005582421",
+      "issuer": "ITALIA",
+      "investedEur": 149332.61,
+      "quantity": 1500,
+      "priceEur": 106.10,
+      "coupon": 4.15,
+      "maturity": "2039-10-01",
+      "taxRate": 12.5,
+      "currency": "EUR"
+    },
+    {
+      "isin": "IT0005273013",
+      "issuer": "ITALIA",
+      "investedEur": 100204.31,
+      "quantity": 1000,
+      "priceEur": 92.50,
+      "coupon": 3.45,
+      "maturity": "2048-03-01",
+      "taxRate": 12.5,
+      "currency": "EUR"
+    },
+    {
+      "isin": "IT0003934657",
+      "issuer": "ITALIA",
+      "investedEur": 27342.92,
+      "quantity": 310,
+      "priceEur": 106.34,
+      "coupon": 4.00,
+      "maturity": "2037-02-01",
+      "taxRate": 12.5,
+      "currency": "EUR"
+    },
+    {
+      "isin": "IT0001278511",
+      "issuer": "ITALIA",
+      "investedEur": 5079.51,
+      "quantity": 50,
+      "priceEur": 110.15,
+      "coupon": 5.25,
+      "maturity": "2029-11-01",
+      "taxRate": 12.5,
+      "currency": "EUR"
+    },
+    {
+      "isin": "XS2109813142",
+      "issuer": "ROMANIA",
+      "investedEur": 5544.68,
+      "quantity": 90,
+      "priceEur": 67.79,
+      "coupon": 3.38,
+      "maturity": "2050-01-28",
+      "taxRate": 12.5,
+      "currency": "EUR"
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "sc_1",
+      "label": "no reinv",
+      "color": "#9e9e9e",
+      "couponReinvest": {
+        "enabled": false,
+        "globalPriceShift": 0,
+        "perIsin": {}
+      },
+      "maturityReplacement": {},
+      "injection": {
+        "enabled": false,
+        "amountEur": 0,
+        "from": 2026,
+        "to": 2050,
+        "pct": {}
+      }
+    },
+    {
+      "id": "sc_2",
+      "label": "two replacements",
+      "color": "#1e88e5",
+      "couponReinvest": {
+        "enabled": true,
+        "globalPriceShift": 0,
+        "perIsin": {}
+      },
+      "maturityReplacement": {
+        "IT0001278511": {
+          "enabled": true,
+          "_matYear": 2029,
+          "netCouponPct": 3.48,
+          "priceShift": 0,
+          "maturityYear": 2039,
+          "reinvestCoupons": true
+        },
+        "IT0003934657": {
+          "enabled": true,
+          "_matYear": 2037,
+          "netCouponPct": 3.20,
+          "priceShift": 0,
+          "maturityYear": 2047,
+          "reinvestCoupons": false
+        }
+      },
+      "injection": {
+        "enabled": false,
+        "amountEur": 0,
+        "from": 2026,
+        "to": 2050,
+        "pct": {}
+      }
+    }
+  ]
+}
