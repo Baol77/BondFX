@@ -1254,7 +1254,10 @@ function _applyBaseCurrencyUI() {
     const sym = getCurrencySymbol(ccy);
     // Update page title
     const titleEl = document.getElementById('titleCurrency');
-    if (titleEl) titleEl.textContent = '(' + ccy + ')';
+    if (titleEl) {
+        const symbol = sym || ccy;
+        titleEl.innerHTML = '(<b>' + symbol + '</b>)';
+    }
     // Update Price column TH
     const thPrice = document.getElementById('thPriceCurrency');
     if (thPrice) thPrice.textContent = ccy;
@@ -1413,7 +1416,11 @@ document.addEventListener("DOMContentLoaded", () => {
     renderProfileBar();    // populate homepage bar with selected profiles
     renderProfileChips();  // populate settings modal chips
 
-    applyPreset("cashParking");
+    // Apply first selected profile in the bar (user-configured order)
+    (function() {
+        const ids = _allProfileIds().filter(id => _selectedSet().has(id));
+        if (ids.length > 0) applyPreset(ids[0]);
+    })();
     renderBasket();
     renderWishlist();
     syncWishlistButtons();

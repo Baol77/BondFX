@@ -503,53 +503,51 @@ function runMaturityReplacement(slots, years, matReplacement, injectionByYear) {
         const totalFace = refPool.reduce((s, sl) => s + sl.unitsHeld * sl.facePerUnit, 0);
 
         if (cashIn > 0 && totalFace > 0) {
-            // Build the full pool for share calculation: active bonds + matured source bond
-            // (source bond is not in refPool after maturity, but its capital still needs routing)
-            const allSlotsForShare = [...refPool];
-            if (replacementActivated && !allSlotsForShare.find(s => s.isin === sourceBond.isin)) {
-                const srcOrig = slots.find(s => s.isin === sourceBond.isin);
-                if (srcOrig) allSlotsForShare.push(srcOrig);
-            }
-            const totalFaceForShare = allSlotsForShare.reduce((s, sl) => s + sl.unitsHeld * sl.facePerUnit, 0);
+            // Separate totalFace into sourceBond portion and others
+            const srcOrigSlot     = maturedOrigSlots.find(s => s.isin === sourceBond.isin);
+            const srcFace         = srcOrigSlot ? srcOrigSlot.unitsHeld * srcOrigSlot.facePerUnit : 0;
+            const otherFace       = totalFace - srcFace;
+            const srcCashFraction = totalFace > 0 ? srcFace / totalFace : 0;
+            const srcCash         = cashIn * srcCashFraction;
+            const otherCash       = cashIn - srcCash;
 
-            for (const sl of allSlotsForShare) {
+            // Handle replacement bond creation for sourceBond proceeds
+            if (replacementActivated && srcCash > 0) {
+                const replCouponPerUnit = netCouponPct / 100;
+                const replMatYear       = maturityYear;
+                if (replMatYear > yr) {
+                    const replSlot = {
+                        isin:           sourceBond.isin + '_repl_' + yr,
+                        issuer:         '\u2192 Replacement bond',
+                        matYear:        replMatYear,
+                        unitsHeld:      srcCash / replAdjFact,
+                        facePerUnit:    1,
+                        couponPerUnit:  replCouponPerUnit,
+                        pricePerUnit:   replAdjFact,
+                        accruedPerUnit: 0,
+                        synthetic:      true,
+                        _type:          'same_bond',
+                        _takeCouponAsCash: !reinvestCoupons,
+                        _isReplacement: true,
+                    };
+                    pool.push(replSlot);
+                    reinvested += srcCash;
+                } else {
+                    cash += srcCash;
+                }
+            }
+
+            for (const sl of refPool) {
                 // Skip replacement slots — their coupons are handled directly in the loop above
                 if (sl._isReplacement) continue;
+                // Skip source bond — handled above
+                if (sl.isin === sourceBond.isin) continue;
 
-                const share   = (sl.unitsHeld * sl.facePerUnit) / totalFaceForShare;
-                const myShare = cashIn * share;
+                // Use otherFace/otherCash so shares are proportional only among surviving bonds
+                const share   = otherFace > 0 ? (sl.unitsHeld * sl.facePerUnit) / otherFace : 0;
+                const myShare = otherCash * share;
 
-                if (sl.isin === sourceBond.isin && replacementActivated) {
-                    // All proceeds from the source bond → replacement bond
-                    const replCouponPerUnit = netCouponPct / 100;  // per unit of face
-                    const replMatYear       = maturityYear;
-                    if (replMatYear > yr) {
-                        // Create replacement slot: face=1, pricePerUnit=1 (bought at par),
-                        // couponPerUnit = netCouponPct/100 per unit, compounding if reinvestCoupons
-                        // replAdjFact: price relative to face. 
-                        // e.g. 0.8 = bought at 80% = discount bond.
-                        // units = total cash / (face * adjFact)
-                        // slotValue = units * pricePerUnit = units * adjFact (pricePerUnit ≈ adjFact)
-                        // At maturity: redeem at face (1.0) → capital gain if adjFact < 1
-                        const replSlot = {
-                            isin:           sl.isin + '_repl_' + yr,
-                            issuer:         '→ Replacement bond',
-                            matYear:        replMatYear,
-                            unitsHeld:      myShare / replAdjFact,  // units = cash / price
-                            facePerUnit:    1,
-                            couponPerUnit:  replCouponPerUnit,       // coupon on face
-                            pricePerUnit:   replAdjFact,             // market price
-                            accruedPerUnit: 0,
-                            synthetic:      true,
-                            _type:          'same_bond',
-                            _takeCouponAsCash: !reinvestCoupons,
-                            _isReplacement: true,
-                        };
-                        pool.push(replSlot);
-                        reinvested += myShare;
-                    } else {
-                        cash += myShare;
-                    }
+                if (false) { // (sourceBond handled above — dead branch kept for structure)
                 } else {
                     // All other bonds: reinvest coupons same-bond style (same as reinvest_flat builtin)
                     const cost = sl.pricePerUnit;
@@ -1894,8 +1892,7 @@ function renderInjectionTab(portfolio, isDark, border) {
     const sym   = _cgSym();
     const today = new Date().getFullYear();
     const activeBonds = portfolio.filter(b => new Date(b.maturity).getFullYear() > today);
-    const defaultPct = activeBonds.length > 0 ? 100 / activeBonds.length : 0;
-    const totalPct = activeBonds.reduce((s, b) => s + (inj.pct[b.isin] ?? defaultPct), 0);
+    const totalPct = activeBonds.reduce((s, b) => s + (inj.pct[b.isin] ?? 0), 0);
 
     const bondRows = activeBonds.map(b => {
         const matYear = new Date(b.maturity).getFullYear();
@@ -2031,16 +2028,6 @@ function updateReplacement(isin, field, value) {
 function setInjectionEnabled(enabled) {
     const sc = _activeSc(); if (!sc) return;
     sc.injection.enabled = enabled;
-    // Initialise pct with equal distribution if still empty (first enable)
-    if (enabled && _lastPortfolio?.length) {
-        const today       = new Date().getFullYear();
-        const activeBonds = _lastPortfolio.filter(b => new Date(b.maturity).getFullYear() > today);
-        const isEmpty     = Object.keys(sc.injection.pct).length === 0;
-        if (isEmpty && activeBonds.length > 0) {
-            const share = 100 / activeBonds.length;
-            activeBonds.forEach(b => { sc.injection.pct[b.isin] = share; });
-        }
-    }
     _rebuildInjectionTab();
     triggerSimulation();
 }
@@ -2617,7 +2604,26 @@ function openYearDetailModal(yr, yearIdx, simResult, startCapital, allLabels) {
                         <td style="padding:3px 10px;text-align:right;color:#888;">—</td>
                     </tr>`;
                 }).join('');
-                perBondRows = bondRows;
+                // Cash row: shown when cash > 0 (no-reinvest or replacement with coupons=cash)
+                let cashRow = '';
+                const cashVal = (ev?.cash || 0) * K;
+                if (cashVal > 0.5) {
+                    const cashBg    = isDark ? 'rgba(255,193,7,0.07)' : 'rgba(255,193,7,0.08)';
+                    const cashColor = isDark ? '#ffd54f' : '#b07d00';
+                    cashRow = `<tr style="opacity:0.85;font-size:10.5px;background:${cashBg};">
+                        <td style="padding:3px 10px 3px 28px;color:${cashColor};font-weight:600;">
+                            <span style="font-family:monospace;font-size:10px;">CASH</span>
+                            <span style="margin-left:6px;">${sym} liquidity</span>
+                            <span style="margin-left:6px;font-size:9px;opacity:0.7;">coupons + redemptions (not reinvested)</span>
+                        </td>
+                        <td style="padding:3px 10px;text-align:right;color:#888;">—</td>
+                        <td style="padding:3px 10px;text-align:right;color:#888;">—</td>
+                        <td style="padding:3px 10px;text-align:right;color:#888;">—</td>
+                        <td style="padding:3px 10px;text-align:right;font-weight:600;color:${cashColor};">${fmtSmall(cashVal)}</td>
+                        <td style="padding:3px 10px;text-align:right;color:#888;">—</td>
+                    </tr>`;
+                }
+                perBondRows = bondRows + cashRow;
             }
         }
 
@@ -2704,7 +2710,7 @@ function openYearDetailModal(yr, yearIdx, simResult, startCapital, allLabels) {
                         <th style="padding:7px 10px;text-align:right;">Coupons (net)</th>
                         <th style="padding:7px 10px;text-align:right;">Redemptions</th>
                         <th style="padding:7px 10px;text-align:right;">Reinvested</th>
-                        <th style="padding:7px 10px;text-align:right;" title="Subrows show bond value only (excl. cash)">Portfolio Value</th>
+                        <th style="padding:7px 10px;text-align:right;" title="Bonds + accumulated cash (coupons/redemptions not reinvested)">Portfolio Value</th>
                         <th style="padding:7px 10px;text-align:right;">Δ vs prev yr</th>
                     </tr></thead>
                     <tbody>${rows}</tbody>
@@ -2712,7 +2718,7 @@ function openYearDetailModal(yr, yearIdx, simResult, startCapital, allLabels) {
                 ${matHtml}
                 <p style="font-size:10px;color:${isDark?'#5a6080':'#aaa'};margin-top:10px;">
                     Coupons net of withholding tax. Redemptions = face value returned. Sudden growth = bond maturation + reinvestment.
-                    Subrow <em>Portfolio Value</em> = bond holding value only (excl. cash/reinvested proceeds).
+                    Subrow <em>Portfolio Value</em> = bond holding value. <em>Cash</em> row = accumulated coupons + redemptions not reinvested (shown when > 0).
                     All values in ${_cgBaseCcy()} &nbsp;·&nbsp;
                     <span style="opacity:0.7;">← → arrows or buttons to navigate years</span>
                 </p>

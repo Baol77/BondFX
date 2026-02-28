@@ -30,7 +30,7 @@
             </svg>
             Capital Growth Simulator
         </h1>
-        <span class="cg-header__meta">BondFX v6.0</span>
+        <span class="cg-header__meta">BondFX v5</span>
     </div>
 
     <div id="cgEmptyMsg" class="cg-empty" style="display:none;">
@@ -68,7 +68,7 @@
 <script src="/js/bond-report-mobile-adapter.js"></script>
 
 <footer class="page-footer">
-    BondFX v6.0 &nbsp;&middot;&nbsp;
+    BondFX v5.0 &nbsp;&middot;&nbsp;
     <a href="/analyzer">&larr; Portfolio Analyzer</a> &nbsp;&middot;&nbsp;
     <a href="/">Bond Table</a>
 </footer>

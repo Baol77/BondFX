@@ -728,7 +728,7 @@ class PortfolioAnalyzer {
                            title="Withholding tax % on coupon income"
                            onchange="window.portfolioAnalyzer.updateTaxRate(${idx}, this.value)">
                 </td>
-                <td class="${gainLoss >= 0 ? 'good' : 'bad'}">${Math.round(_paToBase(gainLoss))}</td>
+                <td class="${gainLoss > 0 ? 'good' : gainLoss < 0 ? 'bad' : ''}">${Math.round(_paToBase(gainLoss))}</td>
                 <td>
                     <input type="checkbox" title="Toggle to include/exclude this bond from statistics calculations"
                            ${bond.includeInStatistics ? 'checked' : ''}
