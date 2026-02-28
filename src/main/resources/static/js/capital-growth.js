@@ -26,45 +26,78 @@ let   _cgRates = { EUR: 1.0 };
 // Populated lazily at simulation time; EUR bonds skip the call entirely.
 const _fxCache = new Map();
 
-// _fetchFxMultipliers / _prefetchFxForPortfolio are kept as internal utilities
-// but are NO LONGER called from runSimulation. _fxCache is now populated by
-// _computePortfolio (from /api/bonds/compute responses) so buildSlots/_fxGet
-// work synchronously without a separate /api/fx-multipliers round-trip.
-async function _fetchFxMultipliers(currency, years, reportCurrency = 'EUR') {
-    if (!currency || currency === reportCurrency) return { fxBuy:1, fxCoupon:1, fxFuture:1 };
-    const key = `${currency}_${reportCurrency}_${years}`;
-    const cached = _fxCache.get(key);
-    if (cached && cached.expiresAt > Date.now()) return cached;
+// ── FX Curve cache ────────────────────────────────────────────────────────────
+// Map<"CCY_report_h{t}", { multiplier, expiresAt }>
+// Populated by _prefetchFxCurves() before each simulation run.
+// Synchronous lookup via _fxCurveGet(currency, reportCcy, horizonYear, startYear).
+const _fxCurveCache = new Map();
+
+/**
+ * Fetches the full OU-adjusted FX curve for one currency via POST /api/fx-curve.
+ * Each horizon t in horizons gets: multiplier = spot × (1 − OU_haircut(t)).
+ * horizon=0 → spot rate (no haircut).
+ */
+async function _fetchFxCurve(currency, reportCurrency, horizons) {
+    if (!currency || currency === reportCurrency) return;
+    const spot = _cgRates?.[currency] ?? 1.0;
     try {
-        const r = await fetch(`/api/fx-multipliers?currency=${currency}&years=${years}&reportCurrency=${reportCurrency}`);
+        const r = await fetch('/api/fx-curve', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ currency, reportCurrency, horizons }),
+        });
         if (!r.ok) throw new Error(r.status);
-        const data = await r.json();
-        _fxCache.set(key, { ...data, expiresAt: Date.now() + (data.ttlSeconds || 3600) * 1000 });
-        return data;
+        const data = await r.json(); // { "0": 0.926, "1": 0.918, ... }
+        const expiresAt = Date.now() + 3_600_000;
+        for (const [h, mult] of Object.entries(data)) {
+            _fxCurveCache.set(`${currency}_${reportCurrency}_h${h}`, { multiplier: mult, expiresAt });
+        }
     } catch {
-        // Fallback: use spot rate from ECB rates already loaded
-        const spot = _cgFxRates?.[currency] ?? 1.0;
-        return { fxBuy: spot, fxCoupon: spot, fxFuture: spot };
+        // Fallback: fill all horizons with spot rate (no OU adjustment), retry soon
+        const expiresAt = Date.now() + 60_000;
+        for (const h of horizons) {
+            _fxCurveCache.set(`${currency}_${reportCurrency}_h${h}`, { multiplier: spot, expiresAt });
+        }
     }
 }
 
-// Pre-fetch all FX multipliers needed by the current portfolio (parallel).
-// Returns Map<"CCY_YEARS", {fxBuy, fxCoupon, fxFuture}> for fast sync access.
-async function _prefetchFxForPortfolio(portfolio, reportCurrency = 'EUR') {
-    const needed = new Set();
+/**
+ * Pre-fetches FX curves for all non-base-currency bonds in the portfolio.
+ * One POST /api/fx-curve per distinct currency, horizons [0..maxYearsToMaturity].
+ * Must be awaited before runSimulation / buildSlots.
+ */
+async function _prefetchFxCurves(portfolio, reportCurrency = 'EUR') {
+    const startYear = new Date().getFullYear();
+    const ccyMaxYear = new Map();
     portfolio.forEach(b => {
-        if (b.currency && b.currency !== reportCurrency && b.maturity) {
-            const yrs = Math.max(1, Math.round((new Date(b.maturity) - new Date()) / (365.25*24*3600*1000)));
-            needed.add(`${b.currency}:${yrs}`);
-        }
+        if (!b.currency || b.currency === reportCurrency) return;
+        const matYear = new Date(b.maturity).getFullYear();
+        ccyMaxYear.set(b.currency, Math.max(ccyMaxYear.get(b.currency) || 0, matYear));
     });
-    await Promise.all([...needed].map(k => {
-        const [ccy, yrs] = k.split(':');
-        return _fetchFxMultipliers(ccy, parseInt(yrs), reportCurrency);
+    await Promise.all([...ccyMaxYear.entries()].map(([ccy, maxYear]) => {
+        const maxHorizon = Math.max(1, maxYear - startYear);
+        const horizons   = Array.from({ length: maxHorizon + 1 }, (_, i) => i);
+        const allCached  = horizons.every(h => {
+            const e = _fxCurveCache.get(`${ccy}_${reportCurrency}_h${h}`);
+            return e && e.expiresAt > Date.now();
+        });
+        if (allCached) return Promise.resolve();
+        return _fetchFxCurve(ccy, reportCurrency, horizons);
     }));
 }
 
-// Synchronous lookup — only valid AFTER _prefetchFxForPortfolio has been called.
+/**
+ * Synchronous FX multiplier for a cash flow at horizonYear.
+ * t = horizonYear - startYear; returns cached OU multiplier or 1.0 on miss.
+ */
+function _fxCurveGet(currency, reportCurrency, horizonYear, startYear) {
+    if (!currency || currency === reportCurrency) return 1.0;
+    const t   = Math.max(0, horizonYear - startYear);
+    const key = `${currency}_${reportCurrency}_h${t}`;
+    return _fxCurveCache.get(key)?.multiplier ?? 1.0;
+}
+
+// Legacy per-bond lookup kept for _fxGet callers outside the sim loop.
 function _fxGet(currency, years, reportCurrency = 'EUR') {
     if (!currency || currency === reportCurrency) return { fxBuy:1, fxCoupon:1, fxFuture:1 };
     const key = `${currency}_${reportCurrency}_${years}`;
@@ -202,9 +235,10 @@ function buildSlots(portfolio) {
         return {
             isin:           b.isin,
             issuer:         b.issuer,
+            currency:       b.currency || 'EUR',     // kept for per-year FX curve lookup
             matYear:        new Date(b.maturity).getFullYear(),
             unitsHeld:      b.quantity,
-            facePerUnit:    nomEur,
+            facePerUnit:    nomEur,                  // in report-ccy at spot; loop applies OU factor
             couponPerUnit:  (b.coupon / 100) * nomEur * (1 - (b.taxRate || 0) / 100),
             pricePerUnit:   pxEur,
             accruedPerUnit: 0,
@@ -213,14 +247,21 @@ function buildSlots(portfolio) {
     });
 }
 
-function slotValue(sl) {
-    // Real bonds: market value = pricePerUnit × units (constant snapshot)
-    // Synthetic same_bond: also pricePerUnit × units (bought at market, value stable, coupons go to cash)
-    // Synthetic market_avg: face + accrued compounds (reinvested into generic instrument)
-    if (!sl.synthetic || sl._type === 'same_bond') {
-        return sl.unitsHeld * sl.pricePerUnit;
+function slotValue(sl, yr, startYear, reportCcy) {
+    // Synthetic market_avg: face + accrued compounds (reinvested into generic EUR instrument)
+    if (sl.synthetic && sl._type !== 'same_bond') {
+        return sl.unitsHeld * (sl.facePerUnit + sl.accruedPerUnit);
     }
-    return sl.unitsHeld * (sl.facePerUnit + sl.accruedPerUnit);
+    // Real bonds and same_bond synthetics: price × units, adjusted for FX forward risk.
+    // For non-EUR bonds, pricePerUnit is the spot-EUR snapshot at load time.
+    // We apply the OU FX multiplier at horizon yr-startYear so that the portfolio
+    // value declines gradually as FX risk accumulates — avoiding a cliff at redemption.
+    // Synthetic replacement bonds are already denominated in EUR (no FX adjustment).
+    let fxFactor = 1.0;
+    if (sl.currency && sl.currency !== (reportCcy || 'EUR') && !sl._isReplacement && yr != null) {
+        fxFactor = _fxCurveGet(sl.currency, reportCcy || 'EUR', yr, startYear);
+    }
+    return sl.unitsHeld * sl.pricePerUnit * fxFactor;
 }
 
 /**
@@ -230,17 +271,19 @@ function slotValue(sl) {
  * perIsinConfig: Map<isin, {mode, priceShift, reinvestYield}>
  * If isin not in map → globalMode / globalPriceShift / globalReinvestYield apply.
  */
-function runScenario(slots, years, globalMode, globalPriceShift, globalReinvestYield, perIsinConfig, injectionByYear) {
+function runScenario(slots, years, globalMode, globalPriceShift, globalReinvestYield, perIsinConfig, injectionByYear, fxOpts = {}) {
     let pool = slots.map(s => ({ ...s }));
     let cash = 0;
-    const endYear = years[years.length - 1];
+    const endYear  = years[years.length - 1];
+    const startYear   = fxOpts.startYear   ?? years[0];
+    const reportCcy   = fxOpts.reportCcy   ?? 'EUR';
 
-    const portfolioVal = () => pool.reduce((s, sl) => s + slotValue(sl), 0) + cash;
-    const dataPoints   = [portfolioVal()];
+    const dataPoints   = [pool.reduce((s, sl) => s + slotValue(sl, startYear, startYear, reportCcy), 0) + cash];
     const yearEvents   = [];
 
     for (let i = 1; i < years.length; i++) {
         const yr = years[i];
+        const portfolioVal = () => pool.reduce((s, sl) => s + slotValue(sl, yr, startYear, reportCcy), 0) + cash;
         let yearCoupons = 0, yearRedemptions = 0, reinvested = 0;
         const alive = [];
         const perSlot = [];
@@ -248,13 +291,16 @@ function runScenario(slots, years, globalMode, globalPriceShift, globalReinvestY
         for (const sl of pool) {
             if (sl.matYear < yr) continue;
 
-            const couponCash = sl.unitsHeld * sl.couponPerUnit;
+            // OU-adjusted FX multiplier for this year's cash flows
+            const fxC = sl.currency ? _fxCurveGet(sl.currency, reportCcy, yr, startYear) : 1.0;
+            const fxM = sl.currency ? _fxCurveGet(sl.currency, reportCcy, sl.matYear, startYear) : 1.0;
+            const couponCash = sl.unitsHeld * sl.couponPerUnit * fxC;
             yearCoupons += couponCash;
             // Track per-slot for bottom-up subrow display (skip synthetic aggregate slots)
             if (!sl.isin?.startsWith('_')) {
-                const slRedemp = (sl.matYear === yr) ? sl.unitsHeld * sl.facePerUnit : 0;
+                const slRedemp = (sl.matYear === yr) ? sl.unitsHeld * sl.facePerUnit * fxM : 0;
                 perSlot.push({ isin: sl.isin, issuer: sl.issuer || '',
-                    coupon: couponCash, redemption: slRedemp, portVal: slotValue(sl), reinvested: 0 });
+                    coupon: couponCash, redemption: slRedemp, portVal: slotValue(sl, yr, startYear, reportCcy), reinvested: 0 });
             }
 
             if (sl.synthetic) {
@@ -274,16 +320,18 @@ function runScenario(slots, years, globalMode, globalPriceShift, globalReinvestY
 
             if (sl.matYear === yr) {
                 // Redemption: real bonds redeem at face; synthetic slots redeem at face+accrued
+                // Apply FX curve multiplier at maturity horizon
+                const fxMat = sl.currency ? _fxCurveGet(sl.currency, reportCcy, yr, startYear) : 1.0;
                 yearRedemptions += sl.synthetic
-                    ? sl.unitsHeld * (sl.facePerUnit + sl.accruedPerUnit)
-                    : sl.unitsHeld * sl.facePerUnit;
+                    ? sl.unitsHeld * (sl.facePerUnit + sl.accruedPerUnit) * fxMat
+                    : sl.unitsHeld * sl.facePerUnit * fxMat;
             } else {
                 alive.push(sl);
             }
         }
         // bondsVal: total bond value at START of year (before reinvestment changes unitsHeld)
         // This matches perSlot.portVal which is also captured before reinvestment.
-        const bondsVal = alive.reduce((s, sl) => s + slotValue(sl), 0);
+        const bondsVal = alive.reduce((s, sl) => s + slotValue(sl, yr, startYear, reportCcy), 0);
         pool = alive;
 
         // Apply annual injection: buy new units of active bonds
@@ -416,9 +464,11 @@ function runScenario(slots, years, globalMode, globalPriceShift, globalReinvestY
 //   basePriceShift: number         // price% for coupon reinvest on other bonds
 // }
 
-function runMaturityReplacement(slots, years, matReplacement, injectionByYear) {
+function runMaturityReplacement(slots, years, matReplacement, injectionByYear, fxOpts = {}) {
     const { sourceBond, netCouponPct, maturityYear, reinvestCoupons,
             priceShift } = matReplacement;
+    const startYear = fxOpts.startYear ?? years[0];
+    const reportCcy = fxOpts.reportCcy ?? 'EUR';
     // priceShift: +100 = buy at 2× face, −50 = buy at 0.5× face
     // adjFact: 1.0 = par, 0.5 = 50% of face, 2.0 = 200% of face
     const replAdjFact = Math.max(0.01, 1 + (priceShift || 0) / 100);
@@ -431,12 +481,12 @@ function runMaturityReplacement(slots, years, matReplacement, injectionByYear) {
     const allYears = [...years];
     for (let y = simEndYear + 1; y <= maturityYear; y++) allYears.push(y);
 
-    const portfolioVal = () => pool.reduce((s, sl) => s + slotValue(sl), 0) + cash;
-    const dataPoints   = [portfolioVal()];
+    const dataPoints   = [pool.reduce((s, sl) => s + slotValue(sl, startYear, startYear, reportCcy), 0) + cash];
     const yearEvents   = [];
 
     for (let i = 1; i < allYears.length; i++) {
         const yr = allYears[i];
+        const portfolioVal = () => pool.reduce((s, sl) => s + slotValue(sl, yr, startYear, reportCcy), 0) + cash;
         let yearCoupons = 0, yearRedemptions = 0, reinvested = 0, replCoupons = 0;
         let replacementActivated = false;
         const alive = [];
@@ -445,15 +495,17 @@ function runMaturityReplacement(slots, years, matReplacement, injectionByYear) {
         for (const sl of pool) {
             if (sl.matYear < yr) continue;
 
-            const couponCash = sl.unitsHeld * sl.couponPerUnit;
+            const fxC2 = sl.currency ? _fxCurveGet(sl.currency, reportCcy, yr, startYear) : 1.0;
+            const fxM2 = sl.currency ? _fxCurveGet(sl.currency, reportCcy, sl.matYear, startYear) : 1.0;
+            const couponCash = sl.unitsHeld * sl.couponPerUnit * (sl._isReplacement ? 1.0 : fxC2);
             if (!sl.isin?.startsWith('_') || sl._isReplacement) {
-                const slRedemp2 = (sl.matYear === yr) ? sl.unitsHeld * sl.facePerUnit : 0;
+                const slRedemp2 = (sl.matYear === yr) ? sl.unitsHeld * sl.facePerUnit * (sl._isReplacement ? 1.0 : fxM2) : 0;
                 const displayIsin   = sl._isReplacement ? (sourceBond.isin + '_repl') : sl.isin;
                 const displayIssuer = sl._isReplacement ? (sl.issuer + ' \u2192 repl.') : (sl.issuer || '');
                 perSlot.push({ isin: displayIsin, issuer: displayIssuer,
                     coupon: sl._isReplacement ? 0 : couponCash,
                     replCoupon: sl._isReplacement ? couponCash : 0,
-                    redemption: slRedemp2, portVal: slotValue(sl), reinvested: 0,
+                    redemption: slRedemp2, portVal: slotValue(sl, yr, startYear, reportCcy), reinvested: 0,
                     _isReplacement: !!sl._isReplacement,
                     matYear: sl._isReplacement ? sl.matYear : undefined });
             }
@@ -481,7 +533,7 @@ function runMaturityReplacement(slots, years, matReplacement, injectionByYear) {
                 alive.push(sl);
             }
         }
-        const bondsValR = alive.reduce((s, sl) => s + slotValue(sl), 0);
+        const bondsValR = alive.reduce((s, sl) => s + slotValue(sl, yr, startYear, reportCcy), 0);
         pool = alive;
 
         // Apply annual injection: buy new units of active bonds
@@ -1140,9 +1192,12 @@ function _runScenarioSim(sc, portfolio, startCapital) {
     const { customScenarios, perIsinConfigs, injectionConfig } = _scenarioToSimArgs(sc, portfolio);
     const injectionByYear = _buildInjectionByYear(portfolio, injectionConfig, years);
 
+    // FX opts: pass startYear + reportCcy so each run function can call _fxCurveGet per year
+    const fxOpts = { startYear: years[0], reportCcy: _cgBaseCcy() };
+
     // Always include a no_reinvest base for this scenario
     const { dataPoints: noRDP, yearEvents: noREV } =
-        runScenario(slots, years, 'none', 0, wSAY, null, injectionByYear);
+        runScenario(slots, years, 'none', 0, wSAY, null, injectionByYear, fxOpts);
 
     // Determine mode: if any coupon reinvest or replacement → run that instead
     const hasCoupon  = customScenarios.some(cs => cs._type === 'coupon_reinvest');
@@ -1161,7 +1216,7 @@ function _runScenarioSim(sc, portfolio, startCapital) {
         const perIsin = perIsinConfigs.get(csObj.id) ||
             buildGlobalPriceShiftConfig(portfolio, csObj.globalPriceShift, wSAY);
         const { dataPoints, yearEvents } =
-            runScenario(slots, years, 'same_bond', csObj.globalPriceShift, wSAY, perIsin, injectionByYear);
+            runScenario(slots, years, 'same_bond', csObj.globalPriceShift, wSAY, perIsin, injectionByYear, fxOpts);
         mainData   = dataPoints;
         mainEvents = yearEvents;
         extYears   = null;
@@ -1173,7 +1228,7 @@ function _runScenarioSim(sc, portfolio, startCapital) {
         // Run all replacements stacked on no_reinvest base (use last one if multiple)
         const lastRep = repCs[repCs.length - 1];
         const { dataPoints, yearEvents, extendedYears } =
-            runMaturityReplacement(slots, years, lastRep, injectionByYear);
+            runMaturityReplacement(slots, years, lastRep, injectionByYear, fxOpts);
         // Prefix with no_reinvest before activation year
         const noReinvByYear = new Map();
         noRDP.forEach((v, i) => noReinvByYear.set(years[i], v));
@@ -1191,7 +1246,7 @@ function _runScenarioSim(sc, portfolio, startCapital) {
         const repCs = customScenarios.filter(cs => cs._type === 'maturity_replacement');
         const lastRep = repCs[repCs.length - 1];
         const { dataPoints, yearEvents, extendedYears } =
-            runMaturityReplacement(slots, years, lastRep, injectionByYear);
+            runMaturityReplacement(slots, years, lastRep, injectionByYear, fxOpts);
         const noReinvByYear = new Map();
         noRDP.forEach((v, i) => noReinvByYear.set(years[i], v));
         const srcMatYear = lastRep.sourceBond?.matYear || 0;
@@ -2394,7 +2449,12 @@ async function runSimulation() {
     // This is the ONLY place where bond metrics are fetched — no JS formula replication.
     _cgComputeCache.clear();
     _fxCache.clear();
-    await _computePortfolio(portfolio, {}, reportCcy);
+    // Fetch OU-adjusted FX curves for all non-base-currency bonds (one POST per currency).
+    // Must complete before buildSlots/runScenario so _fxCurveGet works synchronously.
+    await Promise.all([
+        _computePortfolio(portfolio, {}, reportCcy),
+        _prefetchFxCurves(portfolio, reportCcy),
+    ]);
 
     // Ensure at least one scenario exists (first load or after clearing all)
     if (_scenarios.length === 0) {
