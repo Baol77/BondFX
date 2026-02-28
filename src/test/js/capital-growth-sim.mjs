@@ -163,6 +163,7 @@ for (const rawSc of scenarios) {
             reinvested:            Math.round((ev.reinvested   || 0) * scale),
             replCoupons:           Math.round((ev.replCoupons  || 0) * scale),
             bondsVal:              Math.round((ev.bondsVal     || 0) * scale),
+            cash:                  Math.round((ev.cash         || 0) * scale),
             replacementActivated:  !!ev.replacementActivated,
             perSlot,
         });

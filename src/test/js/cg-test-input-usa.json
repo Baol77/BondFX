@@ -1,6 +1,6 @@
 {
   "_comment": "Scenario export from bondfx-scenarios-2026-02-27-23-15-02.json — USA replacement + perIsin shifts",
-  "bondFxVersion": "6.0",
+  "bondFxVersion": "5.0",
   "portfolioSnapshot": [
     {
       "isin": "IT0005441883",

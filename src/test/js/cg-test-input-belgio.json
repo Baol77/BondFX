@@ -1,6 +1,6 @@
 {
   "_comment": "Scenario export from bondfx-scenarios-2026-02-27-23-13-53.json — BELGIO replacement",
-  "bondFxVersion": "6.0",
+  "bondFxVersion": "5.0",
   "portfolioSnapshot": [
     {
       "isin": "IT0005441883",
