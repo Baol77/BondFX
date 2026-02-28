@@ -1274,18 +1274,17 @@ function _runScenarioSim(sc, portfolio, startCapital) {
         mainEvents = yearEvents;
         extYears   = allYears;
     } else {
-        // Both coupon reinvest + replacement — coupon reinvest wins for non-replaced bonds
+        // Both coupon reinvest + replacement — coupon reinvest wins for non-replaced bonds.
+        // Pre-activation years have real values (coupons reinvested normally on all bonds)
+        // so we use dataPoints for ALL years (no null suppression before srcMatYear).
         const repCs = customScenarios.filter(cs => cs._type === 'maturity_replacement');
         const { dataPoints, yearEvents, extendedYears } =
             runMaturityReplacement(slots, years, repCs, injectionByYear, fxOpts);
-        const noReinvByYear = new Map();
-        noRDP.forEach((v, i) => noReinvByYear.set(years[i], v));
-        const srcMatYear = Math.min(...repCs.map(r => r.sourceBond?.matYear || 9999));
-        const maxRepMat  = Math.max(...repCs.map(r => r.maturityYear || 0));
-        const allYears   = [...years];
+        const maxRepMat = Math.max(...repCs.map(r => r.maturityYear || 0));
+        const allYears  = [...years];
         for (let y = endYear + 1; y <= maxRepMat; y++) allYears.push(y);
         mainData = allYears.map((yr, idx) => {
-            if (yr < srcMatYear) return noReinvByYear.has(yr) ? noReinvByYear.get(yr) : null;
+            // Never suppress pre-activation data when coupon reinvest is active
             return (idx < dataPoints.length && isFinite(dataPoints[idx])) ? dataPoints[idx] : null;
         });
         mainEvents = yearEvents;
@@ -1303,6 +1302,7 @@ function _runScenarioSim(sc, portfolio, startCapital) {
         _extendedYears: extYears,
         _type:    hasReplace ? 'maturity_replacement' : hasCoupon ? 'coupon_reinvest' : 'no_reinvest',
         _sourceBond: hasReplace ? customScenarios.find(cs => cs._type==='maturity_replacement')?.sourceBond : null,
+        _hasCouponReinvest: hasCoupon,  // true when couponReinvest + replacement coexist
         _wSAY:    wSAY,
         _years:   extYears || years,
     };
@@ -2621,8 +2621,14 @@ function openYearDetailModal(yr, yearIdx, simResult, startCapital, allLabels) {
         const sign  = delta >= 0 ? '+' : '';
         const sc2   = v => (v != null && isFinite(v)) ? fmt(v * (sc.scale||1)) : '—';
 
-        // For maturity_replacement: before the sourceBond maturity year, show '—'
+        // For maturity_replacement-ONLY scenarios (no coupon reinvest on other bonds):
+        // before the first replacement activates, the scenario is identical to no_reinvest
+        // so we suppress the cells to avoid showing zeros as if nothing is happening.
+        // If coupon reinvest is ALSO active (hasCouponReinvest flag on scenario), coupons
+        // ARE flowing normally on non-replaced bonds → never suppress pre-activation.
+        const hasCouponReinvest = sc._hasCouponReinvest === true;
         const isReplPreActivation = sc._type === 'maturity_replacement'
+            && !hasCouponReinvest
             && yr < (sc._sourceBond?.matYear || 9999)
             && !ev?.replacementActivated;
         const isReplActivation = sc._type === 'maturity_replacement' && ev?.replacementActivated;
@@ -2642,6 +2648,7 @@ function openYearDetailModal(yr, yearIdx, simResult, startCapital, allLabels) {
         let reinvestedCell;
         if (sc._type === 'maturity_replacement') {
             if (isReplPreActivation) {
+                // Pre-activation with no coupon reinvest: nothing to show
                 reinvestedCell = '<span style="color:#888">—</span>';
             } else if (isReplActivation) {
                 reinvestedCell = `<span style="color:#90caf9;font-size:10px" title="Capital switched to new bond">→ ${sc2(ev.switched||0)}</span>`;
@@ -2655,10 +2662,13 @@ function openYearDetailModal(yr, yearIdx, simResult, startCapital, allLabels) {
             // Standard: show total reinvested (coupons + redemptions that were reinvested)
             reinvestedCell = sc2(ev?.reinvested || 0);
         }
-        // Note: redemption capital reinvestment is implicit in Portfolio Value delta
-        // Portfolio Value: use bonds-only value (ev.bondsVal * scale), not portfolioVal() which includes cash.
+        // Portfolio Value = bondsVal + accumulated cash (same basis as sc.data and delta).
+        // Showing only bondsVal would make no-reinvest scenarios appear artificially low
+        // (their cash pile is hidden), making the reinvest scenario look always worse by comparison.
+        const cashAccum    = (ev?.cash ?? 0) * (sc.scale || 1);
         const bondsOnlyVal = (ev?.bondsVal != null) ? ev.bondsVal * (sc.scale || 1) : val;
-        const valDisplay  = bondsOnlyVal != null ? `${sym}${Math.round(_cgToBase(bondsOnlyVal)).toLocaleString(undefined,{maximumFractionDigits:0})}` : '—';
+        const totalPortVal = (ev?.bondsVal != null) ? bondsOnlyVal + cashAccum : val;
+        const valDisplay   = totalPortVal != null ? `${sym}${Math.round(_cgToBase(totalPortVal)).toLocaleString(undefined,{maximumFractionDigits:0})}` : '—';
         const deltaDisplay = delta != null
             ? `<span style="color:${delta>=0?'#43a047':'#e53935'};font-weight:600;">${sign}${sym}${Math.abs(Math.round(_cgToBase(delta))).toLocaleString(undefined,{maximumFractionDigits:0})}</span>`
             : '<span style="color:#888">—</span>';
