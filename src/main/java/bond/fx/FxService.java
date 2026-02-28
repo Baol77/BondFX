@@ -437,4 +437,38 @@ public class FxService {
         double haircut = profile.capitalHaircut(horizonYears);
         return spot * (1.0 - haircut);
     }
+
+    /**
+     * Returns a normalized OU discount factor ∈ (0, 1] for use in simulation curves.
+     *
+     * <p>Domain contract:
+     * <pre>
+     *   fxMultiplier ≠ exchangeRate
+     *   exchangeRate  ∈ (0, ∞)  — absolute EUR value of 1 foreign unit
+     *   fxMultiplier  ∈ (0, 1]  — normalized OU haircut, spot-independent
+     *
+     *   horizon = 0 → 1.0  (no haircut, spot is baseline)
+     *   horizon = t → (1 − OU_haircut(t))  ≤ 1.0
+     * </pre>
+     *
+     * <p>This is what {@code POST /api/fx-curve} must return so that the JS engine
+     * can multiply spot-EUR prices by this factor without applying the exchange rate twice.
+     *
+     * @param bondCurrency   Bond currency (e.g. "USD").
+     * @param reportCurrency Report currency (e.g. "EUR").
+     * @param horizonYears   Years until this cash flow. 0 = spot baseline.
+     * @return fxMultiplier ∈ (0, 1].
+     */
+    public static double fxNormalizedMultiplier(
+        String bondCurrency,
+        String reportCurrency,
+        double horizonYears) {
+
+        if (bondCurrency.equalsIgnoreCase(reportCurrency)) return 1.0;
+        if (horizonYears <= 0.0) return 1.0;
+
+        CurrencyRiskProfile profile = getRiskProfile(bondCurrency);
+        double haircut = profile.capitalHaircut(horizonYears);
+        return Math.max(0.0, 1.0 - haircut);
+    }
 }

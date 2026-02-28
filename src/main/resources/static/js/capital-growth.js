@@ -39,7 +39,10 @@ const _fxCurveCache = new Map();
  */
 async function _fetchFxCurve(currency, reportCurrency, horizons) {
     if (!currency || currency === reportCurrency) return;
-    const spot = _cgRates?.[currency] ?? 1.0;
+    // exchangeRate: absolute currency value (e.g. 1.18 USD per EUR).
+    // Kept here only for potential future use — never used as fxMultiplier.
+    // fxMultiplier ∈ (0,1] is a separate concept returned by /api/fx-curve.
+    const exchangeRate = _cgRates?.[currency] ?? 1.0; // eslint-disable-line no-unused-vars
     try {
         const r = await fetch('/api/fx-curve', {
             method: 'POST',
@@ -53,10 +56,11 @@ async function _fetchFxCurve(currency, reportCurrency, horizons) {
             _fxCurveCache.set(`${currency}_${reportCurrency}_h${h}`, { multiplier: mult, expiresAt });
         }
     } catch {
-        // Fallback: fill all horizons with spot rate (no OU adjustment), retry soon
+        // Fallback: server unreachable — fill with multiplier=1.0 (no FX haircut), retry soon.
+        // Do NOT use spot rate here: spot is a currency rate (e.g. 1.18), not a multiplier in [0,1].
         const expiresAt = Date.now() + 60_000;
         for (const h of horizons) {
-            _fxCurveCache.set(`${currency}_${reportCurrency}_h${h}`, { multiplier: spot, expiresAt });
+            _fxCurveCache.set(`${currency}_${reportCurrency}_h${h}`, { multiplier: 1.0, expiresAt });
         }
     }
 }
@@ -87,13 +91,23 @@ async function _prefetchFxCurves(portfolio, reportCurrency = 'EUR') {
 }
 
 /**
- * Synchronous FX multiplier for a cash flow at horizonYear.
- * t = horizonYear - startYear; returns cached OU multiplier or 1.0 on miss.
+ * Returns fxMultiplier ∈ (0, 1] for a cash flow at horizonYear.
+ *
+ * Domain contract:
+ *   fxMultiplier ≠ exchangeRate  — they occupy different numeric spaces.
+ *   exchangeRate (e.g. 1.18 USD/EUR) is an absolute rate ∈ (0, ∞).
+ *   fxMultiplier (OU haircut)     is a normalized discount ∈ (0, 1].
+ *
+ *   t = 0  → fxMultiplier = 1.0  (spot, no haircut)
+ *   t > 0  → fxMultiplier < 1.0  (growing FX risk discount)
+ *
+ * Returns 1.0 on cache miss (conservative: no haircut applied).
  */
 function _fxCurveGet(currency, reportCurrency, horizonYear, startYear) {
     if (!currency || currency === reportCurrency) return 1.0;
     const t   = Math.max(0, horizonYear - startYear);
     const key = `${currency}_${reportCurrency}_h${t}`;
+    // Cache stores { multiplier: fxMultiplier ∈ (0,1], expiresAt }
     return _fxCurveCache.get(key)?.multiplier ?? 1.0;
 }
 
@@ -226,11 +240,12 @@ function buildSlots(portfolio) {
         // nomEur and net coupon come from _cgComputeCache (populated by _computePortfolio).
         // This eliminates the JS replica of Bond.priceEur/price FX normalisation.
         const cached = _cgComputeCache.get(b.isin);
-        // nomEur = face value of 1 unit in report currency = 100 * fxBuy(bondCCY→EUR)
-        // Use fxBuy from cache (not cached.nomEur which was stored with inverted formula).
-        // Fallback: fxBuy ≈ spot = priceEur/price for non-EUR bonds.
-        const fxBuySlot = cached?.fxBuy ?? ((b.currency !== 'EUR' && b.price > 0) ? b.priceEur / b.price : 1.0);
-        const nomEur    = 100 * fxBuySlot;
+        // spotRate: exchangeRate at purchase time — EUR per 1 unit of bond currency.
+        // e.g. USD bond: spotRate ≈ 0.847 (EUR/USD), so nomEur = 100 × 0.847 = €84.70.
+        // Source: cached.fxBuy from /api/bonds/compute (preferred), or priceEur/price fallback.
+        // NOTE: this is an exchangeRate, not an fxMultiplier — they must never be confused.
+        const spotRate = cached?.fxBuy ?? ((b.currency !== 'EUR' && b.price > 0) ? b.priceEur / b.price : 1.0);
+        const nomEur   = 100 * spotRate;
         const pxEur     = (b.priceEur > 0) ? b.priceEur : nomEur;
         return {
             isin:           b.isin,
@@ -252,11 +267,10 @@ function slotValue(sl, yr, startYear, reportCcy) {
     if (sl.synthetic && sl._type !== 'same_bond') {
         return sl.unitsHeld * (sl.facePerUnit + sl.accruedPerUnit);
     }
-    // Real bonds and same_bond synthetics: price × units, adjusted for FX forward risk.
-    // For non-EUR bonds, pricePerUnit is the spot-EUR snapshot at load time.
-    // We apply the OU FX multiplier at horizon yr-startYear so that the portfolio
-    // value declines gradually as FX risk accumulates — avoiding a cliff at redemption.
-    // Synthetic replacement bonds are already denominated in EUR (no FX adjustment).
+    // Real bonds and same_bond synthetics: price × units with OU FX adjustment.
+    // At t=0 (yr=startYear): fxFactor=1.0 — no haircut, starts at spot value.
+    // At t>0: fxFactor<1.0 — gradual decline reflecting accumulated FX risk (VaR 5%).
+    // Synthetic replacement bonds are already in EUR — no FX adjustment.
     let fxFactor = 1.0;
     if (sl.currency && sl.currency !== (reportCcy || 'EUR') && !sl._isReplacement && yr != null) {
         fxFactor = _fxCurveGet(sl.currency, reportCcy || 'EUR', yr, startYear);
@@ -2459,6 +2473,7 @@ async function runSimulation() {
     // Ensure at least one scenario exists (first load or after clearing all)
     if (_scenarios.length === 0) {
         const sc = _defaultScenario(portfolio);
+        sc.label = "default - no reinv";
         sc._autoDefault = true; // hide sub-tabs until user explicitly configures something
         _scenarios.push(sc);
         _activeScenarioId = sc.id;

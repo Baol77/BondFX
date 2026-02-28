@@ -118,8 +118,10 @@ public class FxMultiplierController {
      * Response: { "0": 0.9261, "1": 0.9183, "2": 0.9097, "3": 0.9008, "24": 0.6512 }
      * </pre>
      *
-     * <p>horizon = 0 → spot rate (no haircut).
-     * <p>horizon = t → spot × (1 − OU haircut at T=t).
+     * <p>horizon = 0 → 1.0  (no haircut, spot is the JS baseline).
+     * <p>horizon = t → (1 − OU haircut at T=t) ∈ (0, 1].
+     * <p>Returns fxMultiplier, NOT exchangeRate — the JS multiplies spot-EUR
+     * prices by this value, so the exchange rate must not be included here.
      *
      * <p>Each result is cached individually per (currency, reportCurrency, horizon)
      * so overlapping or repeated requests are served from cache.
@@ -146,7 +148,11 @@ public class FxMultiplierController {
 
             double multiplier;
             try {
-                multiplier = FxService.fxExpectedMultiplier(ccy, report, (double) horizon);
+                // fxNormalizedMultiplier returns OU discount ∈ (0,1], spot-independent.
+                // Do NOT use fxExpectedMultiplier here — that returns spot×(1−haircut)
+                // which is an exchangeRate, not an fxMultiplier. The JS engine multiplies
+                // spot-EUR prices by this value, so applying spot again would double-count.
+                multiplier = FxService.fxNormalizedMultiplier(ccy, report, (double) horizon);
             } catch (Exception e) {
                 multiplier = 1.0; // fallback: no FX adjustment
             }
