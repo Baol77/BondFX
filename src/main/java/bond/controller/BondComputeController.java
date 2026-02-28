@@ -159,6 +159,11 @@ public class BondComputeController {
         double adjPriceEur = Math.max(0.001, req.priceEur() * adjFactor);
 
         // ── 3. FX multipliers (via FxService — single source of truth) ────────
+        // FxPhase is intentionally used here: fxBuy/fxCoupon/fxFuture are scalar
+        // inputs to the SAY display in the portfolio analyzer, where T/2 as a
+        // coupon-duration proxy is a reasonable approximation for a single-value indicator.
+        // For multi-year simulation, the Capital Growth engine uses POST /api/fx-curve
+        // with per-horizon discounting instead.
         String ccy    = (req.currency() == null || req.currency().isBlank()) ? "EUR" : req.currency().toUpperCase();
         String report = (req.reportCurrency() == null || req.reportCurrency().isBlank()) ? "EUR" : req.reportCurrency().toUpperCase();
 

@@ -84,6 +84,11 @@ public class FxService {
             return ouHaircut(yearsToMaturity);
         }
 
+        /** Phase-free overload accepting a fractional horizon. */
+        public double capitalHaircut(double horizonYears) {
+            return ouHaircut(Math.max(horizonYears, 0.0));
+        }
+
         /**
          * Coupon haircut (mid-horizon T/2).
          * Coupons are received throughout the bond's life; T/2 is a duration-weighted approximation.
@@ -318,13 +323,30 @@ public class FxService {
     // Public API
     // ─────────────────────────────────────────────────────────────────────────
 
-    /** Investment phases with different FX risk horizons. */
+    /**
+     * Investment phases — scalar abstraction for use in single-value indicators (SAY display).
+     *
+     * <p><b>Legitimate use:</b> {@code BondComputeController} / {@code /api/bonds/compute} —
+     * where {@code fxBuy}, {@code fxCoupon}, {@code fxFuture} feed the portfolio analyzer's
+     * SAY display. Here T/2 as a coupon-duration proxy is a reasonable scalar approximation.
+     *
+     * <p><b>Do not use for simulation.</b> Multi-year simulation requires per-horizon
+     * discounting via {@link #fxExpectedMultiplier(String, String, double)} and
+     * {@code POST /api/fx-curve}, where each coupon at year t is discounted at horizon t.
+     * Using T/2 for all coupons systematically under-discounts near-term cash flows and
+     * over-discounts far ones.
+     */
     public enum FxPhase {
-        /** Time of purchase — live SPOT rate, no haircut. */
+        /** Time of purchase — live SPOT rate, horizon=0, no haircut. */
         BUY,
-        /** Interest reception — OU haircut at mid-horizon (T/2). */
+        /**
+         * Coupon income — OU haircut at mid-horizon T/2.
+         * This is a duration-weighted approximation for scalar SAY indicators only.
+         * For simulation, use {@link #fxExpectedMultiplier(String, String, double)}
+         * with the exact coupon year as horizon.
+         */
         COUPON,
-        /** Capital repayment — OU haircut at full horizon (T). */
+        /** Capital repayment at maturity — OU haircut at full horizon T. */
         MATURITY
     }
 
@@ -371,18 +393,82 @@ public class FxService {
 
         if (bondCurrency.equalsIgnoreCase(reportCurrency)) return 1.0;
 
-        // SPOT: how many reportCurrency units per 1 bondCurrency unit
-        // e.g. bondCurrency=USD, reportCurrency=EUR → USD→EUR ≈ 0.926
         double spot = getExchangeRate(bondCurrency, reportCurrency);
-
         if (fxPhase == FxPhase.BUY) return spot;
 
         CurrencyRiskProfile profile = getRiskProfile(bondCurrency);
-
         double haircut = (fxPhase == FxPhase.COUPON)
             ? profile.couponHaircut(yearsToMaturity)
             : profile.capitalHaircut(yearsToMaturity);
 
         return spot * (1.0 - haircut);
+    }
+
+    /**
+     * Primary API — OU haircut applied at the exact cash-flow horizon.
+     *
+     * <p>Each cash flow (coupon at year t, redemption at maturity M) is discounted
+     * independently at its own horizon, with no phase abstraction:
+     * <pre>
+     *   coupon at year t  → fxExpectedMultiplier(ccy, report, t)
+     *   redemption at M   → fxExpectedMultiplier(ccy, report, M)
+     *   purchase (now)    → fxExpectedMultiplier(ccy, report, 0)  = spot
+     * </pre>
+     *
+     * <p>This is what {@code POST /api/fx-curve} calls in a batch loop.
+     * For scalar indicators (SAY display), use the {@link FxPhase}-based overload instead.
+     *
+     * @param bondCurrency   Bond currency (e.g. "USD").
+     * @param reportCurrency Investor reference currency (e.g. "EUR").
+     * @param horizonYears   Years until this specific cash flow. 0 = spot (no haircut).
+     * @return FX multiplier ∈ [0, spotRate].
+     */
+    public static double fxExpectedMultiplier(
+        String bondCurrency,
+        String reportCurrency,
+        double horizonYears) {
+
+        if (bondCurrency.equalsIgnoreCase(reportCurrency)) return 1.0;
+
+        double spot = getExchangeRate(bondCurrency, reportCurrency);
+        if (horizonYears <= 0.0) return spot;
+
+        CurrencyRiskProfile profile = getRiskProfile(bondCurrency);
+        double haircut = profile.capitalHaircut(horizonYears);
+        return spot * (1.0 - haircut);
+    }
+
+    /**
+     * Returns a normalized OU discount factor ∈ (0, 1] for use in simulation curves.
+     *
+     * <p>Domain contract:
+     * <pre>
+     *   fxMultiplier ≠ exchangeRate
+     *   exchangeRate  ∈ (0, ∞)  — absolute EUR value of 1 foreign unit
+     *   fxMultiplier  ∈ (0, 1]  — normalized OU haircut, spot-independent
+     *
+     *   horizon = 0 → 1.0  (no haircut, spot is baseline)
+     *   horizon = t → (1 − OU_haircut(t))  ≤ 1.0
+     * </pre>
+     *
+     * <p>This is what {@code POST /api/fx-curve} must return so that the JS engine
+     * can multiply spot-EUR prices by this factor without applying the exchange rate twice.
+     *
+     * @param bondCurrency   Bond currency (e.g. "USD").
+     * @param reportCurrency Report currency (e.g. "EUR").
+     * @param horizonYears   Years until this cash flow. 0 = spot baseline.
+     * @return fxMultiplier ∈ (0, 1].
+     */
+    public static double fxNormalizedMultiplier(
+        String bondCurrency,
+        String reportCurrency,
+        double horizonYears) {
+
+        if (bondCurrency.equalsIgnoreCase(reportCurrency)) return 1.0;
+        if (horizonYears <= 0.0) return 1.0;
+
+        CurrencyRiskProfile profile = getRiskProfile(bondCurrency);
+        double haircut = profile.capitalHaircut(horizonYears);
+        return Math.max(0.0, 1.0 - haircut);
     }
 }
