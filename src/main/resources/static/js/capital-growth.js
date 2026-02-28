@@ -551,7 +551,6 @@ function runMaturityReplacement(slots, years, matReplacementOrArray, injectionBy
                 alive.push(sl);
             }
         }
-        const bondsValR = alive.reduce((s, sl) => s + slotValue(sl, yr, startYear, reportCcy), 0);
         pool = alive;
 
         // Apply annual injection: buy new units of active bonds
@@ -570,7 +569,10 @@ function runMaturityReplacement(slots, years, matReplacementOrArray, injectionBy
         const cashIn = yearCoupons + yearRedemptions;
         const maturedOrigSlots = slots.filter(sl => sl.matYear === yr);
         const refPool = pool.length > 0 ? pool : maturedOrigSlots;
-        const totalFace = refPool.reduce((s, sl) => s + sl.unitsHeld * sl.facePerUnit, 0);
+        // totalFace must exclude replacement slots: they don't participate in
+        // the otherCash reinvestment loop (they manage their own coupons directly),
+        // so including them would silently remove a share of otherCash from circulation.
+        const totalFace = refPool.reduce((s, sl) => sl._isReplacement ? s : s + sl.unitsHeld * sl.facePerUnit, 0);
 
         if (cashIn > 0 && totalFace > 0) {
             // For each replacement that activates this year, compute actual proceeds
@@ -617,17 +619,18 @@ function runMaturityReplacement(slots, years, matReplacementOrArray, injectionBy
                 }
             }
 
-            const otherFace = totalFace - totalSrcFace;
+            // otherCash = cashIn minus proceeds claimed by replacement activation(s).
+            // Source bonds are not in refPool at this point (already matured → filtered out).
+            // So totalFace already represents only the surviving non-replacement bonds,
+            // and we can distribute otherCash directly proportional to their face.
             const otherCash = cashIn - totalSrcCash;
 
             for (const sl of refPool) {
-                // Skip replacement slots — their coupons are handled directly in the loop above
+                // Skip replacement slots — their coupons are compounded directly above
                 if (sl._isReplacement) continue;
-                // Skip ALL source bonds — each handled above in the replacements loop
-                if (replacements.some(r => r.sourceBond?.isin === sl.isin)) continue;
+                // (Source bonds are already gone from pool — no skip needed here)
 
-                // Use otherFace/otherCash so shares are proportional only among surviving bonds
-                const share   = otherFace > 0 ? (sl.unitsHeld * sl.facePerUnit) / otherFace : 0;
+                const share   = totalFace > 0 ? (sl.unitsHeld * sl.facePerUnit) / totalFace : 0;
                 const myShare = otherCash * share;
 
                 if (false) { // (sourceBond handled above — dead branch kept for structure)
@@ -664,6 +667,9 @@ function runMaturityReplacement(slots, years, matReplacementOrArray, injectionBy
             s.reinvested = (reinvested > 0 && cashInTotR > 0)
                 ? reinvested * (s.coupon + s.redemption) / cashInTotR : 0;
         });
+        // bondsVal must be post-reinvestment so Portfolio Value matches dataPoints (portfolioVal())
+        // Using pool (already updated by reinvestment) gives the correct post-reinvest bonds value.
+        const bondsValR = pool.reduce((s, sl) => s + slotValue(sl, yr, startYear, reportCcy), 0);
         yearEvents.push({
             yr,
             coupons: yearCoupons + replCoupons,
@@ -2606,10 +2612,9 @@ function openYearDetailModal(yr, yearIdx, simResult, startCapital, allLabels) {
     const expanded = _expandedScenarios;
 
     let rows = simResult.scenarios.map(sc => {
-        // For extended scenarios, find event by year, not by chart index
-        const scYears = sc._extendedYears || simResult.years;
-        const scIdx   = scYears.indexOf(yr);
-        const ev      = scIdx > 0 ? sc.yearEvents?.[scIdx - 1] : null;
+        // Find yearEvent by year value — more robust than index arithmetic,
+        // which breaks when allYears includes a synthetic start-year with no event.
+        const ev = sc.yearEvents?.find(e => e.yr === yr) ?? null;
         // data is aligned to chartLabels
         const dataIdx = chartLabels.indexOf(yr);
         const val     = dataIdx >= 0 ? sc.data[dataIdx] : null;
