@@ -8,10 +8,22 @@
     <link rel="stylesheet" href="/css/bond-report.css">
     <link rel="stylesheet" href="/css/porfolio-analyzer.css">
     <link rel="stylesheet" href="/css/bond-report-mobile.css">
+    <script>
+        // Apply theme to <html> immediately (body doesn't exist yet in <head>)
+        if (localStorage.getItem("bondTheme") === "dark") {
+            document.documentElement.classList.add("dark");
+        }
+    </script>
     <script src="https://unpkg.com/twemoji@latest/dist/twemoji.min.js" crossorigin="anonymous"></script>
 </head>
 
 <body>
+<script>
+    // Sync body.dark from html.dark (set in <head> before body existed)
+    if (document.documentElement.classList.contains("dark")) {
+        document.body.classList.add("dark");
+    }
+</script>
 
 <!-- Loading Overlay -->
 <div id="loadingOverlay" class="loading-overlay">
