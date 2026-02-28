@@ -407,33 +407,245 @@ function setDefaultMaturityFilters() {
 
         
 /* =======================
+   PROFILE MANAGER  (v5.3)
+   State lives in localStorage:
+     bondProfileOrder    → ["cashParking","ultraShortHigh", ...]   full ordered list of ids
+     bondProfileSelected → ["cashParking","balancedCore", ...]     ids with ✓
+     bondCustomProfiles  → [{id,name,emoji,description,profileType,sortedBy,filters}, ...]
+======================= */
+
+// ids of built-in profiles (order = YAML order, used as fallback)
+const BUILTIN_IDS = ["cashParking","ultraShortHigh","balancedCore","deepDiscount",
+                     "maxIncome","fortressSafe","longQuality","retirementIncome"];
+
+function _profileOrder() {
+    try { return JSON.parse(localStorage.getItem('bondProfileOrder') || 'null'); } catch(e){ return null; }
+}
+function _profileSelected() {
+    try { return JSON.parse(localStorage.getItem('bondProfileSelected') || 'null'); } catch(e){ return null; }
+}
+function _customProfiles() {
+    try { return JSON.parse(localStorage.getItem('bondCustomProfiles') || '[]'); } catch(e){ return []; }
+}
+function _saveProfileOrder(arr)    { localStorage.setItem('bondProfileOrder',    JSON.stringify(arr)); }
+function _saveProfileSelected(arr) { localStorage.setItem('bondProfileSelected', JSON.stringify(arr)); }
+function _saveCustomProfiles(arr)  { localStorage.setItem('bondCustomProfiles',  JSON.stringify(arr)); }
+
+/** Returns full ordered list of profile ids (builtin + custom), respecting saved order */
+function _allProfileIds() {
+    const custom = _customProfiles().map(p => p.id);
+    const all    = [...BUILTIN_IDS, ...custom];
+    const saved  = _profileOrder();
+    if (!saved) return all;
+    // keep saved order, drop ids no longer existing, append new ones at end
+    const valid  = saved.filter(id => all.includes(id));
+    const added  = all.filter(id => !valid.includes(id));
+    return [...valid, ...added];
+}
+
+/** Returns set of selected profile ids */
+function _selectedSet() {
+    const saved = _profileSelected();
+    if (saved) return new Set(saved);
+    // default: all builtin selected
+    return new Set(BUILTIN_IDS);
+}
+
+/** Toggle selection of a profile */
+function toggleProfileSelected(id) {
+    const sel = _selectedSet();
+    if (sel.has(id)) sel.delete(id); else sel.add(id);
+    _saveProfileSelected([...sel]);
+    renderProfileChips();
+    renderProfileBar();
+}
+
+/** Delete a custom profile */
+function deleteCustomProfile(id) {
+    const customs = _customProfiles().filter(p => p.id !== id);
+    _saveCustomProfiles(customs);
+    // also remove from order and selected
+    _saveProfileOrder(_allProfileIds().filter(x => x !== id));
+    const sel = _selectedSet(); sel.delete(id); _saveProfileSelected([...sel]);
+    // remove from PRESETS
+    delete PRESETS[id];
+    renderProfileChips();
+    renderProfileBar();
+}
+
+/* ── Render the chips inside the Settings modal ── */
+function renderProfileChips() {
+    const container = document.getElementById('profileChips');
+    if (!container) return;
+
+    const ids     = _allProfileIds();
+    const sel     = _selectedSet();
+    const customs = new Set(_customProfiles().map(p => p.id));
+
+    container.innerHTML = '';
+
+    ids.forEach(id => {
+        const preset  = PRESETS[id];
+        if (!preset) return;
+        const isSelected = sel.has(id);
+        const isCustom   = customs.has(id);
+
+        const chip = document.createElement('div');
+        chip.className = 'profile-chip' + (isSelected ? ' profile-chip--selected' : '') + (isCustom ? ' profile-chip--custom' : '');
+        chip.draggable = true;
+        chip.dataset.id = id;
+
+        // checkmark
+        const check = document.createElement('span');
+        check.className = 'profile-chip__check';
+        check.textContent = '✓';
+
+        // label (click = toggle)
+        const label = document.createElement('span');
+        label.className = 'profile-chip__label';
+        label.textContent = (preset.emoji || '') + ' ' + preset.name;
+        label.title = preset.description || '';
+        label.onclick = () => toggleProfileSelected(id);
+
+        chip.appendChild(check);
+        chip.appendChild(label);
+
+        // X button for custom profiles
+        if (isCustom) {
+            const del = document.createElement('button');
+            del.className = 'profile-chip__delete';
+            del.textContent = '✕';
+            del.title = 'Remove profile';
+            del.onclick = (e) => { e.stopPropagation(); deleteCustomProfile(id); };
+            chip.appendChild(del);
+        }
+
+        // drag handle
+        const handle = document.createElement('span');
+        handle.className = 'profile-chip__handle';
+        handle.innerHTML = '⠿';
+        handle.title = 'Drag to reorder';
+        chip.appendChild(handle);
+
+        container.appendChild(chip);
+    });
+
+    _initChipDrag(container);
+}
+
+/* ── Drag-and-drop for chips ── */
+let _dragSrc = null;
+function _initChipDrag(container) {
+    container.querySelectorAll('.profile-chip').forEach(chip => {
+        chip.addEventListener('dragstart', e => {
+            _dragSrc = chip;
+            chip.classList.add('profile-chip--dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        });
+        chip.addEventListener('dragend', () => {
+            chip.classList.remove('profile-chip--dragging');
+            container.querySelectorAll('.profile-chip').forEach(c => c.classList.remove('profile-chip--dragover'));
+            // save new order
+            const newOrder = [...container.querySelectorAll('.profile-chip')].map(c => c.dataset.id);
+            _saveProfileOrder(newOrder);
+            renderProfileBar();
+        });
+        chip.addEventListener('dragover', e => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            if (_dragSrc && _dragSrc !== chip) {
+                container.querySelectorAll('.profile-chip').forEach(c => c.classList.remove('profile-chip--dragover'));
+                chip.classList.add('profile-chip--dragover');
+            }
+        });
+        chip.addEventListener('drop', e => {
+            e.preventDefault();
+            if (_dragSrc && _dragSrc !== chip) {
+                const chips = [...container.querySelectorAll('.profile-chip')];
+                const fromIdx = chips.indexOf(_dragSrc);
+                const toIdx   = chips.indexOf(chip);
+                if (fromIdx < toIdx) chip.after(_dragSrc);
+                else chip.before(_dragSrc);
+            }
+        });
+    });
+}
+
+/* ── Render the homepage preset bar (only selected, in order) ── */
+function renderProfileBar() {
+    const bar = document.getElementById('profilePresetsBar');
+    if (!bar) return;
+
+    const ids = _allProfileIds();
+    const sel = _selectedSet();
+
+    // remove all buttons (keep label and presetDesc)
+    bar.querySelectorAll('.preset-button').forEach(b => b.remove());
+
+    const desc  = document.getElementById('presetDesc');
+    const label = bar.querySelector('label');
+
+    ids.filter(id => sel.has(id)).forEach(id => {
+        const preset = PRESETS[id];
+        if (!preset) return;
+        const btn = document.createElement('button');
+        btn.className = 'preset-button';
+        btn.id = 'bar-' + id;
+        btn.title = preset.description || '';
+        btn.textContent = (preset.emoji || '') + ' ' + preset.name;
+        btn.onclick = () => applyPreset(id);
+        // insert before presetDesc
+        bar.insertBefore(btn, desc);
+    });
+}
+
+/* ── updatePresetButtons: highlights active button in the bar ── */
+function updatePresetButtons(activeId) {
+    document.querySelectorAll('#profilePresetsBar .preset-button').forEach(btn => {
+        const id = btn.id.replace('bar-', '');
+        btn.classList.toggle('active', id === activeId);
+    });
+}
+
+/* =======================
    YAML IMPORT
 ======================= */
 function handleYamlImport(event) {
     const file = event.target.files[0];
     if (!file) return;
+    const note = document.getElementById('profileImportNote');
 
     const reader = new FileReader();
     reader.onload = function(e) {
         try {
-            const yamlContent = e.target.result;
-            const customProfiles = parseYamlProfiles(yamlContent);
-
-            if (customProfiles && customProfiles.length > 0) {
-                mergeCustomProfiles(customProfiles);
-                alert('\u2713 Successfully imported ' + customProfiles.length + ' custom profile(s)!');
+            const parsed = parseYamlProfiles(e.target.result);
+            if (parsed && parsed.length > 0) {
+                // merge into custom profiles (replace if same id)
+                const existing = _customProfiles().filter(p => !parsed.find(x => x.id === p.id));
+                const merged   = [...existing, ...parsed];
+                _saveCustomProfiles(merged);
+                // register in PRESETS
+                parsed.forEach(p => {
+                    PRESETS[p.id] = {
+                        name: p.name || p.id, emoji: p.emoji || '🎯',
+                        description: p.description || '',
+                        profileType: p.profileType || 'SAY',
+                        sortedBy: p.sortedBy || 'SAY',
+                        filters: p.filters || {}
+                    };
+                });
+                if (note) { note.textContent = '✅ ' + parsed.length + ' profile(s) imported.'; note.style.color = '#4CAF50'; }
+                renderProfileChips();
+                renderProfileBar();
             } else {
-                alert('\u26a0\ufe0f No valid profiles found in YAML file.');
+                if (note) { note.textContent = '⚠️ No valid profiles found.'; note.style.color = '#ff9800'; }
             }
-        } catch (error) {
-            alert('\u274c Error parsing YAML file: ' + error.message);
-            console.error('YAML parse error:', error);
+        } catch(err) {
+            if (note) { note.textContent = '❌ Parse error: ' + err.message; note.style.color = '#f44336'; }
         }
+        event.target.value = '';
     };
     reader.readAsText(file);
-
-    // Reset file input so same file can be imported again
-    event.target.value = '';
 }
 
 function parseYamlProfiles(yamlText) {
@@ -506,46 +718,7 @@ function parseYamlProfiles(yamlText) {
     return profiles;
 }
 
-function mergeCustomProfiles(customProfiles) {
-    const presetsContainer = document.querySelector('.profile-presets');
-    const resetButton = document.getElementById('preset-reset');
-    const importButton = document.getElementById('import-yaml-btn');
-
-    // Remove existing custom buttons (those after the default presets)
-    const customButtons = presetsContainer.querySelectorAll('.preset-button.custom');
-    customButtons.forEach(btn => btn.remove());
-
-    // Clear and rebuild custom profile IDs list
-    customProfileIds = [];
-
-    // Add new custom profile buttons before reset button
-    customProfiles.forEach(profile => {
-        // Track this custom profile ID
-        customProfileIds.push(profile.id);
-
-        // Add to PRESETS object with profileType and sortedBy
-        PRESETS[profile.id] = {
-            name: profile.name || profile.id,
-            description: profile.description || 'Custom profile',
-            profileType: profile.profileType || 'SAY',      // NEW: Capture profileType
-            sortedBy: profile.sortedBy || 'SAY',            // NEW: Capture sortedBy
-            filters: profile.filters
-        };
-
-        // Create button
-        const button = document.createElement('button');
-        button.className = 'preset-button custom';
-        button.id = profile.id;
-        button.onclick = () => applyPreset(profile.id);
-        button.title = profile.description || 'Custom profile';
-
-        const emoji = profile.emoji || '🎯';
-        button.textContent = emoji + ' ' + (profile.name || profile.id);
-
-        // Insert before reset button
-        presetsContainer.insertBefore(button, resetButton);
-    });
-}
+// mergeCustomProfiles replaced by new profile manager (v5.3)
 
 
 function showLoading() {
@@ -578,16 +751,6 @@ function applyPreset(presetName) {
     showLoading();
 
     setTimeout(() => {
-        if (presetName === "reset") {
-            clearColumnFilters();
-            updatePresetButtons(presetName);
-            updateLegend();
-            applyHeatmap();
-            document.getElementById("presetDesc").textContent = "";
-            hideLoading();
-            return;
-        }
-
         const preset = PRESETS[presetName];
         if (!preset) {
             hideLoading();
@@ -659,22 +822,7 @@ function applyPreset(presetName) {
     }, 100);
 }
 
-function updatePresetButtons(activePreset) {
-    // Update built-in preset buttons
-    const ids = ["cashParking", "ultraShortHigh", "balancedCore", "maxIncome", "deepDiscount", "fortressSafe", "longQuality", "retirementIncome"];
-    ids.forEach(id => {
-        const btn = document.getElementById(id);
-        if (btn) btn.classList.toggle("active", id === activePreset);
-    });
-
-    // Update custom profile buttons
-    customProfileIds.forEach(id => {
-        const btn = document.getElementById(id);
-        if (btn) btn.classList.toggle("active", id === activePreset);
-    });
-
-    document.getElementById("preset-reset").classList.remove("active");
-}
+// updatePresetButtons defined in profile manager (v5.3)
 
 
 /* =======================
@@ -1155,12 +1303,15 @@ function exportSettings() {
     const note = document.getElementById('settingsBackupNote');
     try {
         const settings = {
-            _version: '4.1',
+            _version: '5.3',
             _exported: new Date().toISOString(),
-            theme:        localStorage.getItem('bondTheme') || 'light',
-            baseCurrency: localStorage.getItem('bondBaseCurrency') || 'EUR',
-            basket:       JSON.parse(localStorage.getItem('bondBasket') || '[]'),
-            wishlist:     JSON.parse(localStorage.getItem('bondWishlist') || '[]'),
+            theme:          localStorage.getItem('bondTheme') || 'light',
+            baseCurrency:   localStorage.getItem('bondBaseCurrency') || 'EUR',
+            basket:         JSON.parse(localStorage.getItem('bondBasket')    || '[]'),
+            wishlist:       JSON.parse(localStorage.getItem('bondWishlist')  || '[]'),
+            profileOrder:   _allProfileIds(),
+            profileSelected:[..._selectedSet()],
+            customProfiles: _customProfiles(),
         };
         const blob = new Blob([JSON.stringify(settings, null, 2)], { type: 'application/json' });
         const link = document.createElement('a');
@@ -1183,46 +1334,61 @@ function importSettings(event) {
             const s = JSON.parse(e.target.result);
             if (!s._version) throw new Error('Not a valid BondFX settings file');
 
-            // Apply theme
-            if (s.theme === 'dark') {
-                document.body.classList.add('dark');
-            } else {
-                document.body.classList.remove('dark');
-            }
+            // Theme
+            if (s.theme === 'dark') document.body.classList.add('dark');
+            else document.body.classList.remove('dark');
             localStorage.setItem('bondTheme', s.theme || 'light');
 
-            // Apply base currency
+            // Base currency
             if (s.baseCurrency) {
                 localStorage.setItem('bondBaseCurrency', s.baseCurrency);
                 _applyBaseCurrencyUI();
                 _refreshBaseCurrencyCells();
             }
 
-            // Restore basket
+            // Basket
             if (Array.isArray(s.basket)) {
                 localStorage.setItem('bondBasket', JSON.stringify(s.basket));
                 if (typeof renderBasket === 'function') renderBasket();
                 if (typeof syncBasketButtons === 'function') syncBasketButtons();
             }
 
-            // Restore wishlist
+            // Wishlist
             if (Array.isArray(s.wishlist)) {
                 localStorage.setItem('bondWishlist', JSON.stringify(s.wishlist));
                 if (typeof renderWishlist === 'function') renderWishlist();
                 if (typeof syncWishlistButtons === 'function') syncWishlistButtons();
             }
 
-            _updateThemeToggleUI();
+            // Custom profiles
+            if (Array.isArray(s.customProfiles)) {
+                _saveCustomProfiles(s.customProfiles);
+                s.customProfiles.forEach(p => {
+                    PRESETS[p.id] = {
+                        name: p.name || p.id, emoji: p.emoji || '🎯',
+                        description: p.description || '',
+                        profileType: p.profileType || 'SAY',
+                        sortedBy: p.sortedBy || 'SAY',
+                        filters: p.filters || {}
+                    };
+                });
+            }
 
-            const count = (s.basket?.length || 0) + (s.wishlist?.length || 0);
+            // Profile order & selection
+            if (Array.isArray(s.profileOrder))    _saveProfileOrder(s.profileOrder);
+            if (Array.isArray(s.profileSelected)) _saveProfileSelected(s.profileSelected);
+
+            _updateThemeToggleUI();
+            renderProfileChips();
+            renderProfileBar();
+
             if (note) {
-                note.textContent = `✅ Imported: theme, currency, ${s.basket?.length||0} basket item(s), ${s.wishlist?.length||0} alert(s).`;
+                note.textContent = `✅ Imported: theme, currency, ${s.basket?.length||0} basket, ${s.wishlist?.length||0} alerts, ${s.customProfiles?.length||0} custom profile(s).`;
                 note.style.color = '#4CAF50';
             }
         } catch(err) {
             if (note) { note.textContent = '❌ Import failed: ' + err.message; note.style.color = '#f44336'; }
         }
-        // Reset file input
         event.target.value = '';
     };
     reader.readAsText(file);
@@ -1233,22 +1399,33 @@ function importSettings(event) {
 ======================= */
 document.addEventListener("DOMContentLoaded", () => {
     setDefaultMaturityFilters();
+
+    // v5.3 profile system: register custom profiles from localStorage into PRESETS
+    _customProfiles().forEach(p => {
+        PRESETS[p.id] = {
+            name: p.name || p.id, emoji: p.emoji || '🎯',
+            description: p.description || '',
+            profileType: p.profileType || 'SAY',
+            sortedBy: p.sortedBy || 'SAY',
+            filters: p.filters || {}
+        };
+    });
+    renderProfileBar();    // populate homepage bar with selected profiles
+    renderProfileChips();  // populate settings modal chips
+
     applyPreset("cashParking");
-    renderBasket();           // also calls syncBasketButtons
-    renderWishlist();         // render wishlist from localStorage
-    syncWishlistButtons();    // restore ★ state on all rows
-    checkWishlistAlerts();    // check thresholds and pulse if needed
-    _updateThemeToggleUI();   // sync toggle UI with current theme
-    // Base currency: load FX rates then apply UI
+    renderBasket();
+    renderWishlist();
+    syncWishlistButtons();
+    checkWishlistAlerts();
+    _updateThemeToggleUI();
     _loadFxRates().then(() => {
         _applyBaseCurrencyUI();
         _refreshBaseCurrencyCells();
     });
-    // Parse emoji once after page load (covers flag column in table)
     if (typeof twemoji !== 'undefined') {
-      document
-        .querySelectorAll('td.td-issuer, span.basket-item__label')
-        .forEach(el => twemoji.parse(el));
+      document.querySelectorAll('td.td-issuer, span.basket-item__label')
+               .forEach(el => twemoji.parse(el));
     }
 });
 // ─── INFO MODAL ──────────────────────────────────────────────────────────────

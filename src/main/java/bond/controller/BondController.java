@@ -76,12 +76,20 @@ public class BondController {
 
     @GetMapping("/analyzer")
     public String analyzer(Model model) throws Exception {
-        // Use cached bonds — no re-scrape
         List<Bond> bonds = bondService.getAll();
         model.addAttribute("bonds", bonds);
         model.addAttribute("generatedAtMs",
             java.time.Instant.now().toEpochMilli());
         return "analyzer";
+    }
+
+    @GetMapping("/capital-growth")
+    public String capitalGrowth(Model model) throws Exception {
+        List<Bond> bonds = bondService.getAll();
+        model.addAttribute("bonds", bonds);
+        model.addAttribute("generatedAtMs",
+            java.time.Instant.now().toEpochMilli());
+        return "capital-growth";
     }
 
     // ─── Private helpers ───────────────────────────────────────────────────────

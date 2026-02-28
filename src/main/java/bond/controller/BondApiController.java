@@ -8,6 +8,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+
 import java.util.*;
 
 /**
@@ -69,6 +74,67 @@ public class BondApiController {
         } catch (Exception e) {
             return ResponseEntity.ok(Map.of("EUR", 1.0));
         }
+    }
+
+    /**
+     * Proxy for Yahoo Finance historical data — avoids browser CORS restriction.
+     *
+     * GET /api/benchmark?symbol=^GSPC&range=10y
+     *
+     * Strategy:
+     *  1. Try v8 API (monthly, adjusted close).
+     *  2. On 4xx/5xx fall back to v7 (CSV → not used here, so just report error).
+     *  Returns raw Yahoo Finance JSON.
+     */
+    @GetMapping("/benchmark")
+    public ResponseEntity<String> getBenchmark(
+            @RequestParam String symbol,
+            @RequestParam(defaultValue = "10y") String range) {
+
+        final String UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+
+        String[] endpoints = {
+            "https://query1.finance.yahoo.com/v8/finance/chart/"
+                + java.net.URLEncoder.encode(symbol, StandardCharsets.UTF_8)
+                + "?interval=1mo&range=" + range + "&includeAdjustedClose=true",
+            "https://query2.finance.yahoo.com/v8/finance/chart/"
+                + java.net.URLEncoder.encode(symbol, StandardCharsets.UTF_8)
+                + "?interval=1mo&range=" + range + "&includeAdjustedClose=true",
+        };
+
+        for (String urlStr : endpoints) {
+            try {
+                HttpURLConnection conn = (HttpURLConnection) new URL(urlStr).openConnection();
+                conn.setRequestMethod("GET");
+                conn.setConnectTimeout(8000);
+                conn.setReadTimeout(12000);
+                conn.setInstanceFollowRedirects(true);
+                conn.setRequestProperty("User-Agent", UA);
+                conn.setRequestProperty("Accept", "application/json, */*");
+                conn.setRequestProperty("Accept-Language", "en-US,en;q=0.9");
+                conn.setRequestProperty("Referer", "https://finance.yahoo.com/");
+
+                int status = conn.getResponseCode();
+                InputStream is = (status >= 200 && status < 300)
+                    ? conn.getInputStream() : conn.getErrorStream();
+                String body = (is != null) ? new String(is.readAllBytes(), StandardCharsets.UTF_8) : "{}";
+                conn.disconnect();
+
+                if (status == 200) {
+                    return ResponseEntity.ok()
+                        .header("Content-Type", "application/json")
+                        .body(body);
+                }
+                // Try next endpoint on failure
+                System.err.println("⚠️ Benchmark " + symbol + " status " + status + " on " + urlStr);
+            } catch (Exception ignored) {
+                System.err.println("⚠️ Benchmark " + symbol + " exception: " + ignored.getMessage());
+            }
+        }
+
+        return ResponseEntity.status(502)
+            .header("Content-Type", "application/json")
+            .body("{\"chart\":{\"result\":null,\"error\":{\"code\":\"Not Found\",\"description\":\"Symbol " + symbol + " unavailable via Yahoo Finance proxy\"}}}");
     }
 
     /**

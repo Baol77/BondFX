@@ -1,6 +1,6 @@
 <a id="top"></a>
 
-# 📊 BondFX — Sovereign Bond Analytics Platform · User Manual
+# BondFX — Sovereign Bond Analytics Platform · User Manual
 
 **Discover, analyze, and build sovereign bond portfolios in minutes. Browse 1,000+ bonds across 30+ countries, set price/yield alerts, export professional PDF reports, and personalize your experience with dark mode.**
 
@@ -12,20 +12,21 @@
 2. [Typical User Workflow](#typical-user-workflow)
 3. [The Bond Table](#the-bond-table)
 4. [Key Metrics Explained](#key-metrics-explained)
-5. [Investment Strategy Presets](#investment-strategy-presets)
+5. [Investor Profiles](#investor-profiles)
 6. [Advanced Filtering](#advanced-filtering)
 7. [Wishlist — Price & SAY Alerts](#wishlist--price--say-alerts)
 8. [Bond Basket](#bond-basket)
 9. [Portfolio Analyzer](#portfolio-analyzer)
 10. [Dividend Calendar](#dividend-calendar)
 11. [Maturity Calendar](#maturity-calendar)
-12. [Analysis Modes](#analysis-modes)
-13. [Personal Settings](#personal-settings)
-14. [Custom Investment Profiles (YAML)](#custom-investment-profiles-yaml)
-15. [Coupon Frequency Configuration](#coupon-frequency-configuration)
-16. [Tax Rate Configuration](#tax-rate-configuration)
-17. [Troubleshooting](#troubleshooting)
-18. [Frequently Asked Questions](#frequently-asked-questions)
+12. [Capital Growth Simulator](#capital-growth-simulator)
+13. [Analysis Modes](#analysis-modes)
+14. [Personal Settings](#personal-settings)
+15. [Custom Investment Profiles (YAML)](#custom-investment-profiles-yaml)
+16. [Coupon Frequency Configuration](#coupon-frequency-configuration)
+17. [Tax Rate Configuration](#tax-rate-configuration)
+18. [Troubleshooting](#troubleshooting)
+19. [Frequently Asked Questions](#frequently-asked-questions)
 
 ---
 
@@ -47,7 +48,7 @@ BondFX is a self-contained sovereign bond analytics platform with two components
 
 ### Step 1 — Browse and Filter
 
-Open **bondfx.onrender.com**. The table loads with **Cash Parking** active by default. Choose a preset that matches your goals, or clear all filters and browse freely.
+Open **bondfx.onrender.com**. The table loads with **Cash Parking** active by default. Choose a profile that matches your goals, or clear all filters and browse freely.
 
 ### Step 2 — Identify Candidates
 
@@ -76,7 +77,7 @@ Copy the ISIN and give it to your broker.
 
 [↑ Top](#top)
 
-On **mobile** (≤ 768px): issuer shows a flag only, maturity shows the year only, headers are abbreviated.
+On **mobile** (≤ 768px): issuer shows a flag only, maturity shows the year only, column headers are abbreviated (e.g. "Yld %" instead of "Curr. Yield %").
 
 | Column | What It Represents | Practical Use |
 |---|---|---|
@@ -140,11 +141,15 @@ Projected total received per 1,000 base-currency units invested at maturity, inc
 
 ---
 
-## Investment Strategy Presets
+## Investor Profiles
 
 [↑ Top](#top)
 
-| Preset | For | What It Filters |
+Investor Profiles are preset filter strategies that set all table filters in one click. The profile bar below the page title shows only your **selected** profiles, in the **order you choose**.
+
+### Built-in Profiles
+
+| Profile | For | What It Filters |
 |---|---|---|
 | 🅿️🛡️ **Cash Parking** | Short-term, safety-first | IG bonds, maturity ≤ 2.5y, yield ≥ 2% |
 | ⚡💰 **Ultra Short High** | Risk-tolerant, short timeframe | Maturity 1–3y, yield ≥ 6%, accepts sub-IG |
@@ -155,6 +160,16 @@ Projected total received per 1,000 base-currency units invested at maturity, inc
 | 🏛️📈 **Long Quality** | Rate-cut beneficiaries | Maturity 20–40y, rating ≥ A−, yield ≥ 4% |
 | 🏖️💵 **Retirement Income** | Long-term stable income | Maturity 20–35y, yield ≥ 4%, rating ≥ BBB+ |
 
+### Managing Profiles
+
+Open **⚙️ Personal Settings** and scroll to the **Investor Profiles** section. Here you see the full list of built-in and custom profiles as draggable chips.
+
+- **Select / deselect** — click anywhere on a chip to toggle the ✓ green checkmark. Only selected profiles appear in the homepage bar.
+- **Reorder** — drag the ⠿ handle on the right to change display order. The homepage bar updates immediately.
+- **Delete custom profiles** — click the **✕** button on the right of a custom chip. Built-in profiles cannot be deleted.
+
+All profile state (selection, order, custom profiles) is saved to local storage and persists across sessions. It is also included in the **Settings Backup** export.
+
 ---
 
 ## Advanced Filtering
@@ -163,7 +178,7 @@ Projected total received per 1,000 base-currency units invested at maturity, inc
 
 - Click any **column header** to sort ascending / descending
 - Type in the **filter row** under each header to filter by value or text
-- Combine a preset with manual column filters for refined results
+- Combine a profile with manual column filters for refined results
 
 ---
 
@@ -220,6 +235,14 @@ Persists across reloads via local storage.
 
 Full-page tool at `/analyzer` for building and evaluating portfolios.
 
+### Navigation
+
+The header shows:
+- **← Home** (mobile) / **← Back to BondFX** (desktop) — returns to the bond table
+- **↗ Growth** (mobile) / **Capital Growth** (desktop) — opens the Capital Growth Simulator
+
+Labels adapt automatically to screen width.
+
 ### Adding a Bond
 
 1. Search by ISIN or issuer
@@ -236,52 +259,14 @@ Full-page tool at `/analyzer` for building and evaluating portfolios.
 | **PDF icon** | Export full PDF report |
 | **🗑** | Clear portfolio |
 
-### Portfolio Table Columns
-
-ISIN · Issuer · Price · Currency · Rating · Qty · Investment · Maturity · **Yield net%** · **SAY net%** · **Tax %** · Profit · **☑ toggle**
-
-The **☑ toggle** (checkbox column) includes/excludes a bond from statistics and calendars without removing it.
-
-Yield and SAY are always shown **net of withholding tax**. The **Tax %** column is editable per bond — changes recalculate everything instantly.
-
 ### Portfolio Statistics
 
-| Statistic | What It Means |
+| Metric | Description |
 |---|---|
-| **Total Investment** | Amount committed in your base currency (cost basis, converted from EUR at current rate) |
-| **Avg Price** | Weighted average purchase price |
-| **Weighted SAY (gross/net)** | Annualized total return before/after withholding tax |
-| **Weighted Yield (gross/net)** | Annual income yield before/after withholding tax |
-| **Avg Coupon** | Weighted average coupon rate |
-| **Bond Count** | Number of distinct bonds |
-| **Avg Risk (Maturity)** | Weighted average years to maturity |
-| **Weighted Rating** | Average credit quality |
-| **Total Profit** | Market value minus cost basis (price movement only) |
-| **Coupon Income (net)** | Estimated annual coupon income after withholding tax (displayed in base currency) |
-
-### Statistics Card Colour Coding
-
-| Card | 🟢 Green | 🟡 Yellow | 🔴 Red |
-|---|---|---|---|
-| **Weighted SAY (gross/net)** | ≥ 3.5 | 2.0 – 3.5 | < 2.0 |
-| **Weighted Yield (gross/net)** | ≥ 3.0% | 1.5 – 3.0% | < 1.5% |
-| **Avg Coupon** | ≥ 3.0% | 1.5 – 3.0% | < 1.5% |
-| **Avg Risk (Maturity)** | ≤ 7 years | 7 – 15 years | > 15 years |
-| **Avg Price** | ≤ 110 | 110 – 120 | > 120 |
-| **Weighted Rating** | AAA – A− | BBB+ – BBB− | BB+ and below |
-| **Total Profit** | ≥ 0 | < 0 | — |
-
-### PDF Export
-
-Landscape A4 report containing:
-
-1. Portfolio table with color-coded profit
-2. Portfolio statistics (3-column summary)
-3. Currency breakdown (investment and % per currency)
-4. Dividend Calendar bar chart (net coupon income, next 12 months)
-5. Maturity Calendar (capital returned and gain/loss per bond)
-
-Filename: `BondFX-Portfolio-YYYY-MM-DD.pdf`
+| **Total Invested** | Sum of all investment amounts in base currency |
+| **Weighted SAY (net)** | Average SAY weighted by investment, after tax |
+| **Weighted Rating** | Average credit quality weighted by investment |
+| **Annual Coupon Income** | Projected net annual coupon cash flow |
 
 ---
 
@@ -289,7 +274,11 @@ Filename: `BondFX-Portfolio-YYYY-MM-DD.pdf`
 
 [↑ Top](#top)
 
-Bar chart of **net coupon income per month** for the next 12 months across your portfolio. Each bar shows total net coupon income after withholding tax for that month, displayed in your base currency. Payment months are derived from each bond's maturity month and coupon frequency.
+Shows projected net coupon income per month across the portfolio lifetime.
+
+- Bar heights represent total net coupon income for that month
+- Hover to see the breakdown per bond
+- Tax withholding is already deducted
 
 ---
 
@@ -297,10 +286,75 @@ Bar chart of **net coupon income per month** for the next 12 months across your 
 
 [↑ Top](#top)
 
-List of portfolio bonds sorted by maturity date, showing:
+Shows face-value redemptions month by month.
 
-- **Capital returned** — face value × quantity (with base-currency equivalent shown for bonds in a different currency)
-- **Capital gain/loss** — face value minus cost basis (green if positive, red if negative)
+- Each bar represents principal returning to you at maturity
+- Hover for per-bond breakdown
+- Values shown in your base currency
+
+---
+
+## Capital Growth Simulator
+
+[↑ Top](#top)
+
+Full-page tool at `/capital-growth` that projects how your portfolio grows year by year under different reinvestment assumptions.
+
+### Navigation
+
+The header back button shows **← Analyzer** (mobile) / **← Portfolio Analyzer** (desktop).
+
+### Scenarios
+
+Each scenario is configured independently via the tab panel below the chart. Multiple scenarios can coexist and are shown as separate lines on the chart.
+
+| Scenario | What It Models |
+|---|---|
+| **No reinvestment (cash)** | Coupons paid out as cash; no reinvesting. Always shown as baseline. |
+| **📈 Coupon reinvest** | Coupons reinvested into the same bond at a configured price shift |
+| **🔄 Maturity replacement** | When a bond matures, all proceeds are routed into a new synthetic bond with a configured net coupon % and maturity year |
+| **💰 Annual injection** | A fixed EUR amount added each year, distributed across active bonds by configurable % allocation |
+
+The **No reinvestment** line is always visible as a baseline. Additional scenarios are added via **＋ New scenario** and configured in the 3-tab panel.
+
+### Scenario Configuration Tabs
+
+Each scenario has three independent tabs:
+
+**📈 Coupon reinvest** — enable coupon reinvestment with an optional global price shift (e.g. +5% = buy at 5% above current price). Per-bond price overrides are also available.
+
+**🔄 Maturity replacement** — configure one synthetic replacement bond per ISIN. When the source bond matures, its full redemption proceeds plus final coupon are invested into the replacement at the configured net coupon % and maturity year. The replacement can itself reinvest coupons or pay them as cash.
+
+**💰 Annual injection** — enable a fixed annual cash injection (e.g. €1,000/year) between a configurable `from` and `to` year. The amount is split across active (non-matured) bonds proportionally to the % allocation table. Allocations must sum to 100%; the panel shows the running total in real time. When a bond matures mid-horizon, its allocation % is automatically redistributed to the remaining active bonds.
+
+### Export / Import Scenarios
+
+Use **↑ Export** to save all scenarios (including portfolio snapshot and configuration) as a JSON file. Use **↓ Import** to restore a previously saved configuration. The export format is self-contained: it includes the full `portfolioSnapshot`, all scenario parameters, and `verifyYears` for test fixtures.
+
+### Bond Filter (Stats by Bond)
+
+Above the stat cards, checkboxes let you select individual bonds. Selecting a subset **simultaneously** updates both:
+
+- The **stat cards** (Initial Capital, Final Value, CAGR, etc.)
+- The **growth chart** — re-simulated with only the selected bonds, at a proportional start capital
+
+Deselecting all bonds hides all chart lines. Selecting all is equivalent to no filter.
+
+### Chart Views
+
+Click any year on the chart to open the **Year Detail modal** showing coupons, redemptions, reinvestment amounts, and per-bond breakdown for that year. For years with a maturity replacement activation, the modal highlights the source bond and the newly created synthetic replacement slot.
+
+### Benchmark Overlay
+
+Overlay ETF benchmarks on the simulation chart to compare your bond portfolio against equity indices:
+
+| Benchmark | Ticker |
+|---|---|
+| MSCI World | SWDA.SW |
+| S&P 500 | CSSPX.SW |
+| Nasdaq 100 | XNAS.DE |
+
+Data is fetched via a server-side Yahoo Finance proxy to avoid CORS restrictions. Check or uncheck each benchmark in the panel to toggle the overlay.
 
 ---
 
@@ -321,6 +375,12 @@ Toggle in the legend at the bottom of the main page.
 
 Click the **⚙️ gear icon** in the top-right header to open the Personal Settings panel. All settings are stored in your browser (localStorage) and persist across sessions.
 
+### Theme
+
+Toggle between **Light** (default) and **Dark** theme. The preference is applied immediately on every page load — including the Portfolio Analyzer and Capital Growth Simulator — with no flash of the wrong theme.
+
+Dark mode adjusts all surfaces: background, table, dropdowns, stat cards, wishlist, basket, dialogs, and all sub-pages.
+
 ### Base Currency
 
 Select your preferred display currency: **EUR** (€), **CHF** (₣), **USD** ($), or **GBP** (£).
@@ -337,21 +397,19 @@ FX rates are fetched from the **ECB** on each page load. The following values up
 | Portfolio: Dividend Calendar bar tooltips | `₣ 497` |
 | Portfolio: Invest.(₣) & Profit (₣) column TH | ₣ symbol |
 
-> **Internal model:** Bond prices and portfolio cost basis are stored internally in EUR (converted at ECB spot rate at time of scrape/import). SAY and Yield are **percentage ratios** — EUR units cancel out, so they are currency-neutral and correct regardless of base currency. The base currency setting is **display-only**: amounts shown in CHF/USD/GBP are converted from EUR using live ECB rates at page load. Switching base currency does not recompute historical cost basis — it only changes how the stored EUR value is displayed.
+> **Internal model:** Bond prices and portfolio cost basis are stored internally in EUR. SAY and Yield are percentage ratios — EUR units cancel out, so they are currency-neutral. The base currency setting is **display-only**: amounts shown in CHF/USD/GBP are converted from EUR using live ECB rates at page load.
 
-**CSV Export** — the file includes a metadata header line:
-```
-# BondFX Portfolio Export | baseCurrency=CHF | fxRate=0.931200
-ISIN,Issuer,Quantity,Investment CHF,...
-```
+### Investor Profiles
 
-**CSV Import** — if the file was exported in a different currency than your current setting, investment amounts are automatically converted using the saved `fxRate`. No data loss occurs.
+See the [Investor Profiles](#investor-profiles) section above. Select, reorder, and manage custom profiles directly from this panel.
 
-### Dark Mode
+### Settings Backup
 
-Toggle between **Light** (default) and **Dark** theme. The preference is saved to local storage and applied immediately on every subsequent page load — including the Portfolio Analyzer — with no flash of the wrong theme.
+Export all your settings to a JSON file and restore them later or on another device.
 
-Dark mode adjusts all surfaces: background, table, dropdowns, stat cards, wishlist, basket, dialogs, and the Portfolio Analyzer page.
+**Export** includes: theme, base currency, basket, wishlist, custom profiles, profile order, and profile selection.
+
+**Import** restores everything in one step, including any custom profiles that were saved in the export.
 
 ---
 
@@ -359,7 +417,9 @@ Dark mode adjusts all surfaces: background, table, dropdowns, stat cards, wishli
 
 [↑ Top](#top)
 
-Upload a YAML file via **📁 Import YAML** to add your own preset strategy buttons:
+Add your own profiles via **📁 Import YAML** in the **Investor Profiles** section of Personal Settings. Imported profiles appear in the same chip list as built-in ones, can be selected/deselected, reordered, and deleted individually with **✕**.
+
+Custom profiles are saved to local storage and included in Settings Backup exports.
 
 ```yaml
 profiles:
@@ -466,7 +526,7 @@ exceptions:
 
 **Search does not find a bond** — ISIN must be exact. Copy-paste from the table.
 
-**Filters do not reset** — Click 🧹 Clear column filters or reload the page.
+**Filters do not reset** — Click Clear column filters or reload the page.
 
 **Wishlist alerts not triggering** — Reload the page; alerts are evaluated at page load. Click ★ again to verify thresholds.
 
@@ -482,13 +542,21 @@ exceptions:
 
 **Data is outdated** — Reload to fetch current data. The age indicator (🟢/🟡/🔴) shows freshness.
 
+**Growth chart scale seems wrong after filtering bonds** — The chart re-simulates using only the selected bonds and a proportional starting capital. Selecting 1 bond out of 8 reduces both the simulated portfolio and the capital axis accordingly. This is the correct behavior.
+
+**Annual injection total shows 0% on first enable** — Click the checkbox to enable injection; the allocation table is initialized automatically with equal distribution across active bonds. The total will immediately show 100%.
+
+**Benchmark not loading in Capital Growth** — The ETF ticker may be temporarily unavailable on Yahoo Finance. Try reloading. Check that the ticker is valid at finance.yahoo.com.
+
+**Custom profile disappeared after reload** — Profiles are stored in local storage. If storage was cleared, re-import the YAML file or restore from a Settings Backup JSON.
+
 ---
 
 ## Frequently Asked Questions
 
 [↑ Top](#top)
 
-**Which preset should I use?**
+**Which profile should I use?**
 
 - Money needed within 2 years → **Cash Parking**
 - Maximum safety → **AAA/AA Fortress**
@@ -511,7 +579,7 @@ On every page load. The timestamp and age indicator at the top show how fresh th
 
 **Can I use this on mobile?**
 
-Yes. The table adapts: flag instead of country name, year-only maturity, abbreviated headers. The Portfolio Analyzer is a full-page view that works well on mobile too.
+Yes. The table adapts on screens ≤ 768px: flag instead of country name, year-only maturity, abbreviated column headers. Navigation buttons in the Portfolio Analyzer and Capital Growth Simulator also shorten automatically ("Home", "Growth", "Analyzer"). Both sub-pages are fully functional on mobile.
 
 **What does a price above 100 mean?**
 
@@ -521,13 +589,25 @@ You pay more than face value and receive exactly 100 at maturity — a built-in 
 
 Check the Tax % column. Override per bond directly in the table — changes take effect immediately.
 
+**How do I back up my profiles and settings?**
+
+Open ⚙️ Personal Settings → Settings Backup → **Export settings**. The JSON file includes your custom profiles, profile order, selection, basket, wishlist, theme, and currency. Import it on any device to restore everything.
+
+**What happens to the annual injection when a bond matures mid-horizon?**
+
+The matured bond's allocation % is automatically redistributed proportionally among the remaining active bonds. The total injected amount per year stays the same — only the per-bond split changes.
+
+**Can I combine coupon reinvestment with a maturity replacement in the same scenario?**
+
+Yes. In the same scenario, enable **📈 Coupon reinvest** for bonds you want to compound, and configure a **🔄 Maturity replacement** for the bond that will mature. The two features operate independently: coupons from surviving bonds are reinvested, while the maturing bond's full proceeds are routed to the synthetic replacement.
+
 ---
 
 ## First Portfolio: Step-by-Step
 
 [↑ Top](#top)
 
-1. Click **⚖️ Balanced Core**
+1. Click **⚖️ Balanced Core** in the profile bar
 2. Sort by **SAY** descending
 3. Click **＋** on 5 bonds from different countries
 4. Open the basket → **Open in Portfolio Analyzer**
@@ -542,4 +622,4 @@ Set a quarterly reminder to re-import the CSV and review price changes.
 
 ---
 
-*Last updated: February 2026 — BondFX v4.1*
+*Last updated: February 2026 — BondFX v5.0*

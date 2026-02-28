@@ -1,0 +1,417 @@
+/* =====================================================================
+   BondFX — Capital Growth Simulator Styles (v5.0)
+   Scoped under .cg-* to avoid collisions with existing pages
+===================================================================== */
+
+/* ── Page layout ──────────────────────────────────────────────────── */
+.cg-page {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 16px 40px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color: #1a2a4a;
+}
+
+/* ── Header ───────────────────────────────────────────────────────── */
+.cg-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 0 14px;
+    border-bottom: 2px solid #e8edf2;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+.cg-header__back {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #1a73e8;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 6px 12px;
+    border: 1.5px solid #1a73e8;
+    border-radius: 6px;
+    transition: background 0.15s, color 0.15s;
+    flex-shrink: 0;
+}
+.cg-header__back:hover { background: #1a73e8; color: #fff; }
+.cg-header__title {
+    font-size: 20px;
+    font-weight: 700;
+    color: #1a3a5c;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.cg-header__meta {
+    margin-left: auto;
+    font-size: 11px;
+    color: #999;
+}
+
+/* ── Controls bar ─────────────────────────────────────────────────── */
+.cg-controls {
+    display: flex;
+    align-items: flex-end;
+    gap: 16px;
+    flex-wrap: wrap;
+    background: #f5f7fb;
+    border: 1px solid #dde3ee;
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 20px;
+}
+.cg-control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 140px;
+}
+.cg-control-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+.cg-control-input,
+.cg-control-select {
+    padding: 6px 10px;
+    border: 1.5px solid #c0cce0;
+    border-radius: 5px;
+    font-size: 13px;
+    background: #fff;
+    color: #1a2a4a;
+    transition: border-color 0.15s;
+}
+.cg-control-input:focus,
+.cg-control-select:focus { border-color: #4a7cc7; outline: none; }
+
+/* ── View toggle ──────────────────────────────────────────────────── */
+.cg-view-toggle {
+    display: flex;
+    gap: 6px;
+    background: #e8edf5;
+    border-radius: 7px;
+    padding: 3px;
+}
+.cg-view-btn {
+    padding: 5px 14px;
+    border: none;
+    border-radius: 5px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    background: transparent;
+    color: #666;
+    transition: background 0.15s, color 0.15s;
+}
+.cg-view-btn--active {
+    background: #fff;
+    color: #1a3a5c;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+}
+
+/* ── Summary stats strip ──────────────────────────────────────────── */
+#summaryStats {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin-bottom: 20px;
+}
+#cgStatsCards {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 0;
+}
+.cg-stat-card {
+    flex: 1 1 140px;
+    min-width: 120px;
+    background: #fff;
+    border: 1px solid #dde3ee;
+    border-radius: 8px;
+    padding: 10px 14px;
+    border-left: 3px solid #4a7cc7;
+}
+.cg-stat-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin-bottom: 4px;
+}
+.cg-stat-value {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1a3a5c;
+}
+.cg-stat-sub {
+    font-size: 10px;
+    color: #aaa;
+    margin-top: 2px;
+}
+
+/* ── Chart area ───────────────────────────────────────────────────── */
+.cg-chart-section {
+    background: #fff;
+    border: 1px solid #dde3ee;
+    border-radius: 8px;
+    padding: 16px 16px 12px;
+    margin-bottom: 20px;
+}
+.cg-chart-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #1a3a5c;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.cg-chart-wrap {
+    position: relative;
+    height: 380px;
+}
+
+/* ── Scenario panel ───────────────────────────────────────────────── */
+.cg-scenario-panel {
+    background: #f5f7fb;
+    border: 1px solid #dde3ee;
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 20px;
+}
+.cg-scenario-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #1a3a5c;
+    margin-bottom: 12px;
+}
+.cg-scenario-row {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+}
+.cg-scenario-note {
+    font-size: 11px;
+    color: #888;
+    margin-top: 8px;
+    line-height: 1.5;
+}
+
+/* ── Benchmark panel ──────────────────────────────────────────────── */
+.cg-bench-panel {
+    background: #f5f7fb;
+    border: 1px solid #dde3ee;
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 24px;
+}
+.cg-bench-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 8px;
+}
+.cg-bench-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #fff;
+    border: 1.5px solid #dde3ee;
+    border-radius: 6px;
+    padding: 6px 12px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    font-size: 12px;
+    font-weight: 600;
+    color: #444;
+    user-select: none;
+}
+.cg-bench-item:hover { border-color: #4a7cc7; background: #eef2fc; }
+.cg-bench-item input[type=checkbox] { cursor: pointer; accent-color: #1a73e8; width: 14px; height: 14px; }
+.cg-bench-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.cg-bench-err { font-size: 10px; color: #e53935; }
+
+/* ── Empty state ──────────────────────────────────────────────────── */
+.cg-empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: #888;
+}
+.cg-empty svg { opacity: 0.25; margin-bottom: 12px; }
+.cg-empty p   { font-size: 14px; }
+.cg-empty a   { color: #1a73e8; font-weight: 600; }
+
+/* ── Apply button ─────────────────────────────────────────────────── */
+.cg-btn-apply {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 16px;
+    background: #1a4a9c;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+    white-space: nowrap;
+}
+.cg-btn-apply:hover { background: #2560c8; }
+
+/* ── Secondary action button (e.g. + Maturity replacement) ────────── */
+.cg-btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 16px;
+    background: transparent;
+    color: #1565c0;
+    border: 1.5px solid #1565c0;
+    border-radius: 5px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    white-space: nowrap;
+}
+.cg-btn-secondary:hover { background: #1565c0; color: #fff; }
+
+/* =====================================================================
+   DARK MODE
+===================================================================== */
+body.dark .cg-page                 { color: #c0c8e8; }
+body.dark .cg-header               { border-color: #2a2d45; }
+body.dark .cg-header__title        { color: #e0e4ff; }
+body.dark .cg-header__back         { color: #4a7cc7; border-color: #2a3a5c; background: #1e2130; }
+body.dark .cg-header__back:hover   { background: #4a7cc7; color: #fff; border-color: #4a7cc7; }
+body.dark .cg-controls             { background: #1a1d2e; border-color: #2a2d45; }
+body.dark .cg-control-label        { color: #8890b8; }
+body.dark .cg-control-input,
+body.dark .cg-control-select       { background: #252840; border-color: #3a3f60; color: #c8d0f0; }
+body.dark .cg-control-input:focus,
+body.dark .cg-control-select:focus { border-color: #5a7acc; }
+body.dark .cg-view-toggle          { background: #252840; }
+body.dark .cg-view-btn             { color: #8890b8; }
+body.dark .cg-view-btn--active     { background: #1e2338; color: #e0e4ff; box-shadow: 0 1px 4px rgba(0,0,0,0.4); }
+body.dark .cg-stat-card            { background: #1e2338; border-color: #2a2d45; border-left-color: #4a7cc7; }
+body.dark .cg-stat-label           { color: #6870a0; }
+body.dark .cg-stat-value           { color: #e0e4ff; }
+body.dark .cg-stat-sub             { color: #5a6080; }
+body.dark .cg-chart-section        { background: #1a1d2e; border-color: #2a2d45; }
+body.dark .cg-chart-title          { color: #c0c8e8; }
+body.dark .cg-scenario-panel       { background: #1a1d2e; border-color: #2a2d45; }
+body.dark .cg-scenario-title       { color: #c0c8e8; }
+body.dark .cg-scenario-note        { color: #5a6080; }
+body.dark .cg-bench-panel          { background: #1a1d2e; border-color: #2a2d45; }
+body.dark .cg-bench-item           { background: #1e2338; border-color: #2a2d45; color: #c0c8e8; }
+body.dark .cg-bench-item:hover     { border-color: #4a7cc7; background: #252d4a; }
+body.dark .cg-btn-apply            { background: #1a3a7c; }
+body.dark .cg-btn-apply:hover      { background: #2a5aac; }
+body.dark .cg-btn-secondary        { color: #90caf9; border-color: #1976d2; background: transparent; }
+body.dark .cg-btn-secondary:hover  { background: #1976d2; color: #fff; }
+
+/* =====================================================================
+   MOBILE  (≤768px)
+===================================================================== */
+@media (max-width: 768px) {
+    /* Page & header */
+    .cg-page              { padding: 0 8px 30px; }
+    .cg-header            { gap: 6px; padding: 10px 0; }
+    .cg-header__title     { font-size: 15px; }
+    .cg-header__back      { font-size: 11px; padding: 5px 8px; white-space: nowrap; }
+    .cg-header__meta      { display: none; }
+
+    /* Controls row: stack vertically */
+    .cg-controls          { padding: 8px 10px; gap: 8px; flex-direction: column; align-items: stretch; }
+    .cg-control-group     { min-width: 0; flex: none; width: 100%; }
+    .cg-control-group label { font-size: 11px; }
+    .cg-control-group input,
+    .cg-control-group select { font-size: 13px; width: 100%; box-sizing: border-box; }
+
+    /* Chart */
+    .cg-chart-wrap        { height: 220px; }
+
+    /* Stat cards: 2 per row on mobile */
+    #cgStatsCards         { gap: 6px; }
+    #cgStatsCards .cg-stat-card { flex: 1 1 calc(50% - 6px); min-width: 0; padding: 8px 10px; }
+    .cg-stat-value        { font-size: 13px; }
+    .cg-stat-label        { font-size: 9px; }
+
+    /* Bond checkbox row: one per line on mobile */
+    /* Bond checkbox list: one per line on mobile */
+    .cg-bond-chk-list     { flex-direction: column !important; align-items: flex-start; gap: 2px; }
+    #cgBondChkSel label   { font-size: 11px; margin: 1px 0; width: 100%; }
+
+    /* Scenario panel tabs: equal width, smaller text */
+    .cg-tab-btn           { font-size: 10px !important; padding: 8px 4px !important; }
+
+    /* Tab bodies: full-width inputs */
+    #cgTabBody_coupon table,
+    #cgTabBody_replacement table,
+    #cgTabBody_injection table { font-size: 10px; }
+    #cgTabBody_coupon input[type=number],
+    #cgTabBody_replacement input[type=number],
+    #cgTabBody_injection input[type=number] { width: 60px; }
+
+    /* Replacement tab: stack per-bond rows */
+    #cgTabBody_replacement > div > div { flex-direction: column; align-items: flex-start; }
+    #cgTabBody_replacement .cg-repl-fields { flex-wrap: wrap; gap: 6px; }
+
+    /* Injection tab */
+    #cgTabBody_injection > div:first-child { flex-direction: column; align-items: flex-start; gap: 8px; }
+
+    /* Year modal: full screen on mobile */
+    #cgYearModal > div   { max-width: 100%; max-height: 90vh; border-radius: 8px; }
+    #cgYearModal table   { font-size: 10px; }
+    #cgYearModal th,
+    #cgYearModal td      { padding: 5px 6px; }
+    /* Modal nav buttons: make bigger tap targets */
+    #cgModalPrev,
+    #cgModalNext         { padding: 6px 16px !important; font-size: 18px !important; }
+
+    /* Scenario misc */
+    .cg-scenario-row      { gap: 8px; }
+
+    /* Analyzer header: compact on mobile */
+    .analyzer-header               { gap: 6px; padding: 8px 0; }
+    .analyzer-header__back,
+    .analyzer-header__cg-btn       { font-size: 11px !important; padding: 5px 8px !important; white-space: nowrap; flex-shrink: 0; }
+    .analyzer-header__title        { font-size: 15px; }
+    .analyzer-header__title svg    { display: none; }
+}
+
+@media (max-width: 420px) {
+    /* Extra-small: 1 stat card per row */
+    #cgStatsCards .cg-stat-card { flex: 1 1 100%; }
+    .cg-tab-btn { font-size: 9px !important; padding: 7px 2px !important; }
+    /* Analyzer header: even more compact */
+    .analyzer-header__back,
+    .analyzer-header__cg-btn   { font-size: 10px !important; padding: 4px 7px !important; }
+    /* Growth header back button: same */
+    .cg-header__back            { font-size: 10px !important; padding: 4px 7px !important; }
+}
+
+/* ── Scenario panel tabs ─────────────────────────────────────────────────── */
+.cg-tab-btn {
+    transition: color 0.15s, border-bottom-color 0.15s;
+}
+.cg-tab-btn:hover {
+    color: #4a7cc7 !important;
+}
+body.dark .cg-tab-btn:hover {
+    color: #7ab0f5 !important;
+}

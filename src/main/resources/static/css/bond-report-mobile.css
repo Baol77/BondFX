@@ -96,7 +96,7 @@
     #bondTable th:nth-child(5),  #bondTable td:nth-child(5),
     #bondTable th:nth-child(6),  #bondTable td:nth-child(6),
     #bondTable th:nth-child(7),  #bondTable td:nth-child(7),
-    #bondTable th:nth-child(10), #bondTable td:nth-child(10) {
+    #bondTable th:nth-child(11), #bondTable td:nth-child(11) {
         display: none !important;
     }
 
@@ -183,7 +183,7 @@
     #bondTable th:nth-child(2),  #bondTable td:nth-child(2),
     #bondTable th:nth-child(6),  #bondTable td:nth-child(6),
     #bondTable th:nth-child(7),  #bondTable td:nth-child(7),
-    #bondTable th:nth-child(10), #bondTable td:nth-child(10) {
+    #bondTable th:nth-child(11), #bondTable td:nth-child(11) {
         display: none !important;
     }
 
@@ -224,5 +224,20 @@
 
     #bondTable th, td {
         display: table-cell !important;
+    }
+}
+
+/* ── Profile chips — mobile (v5.3) ── */
+@media (max-width: 768px) {
+    .profile-chips {
+        max-height: 260px;
+        overflow-y: auto;
+    }
+    .profile-chip {
+        font-size: 12px;
+        padding: 6px 8px;
+    }
+    .profile-chip__label {
+        max-width: calc(100vw - 140px);
     }
 }
