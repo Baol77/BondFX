@@ -52,7 +52,7 @@ public class CapitalGrowthRegressionBugsTest {
     // The fix: srcCash = redemption + coupon of sourceBond only.
     // =========================================================================
 
-    public static class BugA_ReplacementCapital {
+    public static class BugAReplacementCapitalTest {
 
         private JsonNode sc2;
 
@@ -190,7 +190,7 @@ public class CapitalGrowthRegressionBugsTest {
     // constant at face). The test uses isReplacement count as the primary check.
     // =========================================================================
 
-    public static class BugB_TwoReplacements {
+    public static class BugBTwoReplacementsTest {
 
         private JsonNode sc2;
 
@@ -366,7 +366,7 @@ public class CapitalGrowthRegressionBugsTest {
     //          Tested here by providing a pre-populated pct map (same effect).
     // =========================================================================
 
-    public static class BugC_InjectionTotalPct {
+    public static class BugCInjectionTotalPctTest {
 
         private JsonNode root;
         private JsonNode sc1;
