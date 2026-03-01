@@ -1571,7 +1571,7 @@ class PortfolioAnalyzer {
             y += 6;
             doc.setFontSize(7);
             doc.setTextColor(150, 150, 150);
-            doc.text('BondFX v4 — Net values reflect withholding tax at source on coupon income only. Capital gains not modelled.',
+            doc.text('BondFX v5 — Net values reflect withholding tax at source on coupon income only. Capital gains not modelled.',
                 margin, pageH - 8);
 
             doc.save('BondFX-Portfolio-' + new Date().toISOString().slice(0,10) + '.pdf');
