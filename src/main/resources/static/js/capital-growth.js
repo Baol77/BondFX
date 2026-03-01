@@ -1139,7 +1139,7 @@ function _defaultScenario(portfolio) {
         couponReinvest: { enabled: false, globalPriceShift: 0, perIsin: new Map() },
         maturityReplacement: new Map(),  // isin → cfg
         injection: { enabled: false, amountEur: 1000, from: today, to: lastYear, pct: {}, fixed: {} },
-        _autoDefault: false, // set to true only for the initial auto-created scenario
+        _autoDefault: false,
     };
 }
 
@@ -1657,7 +1657,7 @@ function renderGrowthChart(simResult, startCapital) {
 function _buildSubTabHtml(isDark, border) {
     const sc = _scenarios.find(s => s.id === _activeScenarioId);
     // Only hide sub-tabs for the initial auto-created scenario (before user touches anything)
-    if (sc?._autoDefault) return '';
+    // Sub-tabs always shown when a scenario is active (no auto-default hiding anymore)
     const color = isDark ? '#8890b8' : '#888';
     const bg    = isDark ? '#1a1d2e' : '#fafbff';
     const tabs  = {coupon:'📈 Coupon reinvest', replacement:'🔄 Maturity replacement', injection:'💰 Annual injection'};
@@ -2036,10 +2036,12 @@ function renderInjectionTab(portfolio, isDark, border) {
                 <span style="font-size:9px;color:#90caf9;margin-left:4px;">${couponStr}</span>
             </td>
             <td style="padding:5px 8px;text-align:center;">
-                <input type="number" value="${pct.toFixed(1)}" min="0" max="100" step="0.1"
-                    onchange="updateInjectionPct('${b.isin}',parseFloat(this.value)||0)"
-                    style="${inpSt}width:65px;text-align:right;" ${inj.enabled ? '' : 'disabled'}>
-                <span style="font-size:10px;color:#888;">%</span>
+                <span style="display:inline-flex;align-items:center;gap:2px;white-space:nowrap;">
+                    <input type="number" value="${pct.toFixed(1)}" min="0" max="100" step="0.1"
+                        onchange="updateInjectionPct('${b.isin}',parseFloat(this.value)||0)"
+                        style="${inpSt}width:60px;text-align:right;" ${inj.enabled ? '' : 'disabled'}>
+                    <span style="font-size:10px;color:#888;">%</span>
+                </span>
             </td>
             <td style="padding:5px 8px;text-align:center;">
                 <input type="checkbox" title="Fix this allocation — not affected by Redistribute"
@@ -2055,31 +2057,37 @@ function renderInjectionTab(portfolio, isDark, border) {
         ? Math.max(...portfolio.map(b => new Date(b.maturity).getFullYear())) : today + 10;
 
     el.innerHTML = `
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap;">
-            <label style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;cursor:pointer;">
+        <div style="margin-bottom:14px;">
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;cursor:pointer;margin-bottom:10px;">
                 <input type="checkbox" ${inj.enabled ? 'checked' : ''} onchange="setInjectionEnabled(this.checked)">
                 Enable annual injection
             </label>
-            <label style="display:flex;align-items:center;gap:6px;font-size:12px;">
-                <span style="color:#888;">${sym} per year</span>
-                <input type="number" value="${_cgToBase(inj.amountEur).toFixed(0)}" min="0" step="100"
-                    onchange="updateInjectionAmount(_cgFromBase(parseFloat(this.value)||0))"
-                    style="${inpSt}width:100px;text-align:right;" ${inj.enabled ? '' : 'disabled'}>
-            </label>
-        </div>
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap;">
-            <label style="display:flex;align-items:center;gap:6px;font-size:12px;">
-                <span style="color:#888;">From year</span>
-                <input type="number" value="${inj.from}" min="${today}" max="2200" step="1"
-                    onchange="updateInjectionRange('from',parseInt(this.value)||${today})"
-                    style="${inpSt}width:75px;text-align:center;" ${inj.enabled ? '' : 'disabled'}>
-            </label>
-            <label style="display:flex;align-items:center;gap:6px;font-size:12px;">
-                <span style="color:#888;">To year</span>
-                <input type="number" value="${inj.to}" min="${today}" max="2200" step="1"
-                    onchange="updateInjectionRange('to',parseInt(this.value)||${lastYear})"
-                    style="${inpSt}width:75px;text-align:center;" ${inj.enabled ? '' : 'disabled'}>
-            </label>
+            <table style="border-collapse:collapse;font-size:12px;">
+                <tr>
+                    <td style="padding:3px 10px 3px 0;color:#888;white-space:nowrap;">${sym} per year</td>
+                    <td style="padding:3px 0;">
+                        <input type="number" value="${_cgToBase(inj.amountEur).toFixed(0)}" min="0" step="100"
+                            onchange="updateInjectionAmount(_cgFromBase(parseFloat(this.value)||0))"
+                            style="${inpSt}width:100px;text-align:right;" ${inj.enabled ? '' : 'disabled'}>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding:3px 10px 3px 0;color:#888;white-space:nowrap;">From year</td>
+                    <td style="padding:3px 0;">
+                        <input type="number" value="${inj.from}" min="${today}" max="2200" step="1"
+                            onchange="updateInjectionRange('from',parseInt(this.value)||${today})"
+                            style="${inpSt}width:75px;text-align:center;" ${inj.enabled ? '' : 'disabled'}>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding:3px 10px 3px 0;color:#888;white-space:nowrap;">To year</td>
+                    <td style="padding:3px 0;">
+                        <input type="number" value="${inj.to}" min="${today}" max="2200" step="1"
+                            onchange="updateInjectionRange('to',parseInt(this.value)||${lastYear})"
+                            style="${inpSt}width:75px;text-align:center;" ${inj.enabled ? '' : 'disabled'}>
+                    </td>
+                </tr>
+            </table>
         </div>
         <p style="font-size:11px;color:#888;margin:0 0 8px;">
             Each year in [from, to], the amount is split across <em>active</em> (non-matured) bonds per the % below.
@@ -2611,14 +2619,8 @@ async function runSimulation() {
         _prefetchFxCurves(portfolio, reportCcy),
     ]);
 
-    // Ensure at least one scenario exists (first load or after clearing all)
-    if (_scenarios.length === 0) {
-        const sc = _defaultScenario(portfolio);
-        sc.label = "default - no reinv";
-        sc._autoDefault = true; // hide sub-tabs until user explicitly configures something
-        _scenarios.push(sc);
-        _activeScenarioId = sc.id;
-    }
+    // No auto-creation of a default scenario — the user starts with an empty panel
+    // and explicitly adds scenarios via "＋ New scenario".
 
     // startCapital: auto-computed from portfolio cost (read-only)
     const costEur      = portfolio.reduce((s, b) => s + (b.totalEur || (b.priceEur || 0) * b.quantity), 0);
