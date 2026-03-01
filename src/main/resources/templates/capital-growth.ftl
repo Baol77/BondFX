@@ -55,6 +55,22 @@
                 <div class="cg-chart-wrap"><canvas id="growthChart"></canvas></div>
             </div>
 
+            <!-- Net Coupons per Year chart -->
+            <div class="cg-chart-section" id="couponChartSection" style="margin-top:18px;">
+                <div class="cg-chart-title">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                    Net Coupons &mdash; Year by Year
+                    <span style="font-size:10px;font-weight:400;color:#aaa;margin-left:6px;">net of withholding tax &middot; per scenario</span>
+                    <span style="margin-left:auto;display:flex;gap:4px;">
+                        <button id="btnCouponStacked" class="cg-view-btn cg-view-btn--active" style="font-size:10px;padding:2px 8px;">Stacked</button>
+                        <button id="btnCouponLine"    class="cg-view-btn"                    style="font-size:10px;padding:2px 8px;">Line</button>
+                    </span>
+                </div>
+                <!-- Bond filter checkboxes (filled by JS) -->
+                <div id="couponSelector" style="margin-bottom:8px;"></div>
+                <div class="cg-chart-wrap"><canvas id="couponChart"></canvas></div>
+            </div>
+
             <!-- Scenario panel (filled by JS) -->
             <div class="cg-scenario-panel" id="perIsinPanel"></div>
 

@@ -1033,6 +1033,11 @@ const BOND_COLORS_LIGHT = ['#1565c0','#2e7d32','#e65100','#6a1b9a','#00838f','#f
 let _bondChartMode    = 'stacked';
 let _selectedIsins    = new Set();
 
+// ── Coupon chart state ────────────────────────────────────────────────────────
+let _chartCoupon       = null;
+let _couponChartMode   = 'stacked';
+let _selectedCouponIsins = new Set();  // per-bond coupon filter (same isin keys as _selectedIsins)
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 // Inline rename for scenario tab label.
@@ -1723,7 +1728,8 @@ function buildPerIsinPanel(portfolio, simResult) {
 
     const newBtnStyle = `display:inline-flex;align-items:center;gap:4px;padding:8px 12px;cursor:pointer;font-size:12px;font-weight:600;background:transparent;border:none;border-bottom:2px solid transparent;color:${isDark?'#4a7cc7':'#1a73e8'};white-space:nowrap;`;
 
-    // Ensure the benchmark panel container exists adjacent to perIsinPanel
+    // Ensure the benchmark panel container exists after perIsinPanel (last in wrap_year)
+    // DOM order: couponChartSection → perIsinPanel → benchmarkPanel
     let benchPanelEl = document.getElementById('cgNrBenchPanel');
     if (!benchPanelEl) {
         benchPanelEl = document.createElement('div');
@@ -2602,8 +2608,9 @@ async function runSimulation() {
     document.getElementById('cgEmptyMsg').style.display = 'none';
     document.getElementById('cgMain').style.display     = 'block';
 
-    if (_chart)     { _chart.destroy();     _chart     = null; }
-    if (_chartBond) { _chartBond.destroy(); _chartBond = null; }
+    if (_chart)       { _chart.destroy();       _chart       = null; }
+    if (_chartBond)   { _chartBond.destroy();   _chartBond   = null; }
+    if (_chartCoupon) { _chartCoupon.destroy(); _chartCoupon = null; }
     Object.keys(_benchmarkCache).forEach(k => delete _benchmarkCache[k]);
 
     const reportCcy = localStorage.getItem('bondReportCurrency') || 'EUR';
@@ -2640,6 +2647,8 @@ async function runSimulation() {
     renderGrowthChart(simResult, startCapital);
     buildPerIsinPanel(portfolio, simResult);
     _renderNrBenchmarkPanel();
+    buildCouponSelector(portfolio);
+    renderCouponChart(portfolio, simResult);
 
     // Re-apply nr benchmark chart line if enabled
     if (_nrBenchmark.enabled) _toggleNrBenchmark(true);
@@ -2654,6 +2663,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     await _cgLoadFxRates();
     document.getElementById('btnBondStacked')?.addEventListener('click', () => setBondChartMode('stacked'));
     document.getElementById('btnBondLine')?.addEventListener('click', () => setBondChartMode('line'));
+    document.getElementById('btnCouponStacked')?.addEventListener('click', () => setCouponChartMode('stacked'));
+    document.getElementById('btnCouponLine')?.addEventListener('click', () => setCouponChartMode('line'));
 
     // Mobile label swap
     function _cgMobileLabels() {
@@ -3140,6 +3151,305 @@ function renderBondYearChart(portfolio, years, selectedIsins) {
                     stacked: isStacked,
                     ticks: { color: labelColor, font:{size:11},
                         callback: v => isFinite(v) ? sym + Math.round(v).toLocaleString(undefined,{maximumFractionDigits:0}) : '' },
+                    grid: { color: gridColor },
+                },
+            },
+        },
+    });
+}
+
+// ── Net Coupons per Year chart ───────────────────────────────────────────────
+
+/**
+ * Build coupon bond selector checkboxes.
+ * Shows real bonds + replacement virtual bonds (one per maturity_replacement scenario).
+ * Mirrors buildBondSelector logic exactly.
+ */
+function buildCouponSelector(portfolio) {
+    const el = document.getElementById('couponSelector');
+    if (!el) return;
+
+    const currentIsins = new Set(portfolio.map(b => b.isin));
+
+    // Sync real bonds
+    currentIsins.forEach(isin => { if (!_selectedCouponIsins.has(isin)) _selectedCouponIsins.add(isin); });
+    _selectedCouponIsins.forEach(isin => {
+        if (!isin.startsWith('_repl_') && !currentIsins.has(isin)) _selectedCouponIsins.delete(isin);
+    });
+
+    const isDark      = document.body.classList.contains('dark');
+    const COLORS      = isDark ? BOND_COLORS_DARK : BOND_COLORS_LIGHT;
+    const issuerCount = {};
+    portfolio.forEach(b => { issuerCount[b.issuer] = (issuerCount[b.issuer] || 0) + 1; });
+
+    // Real bond checkboxes
+    const bondHtml = portfolio.map((b, i) => {
+        const c   = COLORS[i % COLORS.length];
+        const lbl = `${b.issuer} (${b.isin})`;
+        return `<label style="display:inline-flex;align-items:center;gap:5px;margin:4px 8px 4px 0;cursor:pointer;font-size:12px;font-weight:600;">
+            <input type="checkbox" ${_selectedCouponIsins.has(b.isin)?'checked':''}
+                value="${b.isin}" onchange="toggleCouponSel('${b.isin}',this.checked)">
+            <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${c};flex-shrink:0;"></span>
+            ${lbl}
+        </label>`;
+    }).join('');
+
+    // Replacement bond checkboxes (one per maturity_replacement scenario)
+    const replCs = _getAllMatReplacementCs().filter(cs => cs._type === 'maturity_replacement');
+    const replHtml = replCs.map((cs, j) => {
+        const key = '_repl_' + cs.id;
+        if (!_selectedCouponIsins.has(key)) _selectedCouponIsins.add(key);
+        const src = portfolio.find(b => b.isin === cs.sourceBond?.isin);
+        const ci  = portfolio.length + j;
+        const c   = COLORS[ci % COLORS.length];
+        const lbl = `${cs.name}: ${src ? src.issuer + ' ('+src.isin+')' : cs.sourceBond?.isin} → repl. (${cs.maturityYear})`;
+        return `<label style="display:inline-flex;align-items:center;gap:5px;margin:4px 8px 4px 0;cursor:pointer;font-size:12px;font-weight:600;color:${isDark?'#70c172':'#2e7d32'};">
+            <input type="checkbox" ${_selectedCouponIsins.has(key)?'checked':''}
+                value="${key}" onchange="toggleCouponSel('${key}',this.checked)">
+            <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${c};flex-shrink:0;"></span>
+            ${lbl}
+        </label>`;
+    }).join('');
+
+    el.innerHTML = bondHtml + replHtml;
+}
+
+function toggleCouponSel(isin, checked) {
+    if (checked) _selectedCouponIsins.add(isin); else _selectedCouponIsins.delete(isin);
+    if (_lastSimResult) renderCouponChart(_lastPortfolio, _lastSimResult);
+}
+
+function setCouponChartMode(mode) {
+    _couponChartMode = mode;
+    document.getElementById('btnCouponStacked')?.classList.toggle('cg-view-btn--active', mode === 'stacked');
+    document.getElementById('btnCouponLine')?.classList.toggle('cg-view-btn--active', mode === 'line');
+    if (_lastSimResult) renderCouponChart(_lastPortfolio, _lastSimResult);
+}
+
+/**
+ * Render the Net Coupons per Year chart.
+ *
+ * 1 scenario  → stacked bar per bond (breakdown della composizione cedole)
+ * N scenarios → one dataset per scenario (totale cedole dei bond selezionati)
+ * Replacement bonds → extra dataset per ogni _repl_ selezionato
+ * NR benchmark      → linea tratteggiata (se abilitato)
+ */
+function renderCouponChart(portfolio, simResult) {
+    const canvas = document.getElementById('couponChart');
+    if (!canvas) return;
+    if (_chartCoupon) { _chartCoupon.destroy(); _chartCoupon = null; }
+
+    const isDark     = document.body.classList.contains('dark');
+    const labelColor = isDark ? '#c0c8e8' : '#444';
+    const gridColor  = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)';
+    const COLORS     = isDark ? BOND_COLORS_DARK : BOND_COLORS_LIGHT;
+    const sym        = _cgSym();
+    const isStacked  = _couponChartMode === 'stacked';
+
+    const scenarios = simResult.scenarios || [];
+    const years     = simResult.years     || [];
+    if (!scenarios.length || !years.length) return;
+
+    // Build unified year axis (including extended years from replacement scenarios)
+    const allYears = [...years];
+    scenarios.forEach(sc => {
+        (sc._extendedYears || sc._years || []).forEach(y => { if (!allYears.includes(y)) allYears.push(y); });
+    });
+    _getAllMatReplacementCs().filter(cs => cs._type === 'maturity_replacement').forEach(cs => {
+        for (let y = Math.max(...years) + 1; y <= cs.maturityYear; y++) {
+            if (!allYears.includes(y)) allYears.push(y);
+        }
+    });
+    allYears.sort((a, b) => a - b);
+
+    const replCs = _getAllMatReplacementCs().filter(cs => cs._type === 'maturity_replacement');
+    let datasets = [];
+
+    if (scenarios.length === 1) {
+        // ── Single scenario: per-bond stacked breakdown ───────────────────────
+        const sc = scenarios[0];
+
+        // Real bonds
+        portfolio.forEach((b, i) => {
+            if (!_selectedCouponIsins.has(b.isin)) return;
+            const data = allYears.map(yr => {
+                const ev   = sc.yearEvents?.find(e => e.yr === yr);
+                const slot = ev?.perSlot?.find(s => s.isin === b.isin && !s._isReplacement);
+                return slot ? _cgToBase((slot.coupon ?? 0) * (sc.scale || 1)) : null;
+            });
+            const color = COLORS[i % COLORS.length];
+            datasets.push({
+                label:           `${b.issuer} (${b.isin})`,
+                data,
+                backgroundColor: color + (isStacked ? 'cc' : '55'),
+                borderColor:     color,
+                borderWidth:     isStacked ? 1 : 2,
+                fill:            isStacked ? 'origin' : false,
+                tension:         0.25,
+                pointRadius:     allYears.length > 15 ? 0 : 3,
+                spanGaps:        true,
+                stack:           isStacked ? 'bonds' : undefined,
+            });
+        });
+
+        // Replacement bonds (if selected)
+        replCs.forEach((cs, j) => {
+            const key = '_repl_' + cs.id;
+            if (!_selectedCouponIsins.has(key)) return;
+            const ci    = portfolio.length + j;
+            const color = COLORS[ci % COLORS.length];
+            const srcB  = portfolio.find(b => b.isin === cs.sourceBond?.isin);
+            const data  = allYears.map(yr => {
+                const ev   = sc.yearEvents?.find(e => e.yr === yr);
+                // Replacement slot isin is stored as sourceBond.isin + '_repl'
+                const slot = ev?.perSlot?.find(s => s._isReplacement && s.isin.startsWith(cs.sourceBond?.isin));
+                return slot ? _cgToBase((slot.replCoupon ?? slot.coupon ?? 0) * (sc.scale || 1)) : null;
+            });
+            datasets.push({
+                label:           `${cs.name}: ${srcB ? srcB.issuer+' ('+srcB.isin+')' : cs.sourceBond?.isin} → repl. (${cs.maturityYear})`,
+                data,
+                backgroundColor: color + (isStacked ? 'bb' : '44'),
+                borderColor:     color,
+                borderWidth:     isStacked ? 1 : 2,
+                borderDash:      [6, 3],
+                fill:            isStacked ? 'origin' : false,
+                tension:         0.25,
+                pointRadius:     allYears.length > 15 ? 0 : 4,
+                pointStyle:      'triangle',
+                spanGaps:        false,
+                stack:           isStacked ? 'repl' : undefined,
+            });
+        });
+
+    } else {
+        // ── Multiple scenarios: one dataset per scenario ──────────────────────
+        scenarios.forEach(sc => {
+            const data = allYears.map(yr => {
+                const ev = sc.yearEvents?.find(e => e.yr === yr);
+                if (!ev) return null;
+                // Sum coupons for selected real bonds
+                const realTotal = (ev.perSlot || [])
+                    .filter(s => !s._isReplacement && _selectedCouponIsins.has(s.isin))
+                    .reduce((sum, s) => sum + (s.coupon ?? 0), 0);
+                // Sum replacement coupons if that repl scenario is selected
+                const replTotal = (ev.perSlot || [])
+                    .filter(s => {
+                        if (!s._isReplacement) return false;
+                        // Find which cs this replacement slot belongs to
+                        const matchCs = replCs.find(c => s.isin.startsWith(c.sourceBond?.isin));
+                        return matchCs && _selectedCouponIsins.has('_repl_' + matchCs.id);
+                    })
+                    .reduce((sum, s) => sum + (s.replCoupon ?? s.coupon ?? 0), 0);
+                return _cgToBase((realTotal + replTotal) * (sc.scale || 1));
+            });
+            datasets.push({
+                label:           sc.label,
+                data,
+                backgroundColor: sc.color + (isStacked ? 'bb' : '33'),
+                borderColor:     sc.color,
+                borderWidth:     isStacked ? 1 : 2.5,
+                fill:            isStacked ? 'origin' : false,
+                tension:         0.25,
+                pointRadius:     allYears.length > 15 ? 0 : 3,
+                spanGaps:        true,
+                stack:           isStacked ? 'scenarios' : undefined,
+            });
+        });
+    }
+
+    // NR benchmark line (always as line, even in stacked bar mode)
+    if (_nrBenchmark.enabled && _nrBenchmark.yearEvents) {
+        const data = allYears.map(yr => {
+            const ev = _nrBenchmark.yearEvents.find(e => e.yr === yr);
+            if (!ev) return null;
+            const total = (ev.perSlot || [])
+                .filter(s => !s._isReplacement && _selectedCouponIsins.has(s.isin))
+                .reduce((sum, s) => sum + (s.coupon ?? 0), 0);
+            return _cgToBase(total * (_nrBenchmark.scale || 1));
+        });
+        datasets.push({
+            label:           _nrBenchmark.label,
+            data,
+            type:            'line',
+            backgroundColor: _nrBenchmark.color + '22',
+            borderColor:     _nrBenchmark.color,
+            borderWidth:     1.5,
+            borderDash:      [5, 4],
+            fill:            false,
+            tension:         0.25,
+            pointRadius:     allYears.length > 15 ? 0 : 3,
+            spanGaps:        true,
+        });
+    }
+
+    if (!datasets.length) {
+        canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+        return;
+    }
+
+    // Inline plugin: draws the stacked total above each bar column
+    const barTotalsPlugin = {
+        id: 'couponBarTotals',
+        afterDatasetsDraw(chart) {
+            if (!isStacked) return;
+            // Hide totals when canvas is too narrow (mobile) — labels would overlap
+            if (chart.width < 500) return;
+            const { ctx, data, scales: { x, y } } = chart;
+            // Compute per-label totals across all bar datasets (exclude line-type datasets)
+            const totals = new Array(data.labels.length).fill(0);
+            chart.data.datasets.forEach((ds, di) => {
+                const meta = chart.getDatasetMeta(di);
+                if (meta.type === 'line' || meta.hidden) return;
+                ds.data.forEach((v, i) => { if (isFinite(v) && v > 0) totals[i] += v; });
+            });
+            ctx.save();
+            ctx.font = `600 10px sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            ctx.fillStyle = document.body.classList.contains('dark') ? '#c0c8e8' : '#333';
+            totals.forEach((total, i) => {
+                if (total <= 0) return;
+                const xPos = x.getPixelForValue(i);
+                const yPos = y.getPixelForValue(total);
+                const sym  = _cgSym();
+                const lbl  = sym + Math.round(total).toLocaleString(undefined, {maximumFractionDigits: 0});
+                ctx.fillText(lbl, xPos, yPos - 3);
+            });
+            ctx.restore();
+        },
+    };
+
+    _chartCoupon = new Chart(canvas.getContext('2d'), {
+        type: isStacked ? 'bar' : 'line',
+        data: { labels: allYears, datasets },
+        plugins: [barTotalsPlugin],
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { position: 'bottom', labels: { color: labelColor, font:{size:11}, boxWidth:20 } },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => {
+                            const v = ctx.parsed.y;
+                            if (!isFinite(v) || v <= 0) return null;
+                            return ` ${ctx.dataset.label}: ${sym}${Math.round(v).toLocaleString(undefined,{maximumFractionDigits:0})}`;
+                        },
+                    },
+                },
+            },
+            scales: {
+                x: {
+                    stacked: isStacked,
+                    ticks: { color: labelColor, font:{size:11} },
+                    grid:  { color: gridColor },
+                },
+                y: {
+                    stacked: isStacked,
+                    ticks: {
+                        color: labelColor, font:{size:11},
+                        callback: v => isFinite(v) ? sym + Math.round(v).toLocaleString(undefined,{maximumFractionDigits:0}) : '',
+                    },
                     grid: { color: gridColor },
                 },
             },
