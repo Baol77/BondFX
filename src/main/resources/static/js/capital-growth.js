@@ -517,7 +517,7 @@ function runMaturityReplacement(slots, years, matReplacementOrArray, injectionBy
             const couponCash = sl.unitsHeld * sl.couponPerUnit * (sl._isReplacement ? 1.0 : fxC2);
             if (!sl.isin?.startsWith('_') || sl._isReplacement) {
                 const slRedemp2 = (sl.matYear === yr) ? sl.unitsHeld * sl.facePerUnit * (sl._isReplacement ? 1.0 : fxM2) : 0;
-                const displayIsin   = sl._isReplacement ? (sourceBond.isin + '_repl') : sl.isin;
+                const displayIsin   = sl._isReplacement ? ((sl._srcIsin ?? sourceBond.isin) + '_repl') : sl.isin;
                 const displayIssuer = sl._isReplacement ? (sl.issuer + ' \u2192 repl.') : (sl.issuer || '');
                 perSlot.push({ isin: displayIsin, issuer: displayIssuer,
                     coupon: sl._isReplacement ? 0 : couponCash,
@@ -596,6 +596,7 @@ function runMaturityReplacement(slots, years, matReplacementOrArray, injectionBy
                 if (rep.maturityYear > yr && repSrcCash > 0) {
                     const replSlot = {
                         isin:              rep.sourceBond.isin + '_repl_' + yr,
+                        _srcIsin:          rep.sourceBond.isin,
                         issuer:            '→ Replacement bond',
                         matYear:           rep.maturityYear,
                         unitsHeld:         repSrcCash / repAdjFact,
