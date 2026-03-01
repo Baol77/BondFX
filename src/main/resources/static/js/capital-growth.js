@@ -989,7 +989,20 @@ let _lastSimResult    = null;
 let _lastStartCapital = 0;
 let _lastPortfolio    = [];
 let _hiddenScenarioIds    = new Set();
-let _expandedScenarios    = new Set(); // which scenario IDs have per-bond rows shown in modal  // scenario ids hidden via legend click
+let _expandedScenarios    = new Set();
+
+// ── No-reinvest benchmark (default - no reinv line shown below scenario panel) ──
+// Computed from the first (or only) scenario's no-reinvest run, same portfolio.
+// _nrBenchmark = { label, color, enabled, data, yearEvents, years, scale }
+let _nrBenchmark = {
+    label:   'default - no reinv',
+    color:   '#9e9e9e',
+    enabled: false,   // off by default; toggled by user
+    data:    null,
+    yearEvents: null,
+    years:   null,
+    scale:   1,
+}; // which scenario IDs have per-bond rows shown in modal  // scenario ids hidden via legend click
 
 // Compat: build flat list of maturity_replacement objects from new _scenarios model
 // Used by buildBondTimeline, openYearDetailModal, renderBondYearChart
@@ -1125,7 +1138,7 @@ function _defaultScenario(portfolio) {
         color: _nextScenarioColor(),
         couponReinvest: { enabled: false, globalPriceShift: 0, perIsin: new Map() },
         maturityReplacement: new Map(),  // isin → cfg
-        injection: { enabled: false, amountEur: 1000, from: today, to: lastYear, pct: {} },
+        injection: { enabled: false, amountEur: 1000, from: today, to: lastYear, pct: {}, fixed: {} },
         _autoDefault: false, // set to true only for the initial auto-created scenario
     };
 }
@@ -1334,6 +1347,16 @@ function simulateAll(portfolio, startCapital) {
         : 3.0;
 
     const resultScenarios = [];
+
+    // Compute no-reinvest benchmark (always kept updated, shown only when enabled)
+    {
+        const { dataPoints: nrDP, yearEvents: nrEV } =
+            runScenario(slots, years, 'none', 0, wSAY, null, null, { startYear: years[0], reportCcy: _cgBaseCcy() });
+        _nrBenchmark.data       = sc2arr(nrDP);
+        _nrBenchmark.yearEvents = nrEV;
+        _nrBenchmark.years      = years;
+        _nrBenchmark.scale      = scale;
+    }
 
     // Each user scenario generates one line
     for (const sc of _scenarios) {
@@ -1698,6 +1721,14 @@ function buildPerIsinPanel(portfolio, simResult) {
 
     const newBtnStyle = `display:inline-flex;align-items:center;gap:4px;padding:8px 12px;cursor:pointer;font-size:12px;font-weight:600;background:transparent;border:none;border-bottom:2px solid transparent;color:${isDark?'#4a7cc7':'#1a73e8'};white-space:nowrap;`;
 
+    // Ensure the benchmark panel container exists adjacent to perIsinPanel
+    let benchPanelEl = document.getElementById('cgNrBenchPanel');
+    if (!benchPanelEl) {
+        benchPanelEl = document.createElement('div');
+        benchPanelEl.id = 'cgNrBenchPanel';
+        panel.parentNode.insertBefore(benchPanelEl, panel.nextSibling);
+    }
+
     panel.innerHTML = `
         <div class="cg-scenario-panel" style="padding:0;overflow:hidden;">
 
@@ -1857,7 +1888,8 @@ function renderCouponTab(portfolio, wSAY, isDark, border) {
                 <input type="checkbox" ${hasOvr ? 'checked' : ''} onchange="toggleCouponOverride('${b.isin}',this.checked)">
             </td>
             <td style="padding:5px 8px;text-align:center;">
-                <input type="number" ${hasOvr ? '' : 'disabled'} value="${cfg.priceShift ?? 0}" min="-500" max="500" step="1"
+                <input type="number" ${hasOvr ? '' : 'disabled'} value="${cfg.priceShift ?? cr.globalPriceShift}" min="-500" max="500" step="1"
+                    data-coupon-isin-shift="${b.isin}"
                     onchange="updateCouponOverride('${b.isin}','priceShift',parseFloat(this.value)||0)"
                     style="${inpSt}width:65px;text-align:right;">
             </td>
@@ -1920,17 +1952,19 @@ function renderReplacementTab(portfolio, isDark, border) {
         const enabled = cfg?.enabled || false;
 
         if (!enabled) {
+            const couponStr = typeof b.coupon === 'number' ? b.coupon.toFixed(2) + '%' : '—';
             return `<div style="padding:8px 0;border-bottom:1px solid ${border};display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-                <span style="font-size:12px;font-weight:600;min-width:120px;">${label}</span>
+                <span style="font-size:12px;font-weight:600;min-width:120px;">${label} <span style="font-family:monospace;font-size:10px;opacity:0.7">(${couponStr})</span></span>
                 <span style="font-size:11px;color:#888;">matures ${matYear}</span>
                 <button class="cg-btn-secondary" style="font-size:11px;padding:3px 10px;margin-left:auto;"
                     onclick="enableReplacement('${b.isin}')">＋ Add replacement</button>
             </div>`;
         }
 
+        const couponStr = typeof b.coupon === 'number' ? b.coupon.toFixed(2) + '%' : '—';
         return `<div style="padding:8px 0;border-bottom:1px solid ${border};overflow-x:auto;">
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
-                <span style="font-size:12px;font-weight:700;">${label}</span>
+                <span style="font-size:12px;font-weight:700;">${label} <span style="font-family:monospace;font-size:10px;opacity:0.7;font-weight:400;">(${couponStr})</span></span>
                 <span style="font-size:11px;color:#888;">matures ${matYear} →</span>
                 <button onclick="disableReplacement('${b.isin}')"
                     style="margin-left:auto;background:transparent;border:1px solid #c62828;color:#e57373;border-radius:4px;padding:3px 8px;font-size:11px;cursor:pointer;">Remove</button>
@@ -1988,18 +2022,31 @@ function renderInjectionTab(portfolio, isDark, border) {
     const totalPct = activeBonds.reduce((s, b) => s + (inj.pct[b.isin] ?? 0), 0);
 
     const bondRows = activeBonds.map(b => {
-        const matYear = new Date(b.maturity).getFullYear();
-        const label   = portfolio.filter(x => x.issuer === b.issuer).length > 1
+        const matYear  = new Date(b.maturity).getFullYear();
+        const couponStr = typeof b.coupon === 'number' ? b.coupon.toFixed(2) + '%' : '—';
+        const label    = portfolio.filter(x => x.issuer === b.issuer).length > 1
             ? `${b.issuer} <span style="font-family:monospace;font-size:10px;opacity:0.7">${b.isin}</span>`
             : b.issuer;
-        const pct = inj.pct[b.isin] ?? (100 / Math.max(1, activeBonds.length));
+        const pct    = inj.pct[b.isin] ?? (100 / Math.max(1, activeBonds.length));
+        const isFixed = !!(inj.fixed && inj.fixed[b.isin]);
         return `<tr>
-            <td style="padding:5px 8px;">${label} <span style="font-size:9px;color:#888">(${matYear})</span></td>
+            <td style="padding:5px 8px;">
+                ${label}
+                <span style="font-size:9px;color:#888">(${matYear})</span>
+                <span style="font-size:9px;color:#90caf9;margin-left:4px;">${couponStr}</span>
+            </td>
             <td style="padding:5px 8px;text-align:center;">
-                <input type="number" value="${pct.toFixed(1)}" min="0" max="100" step="1"
+                <input type="number" value="${pct.toFixed(1)}" min="0" max="100" step="0.1"
                     onchange="updateInjectionPct('${b.isin}',parseFloat(this.value)||0)"
                     style="${inpSt}width:65px;text-align:right;" ${inj.enabled ? '' : 'disabled'}>
                 <span style="font-size:10px;color:#888;">%</span>
+            </td>
+            <td style="padding:5px 8px;text-align:center;">
+                <input type="checkbox" title="Fix this allocation — not affected by Redistribute"
+                    ${isFixed ? 'checked' : ''}
+                    ${inj.enabled ? '' : 'disabled'}
+                    onchange="updateInjectionFixed('${b.isin}',this.checked)"
+                    style="cursor:pointer;accent-color:#90caf9;">
             </td>
         </tr>`;
     }).join('');
@@ -2043,13 +2090,27 @@ function renderInjectionTab(portfolio, isDark, border) {
             <thead><tr style="color:#888;">
                 <th style="text-align:left;padding:4px 8px;">Bond</th>
                 <th style="padding:4px 8px;text-align:center;">Allocation %</th>
+                <th style="padding:4px 8px;text-align:center;" title="Fixed — not changed by Redistribute">Fixed</th>
             </tr></thead>
-            <tbody>${bondRows}</tbody>
-        </table>
-        <p style="font-size:10px;color:#888;margin-top:6px;text-align:right;">
-            Total: <strong style="color:${Math.abs(totalPct - 100) < 0.5 ? '#70c172' : '#ff7043'}">${totalPct.toFixed(1)}%</strong>
-            ${Math.abs(totalPct - 100) > 0.5 ? '<span style="color:#ff7043;"> — should sum to 100%</span>' : ''}
-        </p>` : '<p style="color:#888;font-size:11px;">No active bonds.</p>'}`;
+            <tbody>${bondRows}
+            <tr>
+                <td colspan="3" style="padding:6px 8px;text-align:right;">
+                    <span style="font-size:10px;color:${Math.abs(totalPct - 100) < 0.5 ? '#70c172' : '#ff7043'};margin-right:10px;">
+                        Total: <strong>${totalPct.toFixed(1)}%</strong>
+                        ${Math.abs(totalPct - 100) > 0.5 ? ' — should sum to 100%' : ' ✓'}
+                    </span>
+                    <button onclick="redistributeInjectionPct()"
+                        ${inj.enabled ? '' : 'disabled'}
+                        title="Split remaining % equally among non-fixed bonds"
+                        style="font-size:11px;padding:3px 10px;cursor:pointer;border-radius:4px;
+                               background:transparent;border:1px solid ${isDark?'#4a7cc7':'#1a73e8'};
+                               color:${isDark?'#90caf9':'#1a73e8'};">
+                        ↺ Redistribute
+                    </button>
+                </td>
+            </tr>
+            </tbody>
+        </table>` : '<p style="color:#888;font-size:11px;">No active bonds.</p>'}`;
 }
 
 // ── Coupon reinvest handlers ──────────────────────────────────────────────────
@@ -2064,13 +2125,26 @@ function setCouponEnabled(enabled) {
 function updateCouponGlobal(val) {
     const sc = _activeSc(); if (!sc) return;
     sc.couponReinvest.globalPriceShift = val;
+    // Propagate to all per-isin override inputs (so they start from global value when toggled)
+    document.querySelectorAll('input[data-coupon-isin-shift]').forEach(inp => {
+        inp.value = val;
+        const isin = inp.dataset.couponIsinShift;
+        // If this isin already has an override active, also update the stored value
+        if (sc.couponReinvest.perIsin.has(isin)) {
+            const cfg = sc.couponReinvest.perIsin.get(isin);
+            cfg.priceShift = val;
+        }
+    });
     triggerSimulation();
 }
 
 function toggleCouponOverride(isin, checked) {
     const sc = _activeSc(); if (!sc) return;
     if (checked) {
-        if (!sc.couponReinvest.perIsin.has(isin)) sc.couponReinvest.perIsin.set(isin, { priceShift: 0 });
+        if (!sc.couponReinvest.perIsin.has(isin)) {
+            // Pre-populate with current global value so the input already reflects it
+            sc.couponReinvest.perIsin.set(isin, { priceShift: sc.couponReinvest.globalPriceShift });
+        }
     } else {
         sc.couponReinvest.perIsin.delete(isin);
     }
@@ -2154,6 +2228,39 @@ function updateInjectionPct(isin, pct) {
     triggerSimulation();
 }
 
+function updateInjectionFixed(isin, fixed) {
+    const sc = _activeSc(); if (!sc) return;
+    if (!sc.injection.fixed) sc.injection.fixed = {};
+    if (fixed) sc.injection.fixed[isin] = true;
+    else delete sc.injection.fixed[isin];
+    // No simulation needed — fixed only affects Redistribute
+    _rebuildInjectionTab();
+}
+
+function redistributeInjectionPct() {
+    const sc = _activeSc(); if (!sc) return;
+    const today = new Date().getFullYear();
+    const activeBonds = (_lastPortfolio || []).filter(b => new Date(b.maturity).getFullYear() > today);
+    if (!activeBonds.length) return;
+    const inj = sc.injection;
+    if (!inj.fixed) inj.fixed = {};
+
+    // Fixed bonds: sum their pcts
+    const fixedSum = activeBonds
+        .filter(b => inj.fixed[b.isin])
+        .reduce((s, b) => s + (inj.pct[b.isin] ?? 0), 0);
+
+    const remaining = Math.max(0, 100 - fixedSum);
+    const nonFixed  = activeBonds.filter(b => !inj.fixed[b.isin]);
+
+    // Split remaining equally among non-fixed (ignore current values)
+    const equalShare = nonFixed.length > 0 ? +(remaining / nonFixed.length).toFixed(4) : 0;
+    nonFixed.forEach(b => { inj.pct[b.isin] = equalShare; });
+
+    _rebuildInjectionTab();
+    triggerSimulation();
+}
+
 // ── Panel partial re-renders (cheaper than full rebuild) ──────────────────────
 
 function _rebuildPanel() {
@@ -2202,7 +2309,7 @@ function exportScenarios() {
             perIsin: Object.fromEntries(sc.couponReinvest.perIsin),
         },
         maturityReplacement: Object.fromEntries(sc.maturityReplacement),
-        injection: { ...sc.injection },
+        injection: { ...sc.injection, fixed: sc.injection.fixed || {} },
     }));
 
     const blob = new Blob([JSON.stringify({
@@ -2313,11 +2420,11 @@ function importScenarios(event) {
                         perIsin:          perIsinMap,
                     },
                     maturityReplacement: replMap,
-                    injection: s.injection || {
+                    injection: s.injection ? { ...s.injection, fixed: s.injection.fixed || {} } : {
                         enabled: false, amountEur: 1000,
                         from: new Date().getFullYear(),
                         to:   new Date().getFullYear() + 10,
-                        pct:  {},
+                        pct:  {}, fixed: {},
                     },
                 };
             });
@@ -2528,8 +2635,12 @@ async function runSimulation() {
     renderSummaryStats(portfolio, simResult, startCapital);
     renderGrowthChart(simResult, startCapital);
     buildPerIsinPanel(portfolio, simResult);
+    _renderNrBenchmarkPanel();
 
-    // Re-apply active benchmark overlays
+    // Re-apply nr benchmark chart line if enabled
+    if (_nrBenchmark.enabled) _toggleNrBenchmark(true);
+
+    // Re-apply active ETF benchmark overlays
     document.querySelectorAll('input[id^="bench-chk-"]').forEach(chk => {
         if (chk.checked) chk.dispatchEvent(new Event('change'));
     });
@@ -2767,6 +2878,47 @@ function openYearDetailModal(yr, yearIdx, simResult, startCapital, allLabels) {
         </tr>${perBondRows}`;
     }).join('');
 
+    // ── No-reinvest benchmark row in modal ────────────────────────────────────
+    let benchRow = '';
+    if (_nrBenchmark.enabled && _nrBenchmark.yearEvents) {
+        const bEv   = _nrBenchmark.yearEvents.find(e => e.yr === yr) ?? null;
+        const bData = _nrBenchmark.data;
+        const bYrs  = _nrBenchmark.years || simResult.years;
+        const bIdx  = bYrs.indexOf(yr);
+        const bVal  = bData && bIdx >= 0 ? bData[bIdx] : null;
+        const bPrev = bData && bIdx > 0  ? bData[bIdx - 1] : null;
+        const bDelta = (bVal != null && bPrev != null) ? bVal - bPrev : null;
+        const bSc    = v => (v != null && isFinite(v)) ? fmt(v) : '—';
+        const bSign  = bDelta != null && bDelta >= 0 ? '+' : '';
+        const bCashAccum    = (bEv?.cash ?? 0);
+        const bBondsVal     = (bEv?.bondsVal ?? 0);
+        const bTotalPortVal = bBondsVal + bCashAccum;
+        const bValDisplay   = bTotalPortVal > 0
+            ? `${sym}${Math.round(_cgToBase(bTotalPortVal)).toLocaleString(undefined,{maximumFractionDigits:0})}`
+            : '—';
+        const bDeltaDisplay = bDelta != null
+            ? `<span style="color:${bDelta>=0?'#43a047':'#e53935'};font-weight:600;">
+                ${bSign}${sym}${Math.abs(Math.round(_cgToBase(bDelta))).toLocaleString(undefined,{maximumFractionDigits:0})}
+               </span>`
+            : '<span style="color:#888">—</span>';
+        const bBorderStyle = isDark ? 'border-top:2px dashed #3a3f60;' : 'border-top:2px dashed #c8cfdf;';
+        const bBg = isDark ? 'background:rgba(158,158,158,0.06);' : 'background:rgba(0,0,0,0.025);';
+        benchRow = `<tr style="${bBorderStyle}${bBg}">
+            <td style="padding:7px 10px;">
+                <span style="display:inline-flex;align-items:center;gap:7px;font-size:12px;color:${isDark?'#8890b8':'#888'};">
+                    <span style="display:inline-block;width:20px;height:2px;
+                                 border-top:2px dashed ${_nrBenchmark.color};vertical-align:middle;flex-shrink:0;"></span>
+                    ${_nrBenchmark.label}
+                </span>
+            </td>
+            <td style="padding:7px 10px;text-align:right;color:${isDark?'#8890b8':'#888'};">${bSc(bEv?.coupons)}</td>
+            <td style="padding:7px 10px;text-align:right;color:${isDark?'#8890b8':'#888'};">${bSc(bEv?.redemptions)}</td>
+            <td style="padding:7px 10px;text-align:right;color:${isDark?'#8890b8':'#888'};">—</td>
+            <td style="padding:7px 10px;text-align:right;font-weight:600;color:${isDark?'#8890b8':'#888'};">${bValDisplay}</td>
+            <td style="padding:7px 10px;text-align:right;">${bDeltaDisplay}</td>
+        </tr>`;
+    }
+
     const maturingBonds = _lastPortfolio.filter(b => new Date(b.maturity).getFullYear() === yr);
     let matHtml = '';
     if (maturingBonds.length) {
@@ -2831,7 +2983,7 @@ function openYearDetailModal(yr, yearIdx, simResult, startCapital, allLabels) {
                         <th style="padding:7px 10px;text-align:right;" title="Bonds + accumulated cash (coupons/redemptions not reinvested)">Portfolio Value</th>
                         <th style="padding:7px 10px;text-align:right;">Δ vs prev yr</th>
                     </tr></thead>
-                    <tbody>${rows}</tbody>
+                    <tbody>${rows}${benchRow}</tbody>
                 </table>
                 ${matHtml}
                 <p style="font-size:10px;color:${isDark?'#5a6080':'#aaa'};margin-top:10px;">
@@ -2988,6 +3140,100 @@ function renderBondYearChart(portfolio, years, selectedIsins) {
                 },
             },
         },
+    });
+}
+
+// ── No-reinvest benchmark panel ───────────────────────────────────────────────
+
+function _renderNrBenchmarkPanel() {
+    const el = document.getElementById('cgNrBenchPanel');
+    if (!el) return;
+    const isDark  = document.body.classList.contains('dark');
+    const border  = isDark ? '#2a2d45' : '#dde3ee';
+    const bg      = isDark ? '#1a1d2e' : '#f5f7ff';
+    const textMuted = isDark ? '#8890b8' : '#888';
+
+    el.innerHTML = `
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 14px;
+                    background:${bg};border-top:1px solid ${border};flex-wrap:wrap;">
+            <span style="font-size:10px;font-weight:600;color:${textMuted};
+                         text-transform:uppercase;letter-spacing:0.5px;flex-shrink:0;">
+                📊 Benchmark
+            </span>
+            <label style="display:inline-flex;align-items:center;gap:7px;cursor:pointer;font-size:12px;">
+                <input type="checkbox" id="cgNrBenchChk" ${_nrBenchmark.enabled ? 'checked' : ''}
+                    onchange="_toggleNrBenchmark(this.checked)"
+                    style="cursor:pointer;accent-color:${_nrBenchmark.color};">
+                <span style="display:inline-block;width:24px;height:2px;
+                             border-top:2px dashed ${_nrBenchmark.color};
+                             vertical-align:middle;flex-shrink:0;"></span>
+                <span id="cgNrBenchLabel"
+                    style="color:${isDark?'#c0c8e8':'#333'};min-width:60px;"
+                    title="Double-click to rename"
+                    ondblclick="_startNrBenchRename(this)">${_nrBenchmark.label}</span>
+            </label>
+            <span style="font-size:10px;color:${textMuted};margin-left:4px;">
+                no coupon reinvestment, no replacements — pure cash-flow baseline
+            </span>
+        </div>`;
+}
+
+function _toggleNrBenchmark(enabled) {
+    _nrBenchmark.enabled = enabled;
+    // Add/remove chart line
+    if (!_chart) return;
+    _chart.data.datasets = _chart.data.datasets.filter(d => d._nrBenchmark !== true);
+    if (enabled && _nrBenchmark.data) {
+        const sym = _cgSym();
+        _chart.data.datasets.push({
+            _nrBenchmark: true,
+            label:            _nrBenchmark.label,
+            data:             _nrBenchmark.data.map(v => isFinite(v) ? _cgToBase(v) : null),
+            borderColor:      _nrBenchmark.color,
+            backgroundColor:  _nrBenchmark.color + '18',
+            borderWidth:      1.5,
+            borderDash:       [5, 4],
+            pointRadius:      0,
+            tension:          0.3,
+            fill:             false,
+            spanGaps:         true,
+        });
+    }
+    _chart.update();
+}
+
+function _startNrBenchRename(labelEl) {
+    const rect = labelEl.getBoundingClientRect();
+    const isDark = document.body.classList.contains('dark');
+    const inp  = document.createElement('input');
+    inp.type   = 'text';
+    inp.value  = _nrBenchmark.label;
+    inp.style.cssText =
+        'position:fixed;left:' + rect.left + 'px;top:' + rect.top + 'px;' +
+        'width:' + Math.max(rect.width + 20, 100) + 'px;height:' + rect.height + 'px;' +
+        'font-size:12px;padding:0 4px;' +
+        'border:1px solid #5b8dee;border-radius:3px;' +
+        'background:' + (isDark ? '#252840' : '#fff') + ';color:inherit;' +
+        'z-index:99999;outline:none;box-sizing:border-box;';
+    document.body.appendChild(inp);
+    inp.focus(); inp.select();
+    const finish = () => {
+        const newLabel = inp.value.trim();
+        if (inp.parentNode) inp.parentNode.removeChild(inp);
+        if (newLabel && newLabel !== _nrBenchmark.label) {
+            _nrBenchmark.label = newLabel;
+            // Update chart dataset label if active
+            if (_chart) {
+                const ds = _chart.data.datasets.find(d => d._nrBenchmark);
+                if (ds) { ds.label = newLabel; _chart.update(); }
+            }
+            _renderNrBenchmarkPanel();
+        }
+    };
+    inp.addEventListener('blur', finish);
+    inp.addEventListener('keydown', e => {
+        if (e.key === 'Enter')  { e.preventDefault(); inp.blur(); }
+        if (e.key === 'Escape') { inp.value = _nrBenchmark.label; inp.blur(); }
     });
 }
 
