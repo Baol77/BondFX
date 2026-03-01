@@ -1643,8 +1643,10 @@ function renderGrowthChart(simResult, startCapital) {
     const titleEl = canvas.closest('.cg-chart-section')?.querySelector('.cg-chart-title');
     if (titleEl && !titleEl.querySelector('.cg-zoom-hint')) {
         titleEl.insertAdjacentHTML('beforeend',
-            `<span class="cg-zoom-hint" style="margin-left:auto;font-size:10px;color:#5a6080;white-space:nowrap;">
-                scroll to zoom &nbsp;·&nbsp; drag to pan &nbsp;·&nbsp; double-click to reset
+            `<span class="cg-zoom-hint" style="margin-left:auto;font-size:10px;color:#5a6080;">
+                <span>scroll to zoom</span>
+                <span>drag to pan</span>
+                <span>double-click to reset</span>
             </span>`);
     }
 }

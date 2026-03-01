@@ -394,6 +394,27 @@ body.dark .cg-btn-secondary:hover  { background: #1976d2; color: #fff; }
     .analyzer-header__title svg    { display: none; }
 }
 
+.cg-zoom-hint {
+    white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+    .cg-chart-title {
+        flex-wrap: wrap;
+        row-gap: 4px;
+    }
+    .cg-zoom-hint {
+        white-space: normal;
+        width: 100%;
+        margin-left: 0 !important;
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+        font-size: 9px !important;
+        line-height: 1.6;
+    }
+}
+
 @media (max-width: 420px) {
     /* Extra-small: 1 stat card per row */
     #cgStatsCards .cg-stat-card { flex: 1 1 100%; }
