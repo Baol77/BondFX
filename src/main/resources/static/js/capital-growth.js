@@ -574,16 +574,19 @@ function runMaturityReplacement(slots, years, matReplacementOrArray, injectionBy
         // so including them would silently remove a share of otherCash from circulation.
         const totalFace = refPool.reduce((s, sl) => sl._isReplacement ? s : s + sl.unitsHeld * sl.facePerUnit, 0);
 
-        if (cashIn > 0 && totalFace > 0) {
-            // For each replacement that activates this year, compute actual proceeds
-            // (redemption + coupon of that bond only) and create a replacement slot.
-            // "otherCash" = everything not claimed by any replacement.
-            let totalSrcCash = 0;
-            let totalSrcFace = 0;
+        // ── Phase A: create replacement slots for any bond maturing this year ──
+        // This must run independently of totalFace > 0, because in later years
+        // all surviving non-replacement bonds may already be replacement slots
+        // (totalFace == 0) yet a new replacement still needs to be activated.
+        let totalSrcCash = 0;
 
+        if (cashIn > 0) {
             for (const rep of replacements) {
-                const repSrcSlot = maturedOrigSlots.find(s => s.isin === rep.sourceBond?.isin);
-                if (!repSrcSlot) continue; // this replacement's bond doesn't mature this year
+                // Use the live pool slot (has up-to-date unitsHeld from reinvestment)
+                // rather than the stale original `slots` snapshot.
+                const repSrcSlot = pool.find(s => s.isin === rep.sourceBond?.isin)
+                    ?? maturedOrigSlots.find(s => s.isin === rep.sourceBond?.isin);
+                if (!repSrcSlot || repSrcSlot.matYear !== yr) continue; // doesn't mature this year
                 const repFxM = repSrcSlot.currency
                     ? _fxCurveGet(repSrcSlot.currency, reportCcy, yr, startYear) : 1.0;
                 const repFxC = repSrcSlot.currency
@@ -612,55 +615,45 @@ function runMaturityReplacement(slots, years, matReplacementOrArray, injectionBy
                     pool.push(replSlot);
                     reinvested   += repSrcCash;
                     totalSrcCash += repSrcCash;
-                    totalSrcFace += repSrcSlot.unitsHeld * repSrcSlot.facePerUnit;
                 } else if (repSrcCash > 0) {
                     cash         += repSrcCash;
                     totalSrcCash += repSrcCash;
-                    totalSrcFace += repSrcSlot.unitsHeld * repSrcSlot.facePerUnit;
                 }
             }
+        }
 
-            // otherCash = cashIn minus proceeds claimed by replacement activation(s).
-            // Source bonds are not in refPool at this point (already matured → filtered out).
-            // So totalFace already represents only the surviving non-replacement bonds,
-            // and we can distribute otherCash directly proportional to their face.
-            const otherCash = cashIn - totalSrcCash;
+        // ── Phase B: distribute otherCash to surviving non-replacement bonds ──
+        // otherCash = coupons + redemptions NOT claimed by any replacement activation.
+        const otherCash = cashIn - totalSrcCash;
 
+        if (otherCash > 0 && totalFace > 0) {
             for (const sl of refPool) {
-                // Skip replacement slots — their coupons are compounded directly above
                 if (sl._isReplacement) continue;
-                // (Source bonds are already gone from pool — no skip needed here)
 
-                const share   = totalFace > 0 ? (sl.unitsHeld * sl.facePerUnit) / totalFace : 0;
+                const share   = (sl.unitsHeld * sl.facePerUnit) / totalFace;
                 const myShare = otherCash * share;
 
-                if (false) { // (sourceBond handled above — dead branch kept for structure)
-                } else {
-                    // All other bonds: reinvest coupons same-bond style (same as reinvest_flat builtin)
-                    const cost = sl.pricePerUnit;
-                    if (cost > 0) {
-                        const liveSlot = pool.find(p => p.isin === sl.isin);
-                        if (liveSlot) {
-                            liveSlot.unitsHeld += myShare / cost;
-                        } else {
-                            // Bond matured this year (not the source bond): synthetic continuation
-                            pool.push({
-                                isin: sl.isin + '_cont_' + yr, issuer: sl.issuer,
-                                matYear: simEndYear + 30,
-                                unitsHeld: myShare / cost,
-                                facePerUnit: sl.facePerUnit, couponPerUnit: sl.couponPerUnit,
-                                pricePerUnit: cost, accruedPerUnit: 0,
-                                synthetic: true, _type: 'same_bond',
-                            });
-                        }
-                        reinvested += myShare;
-                    } else { cash += myShare; }
-                }
+                const cost = sl.pricePerUnit;
+                if (cost > 0) {
+                    const liveSlot = pool.find(p => p.isin === sl.isin);
+                    if (liveSlot) {
+                        liveSlot.unitsHeld += myShare / cost;
+                    } else {
+                        // Bond matured this year (not a replacement source): synthetic continuation
+                        pool.push({
+                            isin: sl.isin + '_cont_' + yr, issuer: sl.issuer,
+                            matYear: simEndYear + 30,
+                            unitsHeld: myShare / cost,
+                            facePerUnit: sl.facePerUnit, couponPerUnit: sl.couponPerUnit,
+                            pricePerUnit: cost, accruedPerUnit: 0,
+                            synthetic: true, _type: 'same_bond',
+                        });
+                    }
+                    reinvested += myShare;
+                } else { cash += myShare; }
             }
-
-            // No mktTotal aggregation needed: other bonds handled individually above
-        } else if (cashIn > 0) {
-            cash += cashIn;
+        } else if (otherCash > 0) {
+            cash += otherCash;
         }
 
         const cashInTotR = yearCoupons + yearRedemptions;
@@ -1410,32 +1403,42 @@ function renderSummaryStats(portfolio, simResult, startCapital) {
         const activeScId = _activeScenarioId || (_scenarios[0]?.id);
         const activeSimSc = simResult.scenarios?.find(s => s.id === activeScId);
 
-        // Aggregate stats from _cgComputeCache (populated by POST /api/bonds/compute).
-        // No BondScoreEngine formula replication here — values come from Java.
+        // Base stats from portfolio cost and horizon
         let totStart = 0, totFinal = 0, totCoupons = 0, totFace = 0, maxHorizon = 0;
         portfolio.forEach(b => {
-            const cached    = _cgComputeCache.get(b.isin);
             const bondCost  = b.totalEur || (b.priceEur || 0) * b.quantity;
-            const share     = portfolioCost > 0 ? bondCost / portfolioCost : 0;
-            const bondStart = startCapital * share;
-            const horizon   = simResult.years ? simResult.years.length - 1 : 0;
-
-            // Scale cached 1000€-basis values to actual bondStart
-            const scale        = bondStart / 1000;
-            const totalCoupons = (cached?.capCoupons ?? 0) * scale;
-            const faceVal      = (cached?.capGain    ?? 0) * scale;
-
-            totStart   += bondStart;
-            totFinal   += totalCoupons + faceVal;
-            totCoupons += totalCoupons;
-            totFace    += faceVal;
-            maxHorizon  = Math.max(maxHorizon, horizon);
+            totStart   += bondCost;
+            maxHorizon  = Math.max(maxHorizon, simResult.years ? simResult.years.length - 1 : 0);
         });
 
-        // If active scenario has computed simulation data, use its final value
+        // Total Net Coupons and Capital Returned: sum from active scenario's yearEvents
+        // so that injection / reinvestment effects are correctly reflected.
+        if (activeSimSc?.yearEvents?.length) {
+            const sc      = activeSimSc;
+            const scScale = sc.scale || 1;
+            activeSimSc.yearEvents.forEach(ev => {
+                totCoupons += (ev.coupons ?? 0) * scScale;
+                totFace    += (ev.redemptions ?? 0) * scScale;
+            });
+        } else {
+            // Fallback: static cache (no scenario selected or no events yet)
+            portfolio.forEach(b => {
+                const cached    = _cgComputeCache.get(b.isin);
+                const bondCost  = b.totalEur || (b.priceEur || 0) * b.quantity;
+                const share     = portfolioCost > 0 ? bondCost / portfolioCost : 0;
+                const bondStart = startCapital * share;
+                const scale     = bondStart / 1000;
+                totCoupons += (cached?.capCoupons ?? 0) * scale;
+                totFace    += (cached?.capGain    ?? 0) * scale;
+            });
+        }
+
+        // Final Value: use last data point of active scenario
         if (activeSimSc?.data?.length > 0) {
             const last = activeSimSc.data.filter(v => v != null && isFinite(v)).slice(-1)[0];
             if (last) totFinal = last;
+        } else {
+            totFinal = totStart + totCoupons + totFace;
         }
 
         const cagr = (maxHorizon > 0 && totStart > 0 && totFinal > 0)
