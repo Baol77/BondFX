@@ -28,6 +28,10 @@
 /* ── ≤768px  — main mobile layout ── */
 @media (max-width: 768px) {
 
+    /* Stack calendar + country exposure vertically on mobile */
+    .calendar-country-row   { flex-direction: column; gap: 16px; }
+    .calendar-country-col--pie { max-width: 100%; width: 100%; }
+
     /* Analyzer header: compact */
     .analyzer-header {
         gap: 6px;

@@ -61,6 +61,8 @@
 
             <div class="portfolio-table-wrapper">
                 <h3>2️⃣ Your Portfolio</h3>
+                <!-- Multi-Portfolio Switcher — rendered by JS -->
+                <div id="portfolioSwitcherBar"></div>
                 <div class="portfolio-table-toolbar">
                     <div class="portfolio-action-btns">
                         <button onclick="window.portfolioAnalyzer.exportPortfolio()" class="btn-tool btn-tool-export" title="Export CSV">
@@ -185,11 +187,19 @@
                 </div>
             </div>
 
-            <!-- 4️⃣ DIVIDEND CALENDAR -->
+            <!-- 4️⃣ DIVIDEND CALENDAR + COUNTRY EXPOSURE -->
             <div style="margin-bottom:30px;">
-                <h3>4️⃣ Dividend Calendar — Next 12 Months</h3>
-                <p style="font-size:12px;color:#888;margin:0 0 10px;">Estimated coupon income per month (converted to base currency). Assumes semi-annual coupons paid at coupon date each year.</p>
-                <div id="dividendCalendar" class="calendar-grid"></div>
+                <div class="calendar-country-row">
+                    <div class="calendar-country-col">
+                        <h3>4️⃣ Dividend Calendar — Next 12 Months</h3>
+                        <p style="font-size:12px;color:#888;margin:0 0 10px;">Estimated coupon income per month (converted to base currency). Assumes semi-annual coupons paid at coupon date each year.</p>
+                        <div id="dividendCalendar" class="calendar-grid"></div>
+                    </div>
+                    <div class="calendar-country-col calendar-country-col--pie">
+                        <h3>🌍 Country Exposure</h3>
+                        <div id="countryExposureChart"></div>
+                    </div>
+                </div>
             </div>
 
             <!-- 5️⃣ MATURITY CALENDAR -->
