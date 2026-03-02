@@ -1,0 +1,123 @@
+{
+  "bondFxVersion": "6.0",
+  "exportedAt": "2026-03-02T09:05:29",
+  "portfolioSnapshot": [
+    {
+      "isin": "XS1313004928",
+      "issuer": "ROMANIA",
+      "investedEur": 4000,
+      "quantity": 44.0141,
+      "priceEur": 90.88,
+      "coupon": 3.88,
+      "maturity": "2035-10-29",
+      "taxRate": 12.5,
+      "currency": "EUR"
+    },
+    {
+      "isin": "XS3124345631",
+      "issuer": "BULGARIA",
+      "investedEur": 3000,
+      "quantity": 29.976,
+      "priceEur": 100.08,
+      "coupon": 3.38,
+      "maturity": "2035-07-18",
+      "taxRate": 12.5,
+      "currency": "EUR"
+    },
+    {
+      "isin": "XS2181689659",
+      "issuer": "UNGHERIA",
+      "investedEur": 3000,
+      "quantity": 36.2188,
+      "priceEur": 82.83,
+      "coupon": 1.75,
+      "maturity": "2035-06-05",
+      "taxRate": 12.5,
+      "currency": "EUR"
+    },
+    {
+      "isin": "XS2109813142",
+      "issuer": "ROMANIA2",
+      "investedEur": 5000,
+      "quantity": 73.7572,
+      "priceEur": 67.79,
+      "coupon": 3.38,
+      "maturity": "2050-01-28",
+      "taxRate": 10,
+      "currency": "EUR"
+    },
+    {
+      "isin": "XS2908645265",
+      "issuer": "ROMANIA3",
+      "investedEur": 5000,
+      "quantity": 50,
+      "priceEur": 100,
+      "coupon": 6,
+      "maturity": "2044-09-24",
+      "taxRate": 10,
+      "currency": "EUR"
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "sc_1",
+      "label": "Scenario 1",
+      "color": "#9e9e9e",
+      "couponReinvest": {
+        "enabled": true,
+        "globalPriceShift": 0,
+        "perIsin": {}
+      },
+      "maturityReplacement": {
+        "XS1313004928": {
+          "enabled": true,
+          "_matYear": 2035,
+          "netCouponPct": 5.09,
+          "priceShift": 0,
+          "maturityYear": 2045,
+          "reinvestCoupons": true
+        },
+        "XS3124345631": {
+          "enabled": true,
+          "_matYear": 2035,
+          "netCouponPct": 5.09,
+          "priceShift": 0,
+          "maturityYear": 2050,
+          "reinvestCoupons": false
+        },
+        "XS2181689659": {
+          "enabled": true,
+          "_matYear": 2035,
+          "netCouponPct": 5.09,
+          "priceShift": 0,
+          "maturityYear": 2055,
+          "reinvestCoupons": true
+        },
+        "XS2109813142": {
+          "enabled": true,
+          "_matYear": 2050,
+          "netCouponPct": 5.09,
+          "priceShift": 0,
+          "maturityYear": 2060,
+          "reinvestCoupons": false
+        },
+        "XS2908645265": {
+          "enabled": true,
+          "_matYear": 2044,
+          "netCouponPct": 5.09,
+          "priceShift": 0,
+          "maturityYear": 2065,
+          "reinvestCoupons": true
+        }
+      },
+      "injection": {
+        "enabled": false,
+        "amountEur": 1000,
+        "from": 2026,
+        "to": 2050,
+        "pct": {},
+        "fixed": {}
+      }
+    }
+  ]
+}

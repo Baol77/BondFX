@@ -1,0 +1,85 @@
+{
+  "bondFxVersion": "6.0",
+  "exportedAt": "2026-03-02T08:53:46",
+  "portfolioSnapshot": [
+    {
+      "isin": "XS1313004928",
+      "issuer": "ROMANIA",
+      "investedEur": 4000,
+      "quantity": 44.0141,
+      "priceEur": 90.88,
+      "coupon": 3.88,
+      "maturity": "2035-10-29",
+      "taxRate": 12.5,
+      "currency": "EUR"
+    },
+    {
+      "isin": "XS3124345631",
+      "issuer": "BULGARIA",
+      "investedEur": 3000,
+      "quantity": 29.976,
+      "priceEur": 100.08,
+      "coupon": 3.38,
+      "maturity": "2035-07-18",
+      "taxRate": 12.5,
+      "currency": "EUR"
+    },
+    {
+      "isin": "XS2181689659",
+      "issuer": "UNGHERIA",
+      "investedEur": 3000,
+      "quantity": 36.2188,
+      "priceEur": 82.83,
+      "coupon": 1.75,
+      "maturity": "2035-06-05",
+      "taxRate": 12.5,
+      "currency": "EUR"
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "sc_1",
+      "label": "Scenario 1",
+      "color": "#9e9e9e",
+      "couponReinvest": {
+        "enabled": true,
+        "globalPriceShift": 0,
+        "perIsin": {}
+      },
+      "maturityReplacement": {
+        "XS1313004928": {
+          "enabled": true,
+          "_matYear": 2035,
+          "netCouponPct": 4.18,
+          "priceShift": 0,
+          "maturityYear": 2045,
+          "reinvestCoupons": true
+        },
+        "XS3124345631": {
+          "enabled": true,
+          "_matYear": 2035,
+          "netCouponPct": 4.18,
+          "priceShift": 0,
+          "maturityYear": 2050,
+          "reinvestCoupons": true
+        },
+        "XS2181689659": {
+          "enabled": true,
+          "_matYear": 2035,
+          "netCouponPct": 4.18,
+          "priceShift": 0,
+          "maturityYear": 2055,
+          "reinvestCoupons": false
+        }
+      },
+      "injection": {
+        "enabled": false,
+        "amountEur": 1000,
+        "from": 2026,
+        "to": 2035,
+        "pct": {},
+        "fixed": {}
+      }
+    }
+  ]
+}

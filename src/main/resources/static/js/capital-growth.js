@@ -574,19 +574,17 @@ function runMaturityReplacement(slots, years, matReplacementOrArray, injectionBy
         // so including them would silently remove a share of otherCash from circulation.
         const totalFace = refPool.reduce((s, sl) => sl._isReplacement ? s : s + sl.unitsHeld * sl.facePerUnit, 0);
 
-        // ── Phase A: create replacement slots for any bond maturing this year ──
-        // This must run independently of totalFace > 0, because in later years
-        // all surviving non-replacement bonds may already be replacement slots
-        // (totalFace == 0) yet a new replacement still needs to be activated.
+        // ── Phase A: create replacement slots (runs whenever cashIn > 0) ────────────
+        // Must be independent of totalFace because in later activation years all
+        // surviving non-source bonds may already be _isReplacement slots (totalFace==0).
         let totalSrcCash = 0;
 
         if (cashIn > 0) {
             for (const rep of replacements) {
-                // Use the live pool slot (has up-to-date unitsHeld from reinvestment)
-                // rather than the stale original `slots` snapshot.
+                // Prefer the live pool slot (updated unitsHeld) over the stale slots snapshot.
                 const repSrcSlot = pool.find(s => s.isin === rep.sourceBond?.isin)
                     ?? maturedOrigSlots.find(s => s.isin === rep.sourceBond?.isin);
-                if (!repSrcSlot || repSrcSlot.matYear !== yr) continue; // doesn't mature this year
+                if (!repSrcSlot || repSrcSlot.matYear !== yr) continue;
                 const repFxM = repSrcSlot.currency
                     ? _fxCurveGet(repSrcSlot.currency, reportCcy, yr, startYear) : 1.0;
                 const repFxC = repSrcSlot.currency
@@ -622,8 +620,7 @@ function runMaturityReplacement(slots, years, matReplacementOrArray, injectionBy
             }
         }
 
-        // ── Phase B: distribute otherCash to surviving non-replacement bonds ──
-        // otherCash = coupons + redemptions NOT claimed by any replacement activation.
+        // ── Phase B: distribute otherCash to surviving non-replacement bonds ────────
         const otherCash = cashIn - totalSrcCash;
 
         if (otherCash > 0 && totalFace > 0) {
@@ -632,8 +629,7 @@ function runMaturityReplacement(slots, years, matReplacementOrArray, injectionBy
 
                 const share   = (sl.unitsHeld * sl.facePerUnit) / totalFace;
                 const myShare = otherCash * share;
-
-                const cost = sl.pricePerUnit;
+                const cost    = sl.pricePerUnit;
                 if (cost > 0) {
                     const liveSlot = pool.find(p => p.isin === sl.isin);
                     if (liveSlot) {
