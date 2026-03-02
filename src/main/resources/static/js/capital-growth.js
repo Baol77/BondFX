@@ -216,8 +216,14 @@ async function _cgLoadFxRates() {
 // ── Portfolio loader ──────────────────────────────────────────────────────────
 function loadPortfolio() {
     try {
-        const raw = localStorage.getItem('bondPortfolio');
-        return raw ? JSON.parse(raw).filter(b => b.includeInStatistics !== false) : [];
+        const raw = localStorage.getItem('bondPortfolios_v2');
+        return raw
+          ? (JSON.parse(raw)?.portfolios?.[
+                JSON.parse(raw)?.activeId
+             ]?.bonds ?? []
+            ).filter(b => b.includeInStatistics !== false)
+          : [];
+
     } catch(e) { return []; }
 }
 
