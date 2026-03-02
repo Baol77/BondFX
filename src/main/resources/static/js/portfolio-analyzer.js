@@ -1148,7 +1148,7 @@ class PortfolioAnalyzer {
             // Prefer bond.country if set
             if (bond.country) country = bond.country.toUpperCase();
 
-            const val = (bond.priceEur * bond.quantity) || 0;
+            const val = bond.totalEur || 0;
             countryTotals[country] = (countryTotals[country] || 0) + val;
         });
 
