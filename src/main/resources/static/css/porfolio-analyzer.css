@@ -396,6 +396,23 @@ body.dark .btn-close-form:hover {
     margin-top: 2px;
 }
 
+/* ─── COUNTRY EXPOSURE — side-by-side with Dividend Calendar ────────────────── */
+.calendar-country-row {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+}
+.calendar-country-col {
+    flex: 1 1 0;
+    min-width: 220px;
+}
+.calendar-country-col--pie {
+    flex: 0 0 auto;
+    min-width: 280px;
+    max-width: 380px;
+}
+
 /* ─── MATURITY CALENDAR ─────────────────────────────────────────────────────── */
 .maturity-list {
     display: flex;

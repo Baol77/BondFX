@@ -57,20 +57,183 @@ class PortfolioAnalyzer {
         this.currentBond = null;
         this.highlightedIndex = -1;
         this.currentMatches = [];
+        // Multi-portfolio state
+        this.portfolios = {};      // { id: { name, bonds[] } }
+        this.activePortfolioId = null;
         this.init();
     }
 
-    init() {
-        // Load saved portfolio from localStorage
-        const saved = localStorage.getItem('bondPortfolio');
-        if (saved) {
-            try {
-                this.portfolio = JSON.parse(saved);
-            } catch (e) {
-                console.warn('Failed to load portfolio:', e);
-                this.portfolio = [];
+    // ── Multi-Portfolio Storage Helpers ──────────────────────────────────────
+
+    _loadAllPortfolios() {
+        try {
+            const raw = localStorage.getItem('bondPortfolios_v2');
+            if (raw) {
+                const data = JSON.parse(raw);
+                this.portfolios = data.portfolios || {};
+                this.activePortfolioId = data.activeId || null;
             }
+        } catch(e) { this.portfolios = {}; this.activePortfolioId = null; }
+
+        // Migration: if old single-portfolio data exists, import it
+        if (Object.keys(this.portfolios).length === 0) {
+            const oldData = localStorage.getItem('bondPortfolio');
+            const id = this._genId();
+            let bonds = [];
+            if (oldData) {
+                try { bonds = JSON.parse(oldData); } catch(e) {}
+            }
+            this.portfolios[id] = { name: 'Portfolio 1', bonds };
+            this.activePortfolioId = id;
+            this._saveAllPortfolios();
         }
+
+        // Ensure activeId is valid
+        if (!this.portfolios[this.activePortfolioId]) {
+            this.activePortfolioId = Object.keys(this.portfolios)[0];
+        }
+
+        this.portfolio = this.portfolios[this.activePortfolioId]?.bonds || [];
+    }
+
+    _saveAllPortfolios() {
+        // Keep active portfolio's bonds in sync
+        if (this.activePortfolioId && this.portfolios[this.activePortfolioId]) {
+            this.portfolios[this.activePortfolioId].bonds = this.portfolio;
+        }
+        localStorage.setItem('bondPortfolios_v2', JSON.stringify({
+            portfolios: this.portfolios,
+            activeId: this.activePortfolioId
+        }));
+    }
+
+    _genId() {
+        return 'pf_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+    }
+
+    _switchPortfolio(id) {
+        if (!this.portfolios[id]) return;
+        // Save current before switching
+        if (this.activePortfolioId && this.portfolios[this.activePortfolioId]) {
+            this.portfolios[this.activePortfolioId].bonds = this.portfolio;
+        }
+        this.activePortfolioId = id;
+        this.portfolio = this.portfolios[id].bonds;
+        this._saveAllPortfolios();
+        this._renderPortfolioSwitcher();
+        this.updatePortfolioTable();
+        this.updateStatistics();
+        this.updateCalendars();
+    }
+
+    _addPortfolio() {
+        const count = Object.keys(this.portfolios).length + 1;
+        const name = prompt('Portfolio name:', `Portfolio ${count}`);
+        if (!name) return;
+        const id = this._genId();
+        // Save current first
+        if (this.activePortfolioId && this.portfolios[this.activePortfolioId]) {
+            this.portfolios[this.activePortfolioId].bonds = this.portfolio;
+        }
+        this.portfolios[id] = { name: name.trim(), bonds: [] };
+        this.activePortfolioId = id;
+        this.portfolio = [];
+        this._saveAllPortfolios();
+        this._renderPortfolioSwitcher();
+        this.updatePortfolioTable();
+        this.updateStatistics();
+        this.updateCalendars();
+    }
+
+    _removePortfolio() {
+        const keys = Object.keys(this.portfolios);
+        if (keys.length <= 1) {
+            alert('Cannot remove the last portfolio.');
+            return;
+        }
+        const name = this.portfolios[this.activePortfolioId]?.name || 'this portfolio';
+        if (!confirm(`Remove "${name}"? This cannot be undone.`)) return;
+        delete this.portfolios[this.activePortfolioId];
+        this.activePortfolioId = Object.keys(this.portfolios)[0];
+        this.portfolio = this.portfolios[this.activePortfolioId].bonds;
+        this._saveAllPortfolios();
+        this._renderPortfolioSwitcher();
+        this.updatePortfolioTable();
+        this.updateStatistics();
+        this.updateCalendars();
+    }
+
+    _renamePortfolio() {
+        const current = this.portfolios[this.activePortfolioId]?.name || '';
+        const name = prompt('Rename portfolio:', current);
+        if (!name || name.trim() === current) return;
+        this.portfolios[this.activePortfolioId].name = name.trim();
+        this._saveAllPortfolios();
+        this._renderPortfolioSwitcher();
+    }
+
+    _renderPortfolioSwitcher() {
+        const bar = document.getElementById('portfolioSwitcherBar');
+        if (!bar) return;
+
+        const isDark = document.body.classList.contains('dark');
+        const ids = Object.keys(this.portfolios);
+        const selectHtml = `
+            <select id="portfolioSelect"
+                onchange="window.portfolioAnalyzer._switchPortfolio(this.value)"
+                style="padding:5px 10px;border-radius:6px;font-size:13px;font-weight:600;
+                       border:1.5px solid ${isDark ? '#3a3f60' : '#c0cce0'};
+                       background:${isDark ? '#1e2338' : '#f5f8ff'};
+                       color:${isDark ? '#c8d0f0' : '#1a2a4a'};
+                       cursor:pointer;min-width:160px;">
+                ${ids.map(id => `<option value="${id}" ${id === this.activePortfolioId ? 'selected' : ''}>${this.portfolios[id].name}</option>`).join('')}
+            </select>`;
+
+        // base style (no hover — applied via onmouseenter/leave below)
+        const btnBase = (color) =>
+            `padding:5px 10px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;
+             border:1.5px solid ${color};color:${color};
+             background:${isDark ? '#1e2338' : '#fff'};
+             transition:background 0.15s,color 0.15s,border-color 0.15s;`;
+
+        // hover: fill with the accent colour, text white
+        const hoverIn  = (color) => `this.style.background='${color}';this.style.color='#fff';this.style.borderColor='${color}';`;
+        const hoverOut = (color, bgDefault) => `this.style.background='${bgDefault}';this.style.color='${color}';this.style.borderColor='${color}';`;
+
+        const bgDef = isDark ? '#1e2338' : '#fff';
+
+        // per-button accent colours
+        const renameColor = isDark ? '#7aaeff' : '#1a73e8';
+        const addColor    = isDark ? '#6ac870' : '#2e7d32';
+        const removeColor = isDark ? '#e86060' : '#c62828';
+
+        bar.innerHTML = `
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 0;margin-bottom:10px;
+                        border-bottom:1.5px solid ${isDark ? '#2a2d45' : '#e8edf2'};">
+                <span style="font-size:11px;font-weight:700;color:${isDark ? '#6870a0' : '#888'};
+                             text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;">Portfolio:</span>
+                ${selectHtml}
+                <button onclick="window.portfolioAnalyzer._renamePortfolio()"
+                    title="Rename current portfolio"
+                    onmouseenter="${hoverIn(renameColor)}"
+                    onmouseleave="${hoverOut(renameColor, bgDef)}"
+                    style="${btnBase(renameColor)}">✏️</button>
+                <button onclick="window.portfolioAnalyzer._addPortfolio()"
+                    title="Add new portfolio"
+                    onmouseenter="${hoverIn(addColor)}"
+                    onmouseleave="${hoverOut(addColor, bgDef)}"
+                    style="${btnBase(addColor)}">＋ New</button>
+                <button onclick="window.portfolioAnalyzer._removePortfolio()"
+                    title="Remove current portfolio"
+                    onmouseenter="${hoverIn(removeColor)}"
+                    onmouseleave="${hoverOut(removeColor, bgDef)}"
+                    style="${btnBase(removeColor)}">🗑</button>
+            </div>`;
+    }
+
+    init() {
+        // Load all portfolios (with migration from old single-portfolio)
+        this._loadAllPortfolios();
 
         // Create modal interface
         this.createModal();
@@ -148,6 +311,7 @@ class PortfolioAnalyzer {
         if (this.modal) {
             this.modal.classList.add('open');
         }
+        this._renderPortfolioSwitcher();
         this.updatePortfolioTable();
         this.updateStatistics();
         this.updateCalendars();
@@ -777,6 +941,8 @@ class PortfolioAnalyzer {
             document.getElementById('statWeightedRisk').textContent = '0.00 yrs';
             document.getElementById('statWeightedRating').textContent = '-';
             document.getElementById('currencyBreakdown').innerHTML = '';
+            const ceEl = document.getElementById('countryExposureChart');
+            if (ceEl) ceEl.innerHTML = '';
             document.getElementById('statTotalProfit').textContent = _paSym(_paBaseCcy()) + '0';
             document.getElementById('statTotalCouponIncome').textContent = _paSym(_paBaseCcy()) + '0';
             document.getElementById('statTotalReturn').textContent = _paSym(_paBaseCcy()) + '0';
@@ -918,6 +1084,7 @@ class PortfolioAnalyzer {
 
         // Display currency breakdown
         this.updateCurrencyBreakdown(currencyTotals, totalInvestment1);
+        this.updateCountryExposure(bonds);
         this.updateStatCardColors(weightedSAYPercent, weightedSAYNetPercent,
                                   weightedYieldPercent, weightedYieldNetPercent,
                                   weightedCouponPercent, weightedRiskYears,
@@ -947,7 +1114,138 @@ class PortfolioAnalyzer {
         }).join('');
     }
 
-    // ── Dividend Calendar & Maturity Calendar ────────────────────────────────
+    updateCountryExposure(bonds) {
+        const el = document.getElementById('countryExposureChart');
+        if (!el) return;
+
+        if (!bonds || bonds.length === 0) {
+            el.innerHTML = '';
+            return;
+        }
+
+        // Aggregate investment by country (using issuer field mapped to FLAG_MAP)
+        const FLAG_MAP = {
+            "ITALIA":"🇮🇹","GERMANIA":"🇩🇪","FRANCIA":"🇫🇷","SPAGNA":"🇪🇸",
+            "PORTOGALLO":"🇵🇹","GRECIA":"🇬🇷","AUSTRIA":"🇦🇹","BELGIO":"🇧🇪",
+            "OLANDA":"🇳🇱","FINLANDIA":"🇫🇮","IRLANDA":"🇮🇪","SVEZIA":"🇸🇪",
+            "DANIMARCA":"🇩🇰","NORVEGIA":"🇳🇴","SVIZZERA":"🇨🇭",
+            "REGNO UNITO":"🇬🇧","UK":"🇬🇧","USA":"🇺🇸","GIAPPONE":"🇯🇵",
+            "ROMANIA":"🇷🇴","POLONIA":"🇵🇱","UNGHERIA":"🇭🇺","BULGARIA":"🇧🇬",
+            "CROAZIA":"🇭🇷","SLOVENIA":"🇸🇮","SLOVACCHIA":"🇸🇰",
+            "REPUBBLICA CECA":"🇨🇿","ESTONIA":"🇪🇪","LETTONIA":"🇱🇻","LITUANIA":"🇱🇹",
+            "CIPRO":"🇨🇾","LUSSEMBURGO":"🇱🇺","TURCHIA":"🇹🇷","BRASILE":"🇧🇷",
+            "MESSICO":"🇲🇽","CILE":"🇨🇱","SUDAFRICA":"🇿🇦","PERU":"🇵🇪","AUSTRALIA":"🇦🇺"
+        };
+
+        // Map bond issuer → country name
+        const countryTotals = {};
+        bonds.forEach(bond => {
+            const issuerUp = (bond.issuer || '').toUpperCase();
+            let country = 'OTHER';
+            for (const key of Object.keys(FLAG_MAP)) {
+                if (issuerUp.includes(key)) { country = key; break; }
+            }
+            // Prefer bond.country if set
+            if (bond.country) country = bond.country.toUpperCase();
+
+            const val = (bond.priceEur * bond.quantity) || 0;
+            countryTotals[country] = (countryTotals[country] || 0) + val;
+        });
+
+        const total = Object.values(countryTotals).reduce((a, b) => a + b, 0);
+        if (total === 0) { el.innerHTML = ''; return; }
+
+        // Sort by value desc
+        const entries = Object.entries(countryTotals).sort((a, b) => b[1] - a[1]);
+
+        // Pie colors (accessible palette)
+        const COLORS = ['#2196F3','#4CAF50','#FF9800','#E91E63','#9C27B0',
+                        '#00BCD4','#CDDC39','#FF5722','#607D8B','#3F51B5',
+                        '#8BC34A','#FFC107','#795548','#009688','#F44336'];
+
+        const isDark = document.body.classList.contains('dark');
+        const sym = _paSym(_paBaseCcy());
+
+        // Build SVG pie
+        const size = 160;
+        const cx = size / 2, cy = size / 2, r = size / 2 - 6;
+        let startAngle = -Math.PI / 2;
+        const slices = entries.map(([ country, value ], i) => {
+            const pct = value / total;
+            const angle = pct * 2 * Math.PI;
+            const endAngle = startAngle + angle;
+            const x1 = cx + r * Math.cos(startAngle);
+            const y1 = cy + r * Math.sin(startAngle);
+            const x2 = cx + r * Math.cos(endAngle);
+            const y2 = cy + r * Math.sin(endAngle);
+            const midAngle = startAngle + angle / 2;
+            const largeArc = angle > Math.PI ? 1 : 0;
+            const color = COLORS[i % COLORS.length];
+            const flag = FLAG_MAP[country] || '🌍';
+            const slice = { country, value, pct, startAngle, endAngle, midAngle, x1, y1, x2, y2, largeArc, color, flag };
+            startAngle = endAngle;
+            return slice;
+        });
+
+        // Build SVG paths
+        const paths = slices.map((s, i) => {
+            const d = `M ${cx} ${cy} L ${s.x1.toFixed(2)} ${s.y1.toFixed(2)} A ${r} ${r} 0 ${s.largeArc} 1 ${s.x2.toFixed(2)} ${s.y2.toFixed(2)} Z`;
+            const labelAmt = `${sym}${Math.round(_paToBase(s.value)).toLocaleString()}`;
+            const labelPct = `${(s.pct * 100).toFixed(1)}%`;
+            const title = `${s.flag} ${s.country}: ${labelPct} (${labelAmt})`;
+            // Label inside slice only if pct >= 5%
+            let labelHtml = '';
+            if (s.pct >= 0.05) {
+                const lx = cx + (r * 0.62) * Math.cos(s.midAngle);
+                const ly = cy + (r * 0.62) * Math.sin(s.midAngle);
+                labelHtml = `<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}"
+                    text-anchor="middle" dominant-baseline="middle"
+                    font-size="10" font-weight="700" fill="white"
+                    style="pointer-events:none;text-shadow:0 1px 2px rgba(0,0,0,0.7);">
+                    ${(s.pct * 100).toFixed(0)}%</text>`;
+            }
+            return `<g class="pie-slice" data-idx="${i}">
+                <path d="${d}" fill="${s.color}" stroke="${isDark ? '#13151f' : '#fff'}" stroke-width="2"
+                    style="transition:opacity 0.15s;cursor:pointer;"
+                    onmouseenter="this.style.opacity='0.75';document.getElementById('pie-tooltip').style.display='block';document.getElementById('pie-tooltip').textContent='${title.replace(/'/g,"\\'")}'"
+                    onmouseleave="this.style.opacity='1';document.getElementById('pie-tooltip').style.display='none'"/>
+                ${labelHtml}
+            </g>`;
+        }).join('');
+
+        // Legend
+        const legendItems = slices.map(s => {
+            const labelAmt = `${sym}${Math.round(_paToBase(s.value)).toLocaleString()}`;
+            const pctStr = `${(s.pct * 100).toFixed(1)}%`;
+            return `<div style="display:flex;align-items:center;gap:6px;padding:3px 0;">
+                <span style="width:10px;height:10px;border-radius:2px;background:${s.color};flex-shrink:0;display:inline-block;"></span>
+                <span style="font-size:11px;color:${isDark ? '#c0c8e8' : '#444'};flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                    ${s.flag} ${s.country}
+                </span>
+                <span style="font-size:11px;font-weight:700;color:${isDark ? '#e0e4ff' : '#1a2a4a'};white-space:nowrap;">${pctStr}</span>
+                <span style="font-size:10px;color:${isDark ? '#6870a0' : '#888'};white-space:nowrap;">${labelAmt}</span>
+            </div>`;
+        }).join('');
+
+        el.innerHTML = `
+            <div style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap;">
+                <div style="position:relative;flex-shrink:0;">
+                    <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+                        ${paths}
+                    </svg>
+                    <div id="pie-tooltip" style="display:none;position:absolute;bottom:-28px;left:50%;transform:translateX(-50%);
+                        background:${isDark ? '#1e2338' : '#fff'};border:1px solid ${isDark ? '#3a3f60' : '#ddd'};
+                        border-radius:6px;padding:4px 8px;font-size:11px;font-weight:600;
+                        color:${isDark ? '#c8d0f0' : '#333'};white-space:nowrap;pointer-events:none;
+                        box-shadow:0 2px 8px rgba(0,0,0,0.18);z-index:10;"></div>
+                </div>
+                <div style="flex:1;min-width:140px;max-height:${size}px;overflow-y:auto;">
+                    ${legendItems}
+                </div>
+            </div>`;
+    }
+
+
 
     updateCalendars() {
         this.updateDividendCalendar();
@@ -1167,7 +1465,7 @@ class PortfolioAnalyzer {
     }
 
     savePortfolio() {
-        localStorage.setItem('bondPortfolio', JSON.stringify(this.portfolio));
+        this._saveAllPortfolios();
     }
 
 
@@ -1571,7 +1869,7 @@ class PortfolioAnalyzer {
             y += 6;
             doc.setFontSize(7);
             doc.setTextColor(150, 150, 150);
-            doc.text('BondFX v5 — Net values reflect withholding tax at source on coupon income only. Capital gains not modelled.',
+            doc.text('BondFX v6 — Net values reflect withholding tax at source on coupon income only. Capital gains not modelled.',
                 margin, pageH - 8);
 
             doc.save('BondFX-Portfolio-' + new Date().toISOString().slice(0,10) + '.pdf');
@@ -1588,29 +1886,40 @@ class PortfolioAnalyzer {
     }  // end _doExportPDF
 
     exportPortfolio() {
-        if (this.portfolio.length === 0) {
-            alert('Portfolio is empty');
+        const allIds = Object.keys(this.portfolios);
+        if (allIds.every(id => this.portfolios[id].bonds.length === 0)) {
+            alert('All portfolios are empty');
             return;
         }
 
-        // New reduced header
         const _exportCcy = _paBaseCcy();
         const _exportRate = _paFxRates[_exportCcy] || 1.0;
-        let csv = `# BondFX Portfolio Export | baseCurrency=${_exportCcy} | fxRate=${_exportRate.toFixed(6)}\n`;
-        csv += `ISIN,Issuer,Quantity,Investment ${_exportCcy},Coupon %,Rating,Currency,Maturity,TaxRate %\n`;
 
-        this.portfolio.forEach(bond => {
-            const investment = bond.totalEur ?? 0;
+        // Save current portfolio into portfolios map before exporting
+        if (this.activePortfolioId && this.portfolios[this.activePortfolioId]) {
+            this.portfolios[this.activePortfolioId].bonds = this.portfolio;
+        }
 
-            const invBase = _paToBase(investment);
-            csv += `${bond.isin},"${bond.issuer}",${bond.quantity},${invBase.toFixed(2)},${bond.coupon},"${bond.rating}",${bond.currency},${bond.maturity},${(bond.taxRate ?? 0).toFixed(1)}\n`;
+        let csv = `# BondFX Multi-Portfolio Export | baseCurrency=${_exportCcy} | fxRate=${_exportRate.toFixed(6)} | defaultPortfolio=${this.activePortfolioId}\n`;
+
+        allIds.forEach(id => {
+            const pf = this.portfolios[id];
+            if (!pf || pf.bonds.length === 0) return;
+            // Portfolio header row
+            csv += `## PORTFOLIO | id=${id} | name=${JSON.stringify(pf.name)}\n`;
+            csv += `ISIN,Issuer,Quantity,Investment ${_exportCcy},Coupon %,Rating,Currency,Maturity,TaxRate %\n`;
+            pf.bonds.forEach(bond => {
+                const investment = bond.totalEur ?? 0;
+                const invBase = _paToBase(investment);
+                csv += `${bond.isin},"${bond.issuer}",${bond.quantity},${invBase.toFixed(2)},${bond.coupon},"${bond.rating}",${bond.currency},${bond.maturity},${(bond.taxRate ?? 0).toFixed(1)}\n`;
+            });
         });
 
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
         const url = URL.createObjectURL(blob);
         link.setAttribute('href', url);
-        link.setAttribute('download', `portfolio_${_exportCcy}.csv`);
+        link.setAttribute('download', `bondfx_portfolios_${_exportCcy}_${new Date().toISOString().slice(0,10)}.csv`);
         link.style.visibility = 'hidden';
         document.body.appendChild(link);
         link.click();
@@ -1628,134 +1937,189 @@ class PortfolioAnalyzer {
                 const csv = e.target.result;
                 const allLines = csv.trim().split('\n');
 
-                // Detect metadata header: # BondFX Portfolio Export | baseCurrency=CHF | fxRate=0.93
-                let csvBaseCcy = 'EUR';
-                let csvFxRate  = 1.0;
-                let dataStart  = 0;
-                if (allLines[0].startsWith('#')) {
-                    const meta = allLines[0];
-                    const ccyMatch  = meta.match(/baseCurrency=([A-Z]+)/);
-                    const rateMatch = meta.match(/fxRate=([\d.]+)/);
-                    if (ccyMatch)  csvBaseCcy = ccyMatch[1];
-                    if (rateMatch) csvFxRate  = parseFloat(rateMatch[1]);
-                    dataStart = 1; // skip metadata line
-                }
-                const currentCcy  = _paBaseCcy();
-                const currentRate = _paFxRates[currentCcy] || 1.0;
-                // Conversion factor: csvCcy → EUR → currentCcy
-                // investBase(csvCcy) / csvFxRate = EUR; EUR * currentRate = investBase(currentCcy)
-                const needsConversion = (csvBaseCcy !== currentCcy);
+                // ── Detect format ──
+                const isMulti = allLines[0].includes('Multi-Portfolio Export');
 
-                const lines = allLines.slice(dataStart);
-                if (lines.length < 2) {
-                    alert('Invalid CSV format');
-                    return;
+                if (isMulti) {
+                    await this._importMultiPortfolio(allLines);
+                } else {
+                    await this._importSinglePortfolio(allLines);
                 }
 
-                // Parse CSV rows into { isin, quantity, totalEur } entries
-                const rows = [];
-                for (let i = 1; i < lines.length; i++) {
-                    const parts = this.parseCSVLine(lines[i]);
-                    if (parts.length < 3) continue;
-                    const isin        = parts[0].trim();
-                    const quantity    = parseFloat(parts[2]) || 0;
-                    const rawInvest   = parseFloat((parts[3] || '0').replace(/[^\d.-]/g, '')) || 0;
-                    // rawInvest is in csvBaseCcy; convert to EUR for internal storage
-                    const totalEur    = rawInvest / csvFxRate; // ccY→EUR
-                    const taxRate     = parseFloat(parts[8]) || null;
-                    if (isin && quantity > 0) rows.push({ isin, quantity, totalEur, taxRate });
-                }
-                if (needsConversion) {
-                    console.log(`CSV import: converted ${csvBaseCcy} → EUR (csvRate=${csvFxRate})`);
-                }
-
-                if (rows.length === 0) {
-                    alert('No valid rows found in CSV');
-                    return;
-                }
-
-                // Fetch fresh Java-calculated data for each ISIN
-                const imported   = [];
-                const notFound   = [];
-                const priceChanges = [];
-
-                // Show progress feedback
-                const statusEl = document.getElementById('portfolioRefreshStatus') ||
-                                 { textContent: '' };
-                if (statusEl) statusEl.textContent = `⟳ Fetching live data for ${rows.length} bonds…`;
-
-                for (const row of rows) {
-                    try {
-                        const res = await fetch(`/api/bond/${encodeURIComponent(row.isin)}`);
-                        if (res.status === 404) {
-                            notFound.push(row.isin);
-                            continue;
-                        }
-                        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-                        const bond = await res.json();
-
-                        // Check if already in portfolio — compare old vs new price
-                        const existing = this.portfolio.find(b => b.isin === row.isin);
-                        if (existing && Math.abs(existing.priceEur - bond.priceEur) > 0.01) {
-                            priceChanges.push({
-                                isin: row.isin,
-                                oldPrice: existing.priceEur,
-                                newPrice: bond.priceEur,
-                                change: bond.priceEur - existing.priceEur
-                            });
-                        }
-
-                        imported.push({
-                            ...bond,
-                            quantity:  row.quantity,
-                            totalEur:  row.totalEur,
-                            taxRate:   row.taxRate !== null ? row.taxRate : bond.taxRate,
-                            includeInStatistics: true
-                        });
-                    } catch (err) {
-                        console.warn(`Failed to fetch ${row.isin}:`, err);
-                        notFound.push(row.isin);
-                    }
-                }
-
-                if (statusEl) statusEl.textContent = '';
-
-                if (imported.length === 0) {
-                    alert('No bonds found — ISINs may not be in today\'s scrape');
-                    return;
-                }
-
-                // Append imported bonds (do NOT replace existing ones)
-                imported.forEach(bond => this.portfolio.push(bond));
-                this.savePortfolio();
-                this.updatePortfolioTable();
-                this.updateStatistics();
-
-                // Summary message
-                let message = `✅ Imported ${imported.length} bond(s) with live Java data!`;
-
-                if (priceChanges.length > 0) {
-                    message += `\n\n📊 Price changes since last import:`;
-                    priceChanges.forEach(c => {
-                        const sign = c.change > 0 ? '+' : '';
-                        message += `\n${c.isin}: €${c.oldPrice.toFixed(2)} → €${c.newPrice.toFixed(2)} (${sign}€${c.change.toFixed(2)})`;
-                    });
-                }
-
-                if (notFound.length > 0) {
-                    message += `\n\n⚠️ Not found in today's scrape: ${notFound.join(', ')}`;
-                }
-
-                alert(message);
                 document.getElementById('csvFileInput').value = '';
-
             } catch (error) {
                 alert('Error importing CSV: ' + error.message);
                 console.error(error);
             }
         };
         reader.readAsText(file);
+    }
+
+    async _importMultiPortfolio(allLines) {
+        // Parse metadata from line 0
+        const meta0 = allLines[0];
+        const ccyMatch    = meta0.match(/baseCurrency=([A-Z]+)/);
+        const rateMatch   = meta0.match(/fxRate=([\d.]+)/);
+        const defaultMatch = meta0.match(/defaultPortfolio=([a-z0-9_]+)/);
+        const csvBaseCcy  = ccyMatch  ? ccyMatch[1]  : 'EUR';
+        const csvFxRate   = rateMatch ? parseFloat(rateMatch[1]) : 1.0;
+        const defaultId   = defaultMatch ? defaultMatch[1] : null;
+
+        // Split lines into portfolio sections
+        const sections = [];
+        let current = null;
+        for (let i = 1; i < allLines.length; i++) {
+            const line = allLines[i].trim();
+            if (!line) continue;
+            if (line.startsWith('## PORTFOLIO')) {
+                if (current) sections.push(current);
+                const idMatch   = line.match(/id=([a-z0-9_]+)/);
+                const nameMatch = line.match(/name=(.*)/);
+                let pfName = 'Imported Portfolio';
+                if (nameMatch) {
+                    try { pfName = JSON.parse(nameMatch[1].trim()); } catch(e) { pfName = nameMatch[1].trim(); }
+                }
+                current = { id: idMatch ? idMatch[1] : this._genId(), name: pfName, lines: [] };
+            } else if (current) {
+                current.lines.push(line);
+            }
+        }
+        if (current) sections.push(current);
+
+        if (sections.length === 0) {
+            alert('No portfolio sections found in CSV');
+            return;
+        }
+
+        const currentCcy  = _paBaseCcy();
+        const currentRate = _paFxRates[currentCcy] || 1.0;
+
+        const statusEl = document.getElementById('portfolioRefreshStatus') || { textContent: '' };
+        if (statusEl) statusEl.textContent = `⟳ Importing ${sections.length} portfolio(s)…`;
+
+        const newPortfolios = {};
+        let totalImported = 0;
+        const allNotFound = [];
+
+        for (const section of sections) {
+            const rows = this._parseCSVRows(section.lines, csvFxRate);
+            const { imported, notFound } = await this._fetchBondsForRows(rows, statusEl);
+            newPortfolios[section.id] = { name: section.name, bonds: imported };
+            totalImported += imported.length;
+            allNotFound.push(...notFound);
+        }
+
+        if (statusEl) statusEl.textContent = '';
+
+        // Replace all portfolios with imported ones
+        this.portfolios = newPortfolios;
+
+        // Set default portfolio: use CSV default if valid, else first
+        if (defaultId && newPortfolios[defaultId]) {
+            this.activePortfolioId = defaultId;
+        } else {
+            this.activePortfolioId = Object.keys(newPortfolios)[0];
+        }
+        this.portfolio = this.portfolios[this.activePortfolioId].bonds;
+        this._saveAllPortfolios();
+        this._renderPortfolioSwitcher();
+        this.updatePortfolioTable();
+        this.updateStatistics();
+
+        let msg = `✅ Imported ${sections.length} portfolio(s) with ${totalImported} bond(s) total.\nActive: "${this.portfolios[this.activePortfolioId].name}"`;
+        if (allNotFound.length > 0) msg += `\n\n⚠️ Not found: ${allNotFound.join(', ')}`;
+        alert(msg);
+    }
+
+    async _importSinglePortfolio(allLines) {
+        // Legacy single-portfolio import: replaces ONLY current portfolio
+        let csvBaseCcy = 'EUR';
+        let csvFxRate  = 1.0;
+        let dataStart  = 0;
+        if (allLines[0].startsWith('#')) {
+            const meta = allLines[0];
+            const ccyMatch  = meta.match(/baseCurrency=([A-Z]+)/);
+            const rateMatch = meta.match(/fxRate=([\d.]+)/);
+            if (ccyMatch)  csvBaseCcy = ccyMatch[1];
+            if (rateMatch) csvFxRate  = parseFloat(rateMatch[1]);
+            dataStart = 1;
+        }
+
+        const lines = allLines.slice(dataStart);
+        if (lines.length < 2) { alert('Invalid CSV format'); return; }
+
+        const rows = this._parseCSVRows(lines, csvFxRate);
+        if (rows.length === 0) { alert('No valid rows found in CSV'); return; }
+
+        const statusEl = document.getElementById('portfolioRefreshStatus') || { textContent: '' };
+        if (statusEl) statusEl.textContent = `⟳ Fetching live data for ${rows.length} bonds…`;
+
+        const { imported, notFound, priceChanges } = await this._fetchBondsForRows(rows, statusEl, this.portfolio);
+        if (statusEl) statusEl.textContent = '';
+
+        if (imported.length === 0) { alert('No bonds found — ISINs may not be in today\'s scrape'); return; }
+
+        // Replace current portfolio only
+        this.portfolio = imported;
+        if (this.activePortfolioId && this.portfolios[this.activePortfolioId]) {
+            this.portfolios[this.activePortfolioId].bonds = this.portfolio;
+        }
+        this.savePortfolio();
+        this.updatePortfolioTable();
+        this.updateStatistics();
+
+        let message = `✅ Imported ${imported.length} bond(s) with live data!`;
+        if (priceChanges && priceChanges.length > 0) {
+            message += `\n\n📊 Price changes since last import:`;
+            priceChanges.forEach(c => {
+                const sign = c.change > 0 ? '+' : '';
+                message += `\n${c.isin}: €${c.oldPrice.toFixed(2)} → €${c.newPrice.toFixed(2)} (${sign}€${c.change.toFixed(2)})`;
+            });
+        }
+        if (notFound.length > 0) message += `\n\n⚠️ Not found: ${notFound.join(', ')}`;
+        alert(message);
+    }
+
+    _parseCSVRows(lines, csvFxRate) {
+        // Skip the header line (ISIN,Issuer,...)
+        const dataLines = lines.filter(l => l && !l.startsWith('ISIN,') && !l.startsWith('#'));
+        const rows = [];
+        for (const line of dataLines) {
+            const parts = this.parseCSVLine(line);
+            if (parts.length < 3) continue;
+            const isin     = parts[0].trim();
+            const quantity = parseFloat(parts[2]) || 0;
+            const rawInvest = parseFloat((parts[3] || '0').replace(/[^\d.-]/g, '')) || 0;
+            const totalEur  = rawInvest / csvFxRate;
+            const taxRate   = parseFloat(parts[8]) || null;
+            if (isin && quantity > 0) rows.push({ isin, quantity, totalEur, taxRate });
+        }
+        return rows;
+    }
+
+    async _fetchBondsForRows(rows, statusEl, existingPortfolio = []) {
+        const imported = [];
+        const notFound = [];
+        const priceChanges = [];
+
+        for (const row of rows) {
+            try {
+                const res = await fetch(`/api/bond/${encodeURIComponent(row.isin)}`);
+                if (res.status === 404) { notFound.push(row.isin); continue; }
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const bond = await res.json();
+
+                const existing = existingPortfolio.find(b => b.isin === row.isin);
+                if (existing && Math.abs(existing.priceEur - bond.priceEur) > 0.01) {
+                    priceChanges.push({ isin: row.isin, oldPrice: existing.priceEur, newPrice: bond.priceEur, change: bond.priceEur - existing.priceEur });
+                }
+                imported.push({ ...bond, quantity: row.quantity, totalEur: row.totalEur, taxRate: row.taxRate !== null ? row.taxRate : bond.taxRate, includeInStatistics: true });
+            } catch (err) {
+                console.warn(`Failed to fetch ${row.isin}:`, err);
+                notFound.push(row.isin);
+            }
+        }
+        return { imported, notFound, priceChanges };
     }
 
     parseCSVLine(line) {
