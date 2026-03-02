@@ -1422,9 +1422,9 @@ document.addEventListener("DOMContentLoaded", () => {
         if (ids.length > 0) applyPreset(ids[0]);
     })();
     renderBasket();
+    checkWishlistAlerts();
     renderWishlist();
     syncWishlistButtons();
-    checkWishlistAlerts();
     _updateThemeToggleUI();
     _loadFxRates().then(() => {
         _applyBaseCurrencyUI();
