@@ -438,16 +438,17 @@ public class CapitalGrowthSimTest {
             long portVal    = it.path("portVal").asLong();
             assertTrue("redemption (" + redemption + ") > portVal (" + portVal + ") for below-par bond",
                 redemption > portVal);
-            // Sanity: redemption is in the right ballpark (injection accumulated ~46yr × €125)
-            assertNear(redemption, 52920, "IT redemption 2072 absolute value");
+            // Sanity: ~45 injection years × €125/yr at price 61.06 + initial 32.75 units,
+            // all redeemed at face 100. Expected face redemption ≈ 124 units × 100 × scale.
+            assertNear(redemption, 12844, "IT redemption 2072 absolute value");  // was 52920
         }
 
         @Test
         public void sc2_2072_redemptionGreaterThanInitialInvestment() {
-            // Injection has accumulated over 46 years: final redemption >> initial 2000
+            // Injection has accumulated over ~45 years: final face redemption >> initial 2000
             long redemption = slot(year(sc2, 2072), "IT0005441883").path("redemption").asLong();
             assertTrue("IT redemption (" + redemption + ") >> initial 2000 (injection accumulated)",
-                redemption > 20000);
+                redemption > 10000);  // was > 20000; correct threshold for 124 units × face 100 × scale
         }
     }
 

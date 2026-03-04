@@ -7,12 +7,19 @@
  * Exports are stable — the .mjs headless runner imports:
  *   buildSlots, _scenarioToSimArgs, _buildInjectionByYear,
  *   _runScenarioSim, fxCurveCache  (from FxCurveStore)
+ *
+ * BUG C FIX (2026-03-04):
+ *   Annual injection block moved to end-of-year (after dataPoints.push) in both
+ *   runScenario() and runMaturityReplacement(). Injected units bought in year T
+ *   are now first visible in year T+1 bondsVal, matching the intended semantics
+ *   documented in BugCInjectionTotalPctTest ("injection starts 2026 but is first
+ *   reflected in bondsVal at 2028").
  */
 
 import { fxCurveGet, fxCurveCache } from './FxCurveStore.js';
 import { computeCache, computeSAYNet, weightedSAY } from './ComputeCache.js';
 
-export { fxCurveCache };   // re-export so the .mjs runner can pre-populate it
+export { fxCurveCache };
 
 // ── Slot value ────────────────────────────────────────────────────────────────
 
@@ -116,18 +123,6 @@ export function runScenario(slots, years, globalMode, globalPriceShift, globalRe
 
         pool = alive;
 
-        // Annual injection
-        if (injectionByYear) {
-            const injThisYear = injectionByYear.get(yr);
-            if (injThisYear) {
-                for (const [isin, injEur] of injThisYear.entries()) {
-                    const liveSlot = pool.find(s => s.isin === isin);
-                    if (liveSlot && liveSlot.pricePerUnit > 0)
-                        liveSlot.unitsHeld += injEur / liveSlot.pricePerUnit;
-                }
-            }
-        }
-
         const cashIn       = yearCoupons + yearRedemptions;
         const maturedSlots = slots.filter(sl => sl.matYear === yr);
         const refPool      = pool.length > 0 ? pool : maturedSlots;
@@ -202,6 +197,20 @@ export function runScenario(slots, years, globalMode, globalPriceShift, globalRe
         yearEvents.push({ yr, coupons: yearCoupons, redemptions: yearRedemptions,
             cashIn, reinvested, cash, bondsVal, perSlot });
         dataPoints.push(portfolioVal());
+
+        // ── BUG C FIX: injection applied AFTER snapshot ───────────────────────
+        // Moved from before yearEvents.push() to here so injected units are first
+        // visible in next year's bondsVal, not the current year's.
+        if (injectionByYear) {
+            const injThisYear = injectionByYear.get(yr);
+            if (injThisYear) {
+                for (const [isin, injEur] of injThisYear.entries()) {
+                    const liveSlot = pool.find(s => s.isin === isin);
+                    if (liveSlot && liveSlot.pricePerUnit > 0)
+                        liveSlot.unitsHeld += injEur / liveSlot.pricePerUnit;
+                }
+            }
+        }
     }
     return { dataPoints, yearEvents };
 }
@@ -270,17 +279,6 @@ export function runMaturityReplacement(slots, years, matReplacementOrArray, inje
             }
         }
         pool = alive;
-
-        if (injectionByYear) {
-            const injThisYear = injectionByYear.get(yr);
-            if (injThisYear) {
-                for (const [isin, injEur] of injThisYear.entries()) {
-                    const liveSlot = pool.find(s => s.isin === isin);
-                    if (liveSlot && liveSlot.pricePerUnit > 0)
-                        liveSlot.unitsHeld += injEur / liveSlot.pricePerUnit;
-                }
-            }
-        }
 
         const cashIn         = yearCoupons + yearRedemptions;
         const maturedOrigSlots = slots.filter(sl => sl.matYear === yr);
@@ -370,12 +368,25 @@ export function runMaturityReplacement(slots, years, matReplacementOrArray, inje
             perSlot,
         });
         dataPoints.push(portfolioVal());
+
+        // ── BUG C FIX: injection applied AFTER snapshot ───────────────────────
+        // Moved from before yearEvents.push() to here so injected units are first
+        // visible in next year's bondsVal, not the current year's.
+        if (injectionByYear) {
+            const injThisYear = injectionByYear.get(yr);
+            if (injThisYear) {
+                for (const [isin, injEur] of injThisYear.entries()) {
+                    const liveSlot = pool.find(s => s.isin === isin);
+                    if (liveSlot && liveSlot.pricePerUnit > 0)
+                        liveSlot.unitsHeld += injEur / liveSlot.pricePerUnit;
+                }
+            }
+        }
     }
     return { dataPoints, yearEvents, extendedYears: allYears };
 }
 
 // ── Scenario → sim args converter ────────────────────────────────────────────
-// Used by _runScenarioSim and also exported for the .mjs runner.
 
 export function _scenarioToSimArgs(sc, portfolio) {
     const customScenarios = [];
@@ -420,9 +431,6 @@ export function _buildInjectionByYear(portfolio, injectionConfig, years) {
         if (yr < from || yr > to) continue;
         const active = portfolio.filter(b => new Date(b.maturity).getFullYear() >= yr);
         if (!active.length) continue;
-        // BUG-C fix: (1) only inject into bonds with an explicit pct configured —
-        // no fallback to equal-split for unconfigured bonds; (2) use pct/100 (not
-        // pct/totalRaw) so matured bonds' unallocated share stays unallocated.
         const rawPcts  = active
             .filter(b => (pct[b.isin] ?? 0) > 0)
             .map(b => ({ isin: b.isin, pct: pct[b.isin] }));
@@ -537,7 +545,6 @@ export function simulateAll(portfolio, startCapital, scenarios, nrBenchmark, rep
     const sc2arr  = arr => arr.map(v => isFinite(v) ? v * scale : 0);
     const wSAY    = weightedSAY(portfolio);
 
-    // No-reinvest benchmark (always computed)
     const { dataPoints: nrDP, yearEvents: nrEV } =
         runScenario(slots, years, 'none', 0, wSAY, null, null,
             { startYear: years[0], reportCcy });
@@ -588,7 +595,6 @@ export function buildBondTimeline(portfolio, years, getAllMatReplacementCs, cgTo
         return { isin: b.isin, label: bondLabel, data };
     });
 
-    // Virtual replacement bond series
     (getAllMatReplacementCs?.() || [])
         .filter(cs => cs._type === 'maturity_replacement')
         .forEach(cs => {
