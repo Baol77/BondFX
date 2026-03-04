@@ -1206,13 +1206,15 @@ class PortfolioAnalyzer {
                     },
                     tooltip: {
                         callbacks: {
+                            title: ctx => ctx[0].label,   // only name
                             label: ctx => {
                                 const total = ctx.dataset.data
                                     .reduce((a, b) => a + b, 0);
                                 const pct = (ctx.raw / total * 100).toFixed(1);
                                 const amount = Math.round(_paToBase(ctx.raw))
                                     .toLocaleString();
-                                return `${ctx.label}: ${pct}% (${sym}${amount})`;
+
+                                return `${pct}% (${sym}${amount})`;
                             }
                         }
                     }
