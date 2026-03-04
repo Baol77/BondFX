@@ -124,13 +124,15 @@ profiles:
   - id: retirement_32_35
     label: Retirement 32-35
     emoji: "⚡"
-    description: Choosing between 2032 and 2035 top 3 from [A+,] and [BBB-,BBB+] for best SAY
+    description: Choosing between 2032 and 2035 top 3 from [A+,] and [BBB-,BBB+] for best SAY (€)
     profileType: SAY
-    sortedBy: CURR_YIELD
+    sortedBy: SAY
     filters:
       groups:
         - filters:
             minRating: A+
+            maxPrice: 105
+            currency: EUR
             fromDate: 2032-01-01
             toDate: 2035-12-31
             minSAY: 3.0
@@ -138,5 +140,7 @@ profiles:
         - filters:
             minRating: BBB-
             maxRating: BBB+
+            maxPrice: 105
+            currency: EUR
             minSAY: 3.0
           top: 3

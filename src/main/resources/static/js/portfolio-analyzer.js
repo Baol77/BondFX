@@ -1084,7 +1084,7 @@ class PortfolioAnalyzer {
         }
 
         // Display currency breakdown
-        this.updateCurrencyBreakdown(currencyTotals, totalInvestment1);
+        this.updateCurrencyBreakdown(currencyTotals, totalInvestment);
         this.updateCountryExposure(bonds);
         this.updateStatCardColors(weightedSAYPercent, weightedSAYNetPercent,
                                   weightedYieldPercent, weightedYieldNetPercent,

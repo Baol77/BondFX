@@ -66,8 +66,8 @@ const BondFilteringEngine = (function () {
             isin: document.getElementById("filterIsin")?.value.toLowerCase() || "",
             issuer: document.getElementById("filterIssuer")?.value.toLowerCase() || "",
 
-            priceMin: parseFloat(document.getElementById("filterPriceMin")?.value) || null,
-            priceMax: parseFloat(document.getElementById("filterPriceMax")?.value) || null,
+            minPrice : parseFloat(document.getElementById("filterPriceMin")?.value) || null,
+            maxPrice : parseFloat(document.getElementById("filterPriceMax")?.value) || null,
 
             currency: document.getElementById("filterCurrency")?.value || "",
 
@@ -130,8 +130,8 @@ const BondFilteringEngine = (function () {
         if (filters.issuer && !bond.issuer.includes(filters.issuer)) return false; // partial research
 
         // Price
-        if (filters.priceMin !== null && bond.price < filters.priceMin) return false;
-        if (filters.priceMax !== null && bond.price > filters.priceMax) return false;
+        if (filters.minPrice !== null && bond.price < filters.minPrice) return false;
+        if (filters.maxPrice !== null && bond.price > filters.maxPrice) return false;
 
         // Currency
         if (filters.currency && bond.currency !== filters.currency) return false;
@@ -189,8 +189,8 @@ const BondFilteringEngine = (function () {
         const overridableKeys = [
             "isin",
             "issuer",
-            "priceMin",
-            "priceMax",
+            "minPrice",
+            "maxPrice",
             "currency",
             "minRating",
             "minYield",
