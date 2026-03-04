@@ -142,5 +142,7 @@ profiles:
             maxRating: BBB+
             maxPrice: 105
             currency: EUR
+            fromDate: 2032-01-01
+            toDate: 2035-12-31
             minSAY: 3.0
           top: 3
