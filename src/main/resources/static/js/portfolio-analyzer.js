@@ -701,8 +701,9 @@ class PortfolioAnalyzer {
             return;
         }
 
-        // Update quantity only — totalEur (cost basis) stays unchanged
+        // Update quantity -> update total investment as well
         this.portfolio[index].quantity = qty;
+        this.portfolio[index].totalEur = qty * this.portfolio[index].priceEur;
 
         this.savePortfolio();
         this.updatePortfolioTable();
