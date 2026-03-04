@@ -62,6 +62,7 @@
     // Inject bond data for the analyzer's search/API calls
     // The analyzer uses /api/bonds endpoint — no inline data needed
 </script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script src="/js/portfolio-analyzer.js"></script>
 <script src="/js/bond-report-mobile-adapter.js"></script>
 <script src="https://unpkg.com/twemoji@latest/dist/twemoji.min.js" crossorigin="anonymous"></script>

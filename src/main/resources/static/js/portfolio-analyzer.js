@@ -1138,114 +1138,88 @@ class PortfolioAnalyzer {
         };
 
         // Map bond issuer → country name
+        // --- Aggregazione ---
         const countryTotals = {};
         bonds.forEach(bond => {
             const issuerUp = (bond.issuer || '').toUpperCase();
             let country = 'OTHER';
+
             for (const key of Object.keys(FLAG_MAP)) {
                 if (issuerUp.includes(key)) { country = key; break; }
             }
-            // Prefer bond.country if set
+
             if (bond.country) country = bond.country.toUpperCase();
 
             const val = bond.totalEur || 0;
             countryTotals[country] = (countryTotals[country] || 0) + val;
         });
 
-        const total = Object.values(countryTotals).reduce((a, b) => a + b, 0);
-        if (total === 0) { el.innerHTML = ''; return; }
+        const entries = Object.entries(countryTotals)
+            .filter(([_, v]) => v > 0)
+            .sort((a, b) => b[1] - a[1]);
 
-        // Sort by value desc
-        const entries = Object.entries(countryTotals).sort((a, b) => b[1] - a[1]);
+        if (!entries.length) {
+            el.innerHTML = '';
+            return;
+        }
 
-        // Pie colors (accessible palette)
+        const labels = entries.map(([c]) => `${FLAG_MAP[c] || '🌍'} ${c}`);
+        const data = entries.map(([_, v]) => v);
+
         const COLORS = ['#2196F3','#4CAF50','#FF9800','#E91E63','#9C27B0',
-                        '#00BCD4','#CDDC39','#FF5722','#607D8B','#3F51B5',
-                        '#8BC34A','#FFC107','#795548','#009688','#F44336'];
+                        '#00BCD4','#CDDC39','#FF5722','#607D8B','#3F51B5'];
 
         const isDark = document.body.classList.contains('dark');
         const sym = _paSym(_paBaseCcy());
 
-        // Build SVG pie
-        const size = 160;
-        const cx = size / 2, cy = size / 2, r = size / 2 - 6;
-        let startAngle = -Math.PI / 2;
-        const slices = entries.map(([ country, value ], i) => {
-            const pct = value / total;
-            const angle = pct * 2 * Math.PI;
-            const endAngle = startAngle + angle;
-            const x1 = cx + r * Math.cos(startAngle);
-            const y1 = cy + r * Math.sin(startAngle);
-            const x2 = cx + r * Math.cos(endAngle);
-            const y2 = cy + r * Math.sin(endAngle);
-            const midAngle = startAngle + angle / 2;
-            const largeArc = angle > Math.PI ? 1 : 0;
-            const color = COLORS[i % COLORS.length];
-            const flag = FLAG_MAP[country] || '🌍';
-            const slice = { country, value, pct, startAngle, endAngle, midAngle, x1, y1, x2, y2, largeArc, color, flag };
-            startAngle = endAngle;
-            return slice;
-        });
+        // Reset container
+        el.innerHTML = `<canvas id="countryPie" width="160" height="160"></canvas>`;
 
-        // Build SVG paths
-        const paths = slices.map((s, i) => {
-            const d = `M ${cx} ${cy} L ${s.x1.toFixed(2)} ${s.y1.toFixed(2)} A ${r} ${r} 0 ${s.largeArc} 1 ${s.x2.toFixed(2)} ${s.y2.toFixed(2)} Z`;
-            const labelAmt = `${sym}${Math.round(_paToBase(s.value)).toLocaleString()}`;
-            const labelPct = `${(s.pct * 100).toFixed(1)}%`;
-            const title = `${s.flag} ${s.country}: ${labelPct} (${labelAmt})`;
-            // Label inside slice only if pct >= 5%
-            let labelHtml = '';
-            if (s.pct >= 0.05) {
-                const lx = cx + (r * 0.62) * Math.cos(s.midAngle);
-                const ly = cy + (r * 0.62) * Math.sin(s.midAngle);
-                labelHtml = `<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}"
-                    text-anchor="middle" dominant-baseline="middle"
-                    font-size="10" font-weight="700" fill="white"
-                    style="pointer-events:none;text-shadow:0 1px 2px rgba(0,0,0,0.7);">
-                    ${(s.pct * 100).toFixed(0)}%</text>`;
+        const ctx = document.getElementById('countryPie').getContext('2d');
+
+        if (this._countryChart) {
+            this._countryChart.destroy();
+        }
+
+        this._countryChart = new Chart(ctx, {
+            type: 'doughnut',   // pie → doughnut è più moderno
+            data: {
+                labels,
+                datasets: [{
+                    data,
+                    backgroundColor: COLORS,
+                    borderColor: isDark ? '#13151f' : '#fff',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            color: isDark ? '#e0e4ff' : '#1a2a4a',
+                            font: { size: 11 }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => {
+                                const total = ctx.dataset.data
+                                    .reduce((a, b) => a + b, 0);
+                                const pct = (ctx.raw / total * 100).toFixed(1);
+                                const amount = Math.round(_paToBase(ctx.raw))
+                                    .toLocaleString();
+                                return `${ctx.label}: ${pct}% (${sym}${amount})`;
+                            }
+                        }
+                    }
+                },
+                cutout: '55%'  // donut thickness
             }
-            return `<g class="pie-slice" data-idx="${i}">
-                <path d="${d}" fill="${s.color}" stroke="${isDark ? '#13151f' : '#fff'}" stroke-width="2"
-                    style="transition:opacity 0.15s;cursor:pointer;"
-                    onmouseenter="this.style.opacity='0.75';document.getElementById('pie-tooltip').style.display='block';document.getElementById('pie-tooltip').textContent='${title.replace(/'/g,"\\'")}'"
-                    onmouseleave="this.style.opacity='1';document.getElementById('pie-tooltip').style.display='none'"/>
-                ${labelHtml}
-            </g>`;
-        }).join('');
-
-        // Legend
-        const legendItems = slices.map(s => {
-            const labelAmt = `${sym}${Math.round(_paToBase(s.value)).toLocaleString()}`;
-            const pctStr = `${(s.pct * 100).toFixed(1)}%`;
-            return `<div style="display:flex;align-items:center;gap:6px;padding:3px 0;">
-                <span style="width:10px;height:10px;border-radius:2px;background:${s.color};flex-shrink:0;display:inline-block;"></span>
-                <span style="font-size:11px;color:${isDark ? '#c0c8e8' : '#444'};flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-                    ${s.flag} ${s.country}
-                </span>
-                <span style="font-size:11px;font-weight:700;color:${isDark ? '#e0e4ff' : '#1a2a4a'};white-space:nowrap;">${pctStr}</span>
-                <span style="font-size:10px;color:${isDark ? '#6870a0' : '#888'};white-space:nowrap;">${labelAmt}</span>
-            </div>`;
-        }).join('');
-
-        el.innerHTML = `
-            <div style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap;">
-                <div style="position:relative;flex-shrink:0;">
-                    <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-                        ${paths}
-                    </svg>
-                    <div id="pie-tooltip" style="display:none;position:absolute;bottom:-28px;left:50%;transform:translateX(-50%);
-                        background:${isDark ? '#1e2338' : '#fff'};border:1px solid ${isDark ? '#3a3f60' : '#ddd'};
-                        border-radius:6px;padding:4px 8px;font-size:11px;font-weight:600;
-                        color:${isDark ? '#c8d0f0' : '#333'};white-space:nowrap;pointer-events:none;
-                        box-shadow:0 2px 8px rgba(0,0,0,0.18);z-index:10;"></div>
-                </div>
-                <div style="flex:1;min-width:140px;max-height:${size}px;overflow-y:auto;">
-                    ${legendItems}
-                </div>
-            </div>`;
+        });
     }
-
-
 
     updateCalendars() {
         this.updateDividendCalendar();
