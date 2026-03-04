@@ -147,7 +147,7 @@
 
 <!-- Action toolbar — above bond table -->
 <div class="control-group-actions">
-    <button class="btn-home-filter btn-home-filter-clear" onclick="clearColumnFilters()" title="Remove all column filters (keeps maturity range)">
+    <button class="btn-home-filter btn-home-filter-clear" onclick="clearColumnFilters(true)" title="Remove all column filters (keeps maturity range)">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
         </svg>
@@ -175,20 +175,20 @@
         <th class="col-add" title="Add to basket / wishlist"></th>
         <th onclick="sortTable(COL.ISIN)">ISIN<span class="arrow"></span><br>
             <input id="filterIsin" type="text" placeholder="e.g. US900123AT75"
-                   onclick="event.stopPropagation()" oninput="filterTable()">
+                   onclick="event.stopPropagation()" oninput="BondFilteringEngine.filterTable()">
         </th>
         <th onclick="sortTable(COL.ISSUER)">Issuer<span class="arrow"></span><br>
             <input id="filterIssuer" type="text" placeholder="e.g. Romania"
-                   onclick="event.stopPropagation()" oninput="filterTable()">
+                   onclick="event.stopPropagation()" oninput="BondFilteringEngine.filterTable()">
         </th>
         <th onclick="sortTable(COL.PRICE)">Price<span class="arrow"></span><br>
             <input id="filterPriceMin" type="number" step="10" placeholder="min"
-                   onclick="event.stopPropagation()" oninput="filterTable()" style="width:60px;">
+                   onclick="event.stopPropagation()" oninput="BondFilteringEngine.filterTable()" style="width:60px;">
             <input id="filterPriceMax" type="number" step="10" placeholder="max"
-                   onclick="event.stopPropagation()" oninput="filterTable()" style="width:60px;">
+                   onclick="event.stopPropagation()" oninput="BondFilteringEngine.filterTable()" style="width:60px;">
         </th>
         <th onclick="sortTable(COL.CURRENCY)" data-short="Curr."><span class="column-title">Currency</span><span class="arrow"></span><br>
-            <select id="filterCurrency" onchange="filterTable()" onclick="event.stopPropagation()">
+            <select id="filterCurrency" onchange="BondFilteringEngine.filterTable()" onclick="event.stopPropagation()">
                 <option value="">All</option>
                 <#list currencies as c>
                 <option value="${c}">${c}</option>
@@ -196,7 +196,7 @@
             </select>
         </th>
         <th onclick="sortTable(COL.RATING)">Rating<span class="arrow"></span><br>
-            <select id="filterMinRating" onchange="filterTable()" onclick="event.stopPropagation()">
+            <select id="filterMinRating" onchange="BondFilteringEngine.filterTable()" onclick="event.stopPropagation()">
                 <option value="">All</option>
                 <option value="AAA">≥ AAA</option>
                 <option value="AA+">≥ AA+</option>
@@ -221,19 +221,19 @@
             onclick="sortTable(COL.CURR_YIELD)" data-short="CY%">
             <span class="column-title">Curr. Yield %</span><span class="col-short">Yld %</span><span class="arrow"></span><br>
             <input id="filterminYield" type="number" step="0.5" placeholder="min %"
-                   onclick="event.stopPropagation()" oninput="filterTable()" style="width:70px;">
+                   onclick="event.stopPropagation()" oninput="BondFilteringEngine.filterTable()" style="width:70px;">
         </th>
         <th title="Supposing an investment of EUR 1,000, what amount will you have at maturity?"
             onclick="sortTable(COL.CAPITAL_AT_MAT)">
             <span class="column-title">Total Return (1k<span class="th-base-ccy">€</span>)</span><span class="col-short">Tot.Ret.</span><span class="arrow"></span><br>
             <input id="filterMinCapitalAtMat" type="number" step="500" placeholder="min"
-                   onclick="event.stopPropagation()" oninput="filterTable()" style="width:80px;">
+                   onclick="event.stopPropagation()" oninput="BondFilteringEngine.filterTable()" style="width:80px;">
         </th>
         <th title="Simple Annual Yield % (Annual coupon income as a percentage of the bond's current price)"
             onclick="sortTable(COL.SAY)">
             <span class="column-title">SAY (%)</span><span class="col-short">SAY</span><span class="arrow"></span><br>
             <input id="filterMinSAY" type="number" step="0.5" placeholder="min %"
-                   onclick="event.stopPropagation()" oninput="filterTable()" style="width:80px;">
+                   onclick="event.stopPropagation()" oninput="BondFilteringEngine.filterTable()" style="width:80px;">
         </th>
     </tr>
     </thead>
@@ -437,23 +437,9 @@
 
 <!-- JavaScript (external static files) -->
 <script>
-    /* Inject PRESETS from server-side profiles so JS can use them */
-    const PRESETS = {
-    <#list presets as p>
-      ${p.id}: {
-        name: "${p.label}",
-        description: "${p.description}",
-        profileType: "${p.profileType!'SAY'}",
-        sortedBy: "${p.sortedBy!'SAY'}",
-        filters: {
-        <#list p.filters?keys as k>
-          ${k}: ${p.filters[k]?is_number?then(p.filters[k]?c, '"' + p.filters[k] + '"')}<#if k_has_next>,</#if>
-        </#list>
-        }
-      }<#if p_has_next>,</#if>
-    </#list>
-    };
+    const PRESETS = ${presets}
 </script>
+<script src="https://cdn.jsdelivr.net/npm/js-yaml@4/dist/js-yaml.min.js"></script>
 <script src="/js/bond-report.js"></script>
 <script src="/js/bond-report-mobile-adapter.js"></script>
 </body>

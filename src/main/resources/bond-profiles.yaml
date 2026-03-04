@@ -120,3 +120,27 @@ profiles:
       maxMatYears: 35
       minYield: 4.0
       minRating: BBB+
+
+  - id: retirement_32_35
+    label: Retirement 32-35
+    emoji: "⚡"
+    description: Choosing between 2032 and 2035 top 3 from [A+,] and [BBB-,BBB+] for best SAY (€)
+    profileType: SAY
+    sortedBy: SAY
+    filters:
+      groups:
+        - filters:
+            minRating: A+
+            maxPrice: 105
+            currency: EUR
+            fromDate: 2032-01-01
+            toDate: 2035-12-31
+            minSAY: 3.0
+          top: 3
+        - filters:
+            minRating: BBB-
+            maxRating: BBB+
+            maxPrice: 105
+            currency: EUR
+            minSAY: 3.0
+          top: 3
