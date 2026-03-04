@@ -80,7 +80,7 @@
 </div><!-- /cg-page -->
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-<script src="/js/capital-growth.js"></script>
+<script type="module" src="/js/capital-growth.js"></script>
 <script src="/js/bond-report-mobile-adapter.js"></script>
 
 <footer class="page-footer">
