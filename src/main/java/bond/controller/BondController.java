@@ -4,6 +4,7 @@ import bond.config.BondProfile;
 import bond.config.BondProfilesConfig;
 import bond.model.Bond;
 import bond.service.BondService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.commonmark.Extension;
 import org.commonmark.ext.gfm.tables.TablesExtension;
 import org.commonmark.node.Node;
@@ -59,9 +60,12 @@ public class BondController {
         BondProfilesConfig profilesConfig = BondProfilesConfig.load();
         List<BondProfile> presets = profilesConfig.getProfiles();
 
+        ObjectMapper mapper = new ObjectMapper();
+        String presetsJson = mapper.writeValueAsString(presets);
+
         model.addAttribute("bonds", bonds);
         model.addAttribute("currencies", currencies);
-        model.addAttribute("presets", presets);
+        model.addAttribute("presets", presetsJson);
         model.addAttribute("reportCurrency", "EUR");
         model.addAttribute("generatedAt",
             LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));

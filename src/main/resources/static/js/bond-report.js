@@ -1,3 +1,247 @@
+/* =========================
+   FILTERING ENGINE
+========================== */
+const BondFilteringEngine = (function () {
+    let bondIndex = new Map(); // private
+    let activePreset = null;
+
+    /* =========================
+       INIT
+    ========================== */
+    function init() {
+        bondIndex = buildBondIndex();
+        //filterTable(); // first rendering
+    }
+
+    /* =========================
+           BUILD INDEX (PRIVATE)
+    ========================== */
+    function buildBondIndex() {
+        const rows = document.querySelectorAll("#bondTable tbody tr");
+        const map = new Map();
+
+        rows.forEach(r => {
+            const bond = {
+                row: r,
+                isin: r.cells[COL.ISIN].innerText.trim(),
+                issuer: r.cells[COL.ISSUER].innerText.toLowerCase(),
+                price: parseNum(r.cells[COL.PRICE].innerText),
+                currency: r.cells[COL.CURRENCY].innerText,
+                rating: r.cells[COL.RATING].innerText.trim(),
+                maturity: new Date(r.cells[COL.MATURITY].innerText + "T00:00:00"),
+                currYield: parseNum(r.cells[COL.CURR_YIELD].innerText),
+                capitalAtMat: parseNum(r.cells[COL.CAPITAL_AT_MAT].innerText),
+                say: parseNum(r.cells[COL.SAY].innerText)
+            };
+
+            map.set(bond.isin, bond);
+        });
+
+        return map;
+    }
+
+    /* =========================
+       FILTER ENTRY POINT
+    ========================== */
+    function filterTable(preset = null) {
+        // Keep preset memory (the UI buttons should affect the COMPOSITE filtering in case
+        if (preset) {
+            activePreset = preset;
+        }
+
+        if (activePreset?.filters?.groups) {
+            applyCompositeFilters(activePreset);
+        } else {
+            applyNormalFilters();
+        }
+
+        postFilterUIUpdates();
+    }
+
+    /* =========================
+       NORMAL FILTERING
+    ========================== */
+    function getFilters() {
+        return {
+            isin: document.getElementById("filterIsin")?.value.toLowerCase() || "",
+            issuer: document.getElementById("filterIssuer")?.value.toLowerCase() || "",
+
+            priceMin: parseFloat(document.getElementById("filterPriceMin")?.value) || null,
+            priceMax: parseFloat(document.getElementById("filterPriceMax")?.value) || null,
+
+            currency: document.getElementById("filterCurrency")?.value || "",
+
+            minRating: document.getElementById("filterMinRating")?.value || "",
+
+            minMatYears: document.getElementById("filterMinMat")?.value || "",
+            maxMatYears: document.getElementById("filterMaxMat")?.value || "",
+
+            minYield: parseFloat(document.getElementById("filterminYield")?.value) || null,
+            minCapitalAtMat: parseFloat(document.getElementById("filterMinCapitalAtMat")?.value) || null,
+            minSAY: parseFloat(document.getElementById("filterMinSAY")?.value) || null
+        };
+    }
+
+    /* =========================
+       FILTERING HELPERS
+    ========================== */
+    function resolveMaturityBounds(filters) {
+        const today = new Date();
+
+        const addYearsDecimal = (baseDate, yearsDecimal) => {
+            if (yearsDecimal == null) return null;
+
+            const wholeYears = Math.floor(yearsDecimal);
+            const remainingFraction = yearsDecimal - wholeYears;
+
+            const result = new Date(baseDate);
+            result.setFullYear(result.getFullYear() + wholeYears);
+
+            // Convert the ratio into days (~365.25)
+            const daysToAdd = remainingFraction * 365.25;
+            result.setDate(result.getDate() + daysToAdd);
+
+            return result;
+        };
+
+        let minDate = null;
+        let maxDate = null;
+
+        // PRIORITY to absolute dates
+        if (filters.fromDate) {
+            minDate = new Date(filters.fromDate);
+        } else if (filters.minMatYears != null) {
+            minDate = addYearsDecimal(today, filters.minMatYears);
+        }
+        if (filters.toDate) {
+            maxDate = new Date(filters.toDate);
+        } else if (filters.maxMatYears != null) {
+            maxDate = addYearsDecimal(today, filters.maxMatYears);
+        }
+
+        return { minDate, maxDate };
+    }
+
+    function bondMatchesFilters(bond, filters, bounds) {
+        // ISIN
+        if (filters.isin && !bond.isin.toLowerCase().includes(filters.isin)) return false; // partial research
+
+        // Issuer
+        if (filters.issuer && !bond.issuer.includes(filters.issuer)) return false; // partial research
+
+        // Price
+        if (filters.priceMin !== null && bond.price < filters.priceMin) return false;
+        if (filters.priceMax !== null && bond.price > filters.priceMax) return false;
+
+        // Currency
+        if (filters.currency && bond.currency !== filters.currency) return false;
+
+        // Rating
+        if (filters.minRating) {
+            const ratingRank = RATING_RANK[bond.rating] ?? -100;
+            const minRatingRank = RATING_RANK[filters.minRating] ?? -100;
+            if (ratingRank < minRatingRank) return false;
+        }
+
+        if (filters.maxRating) {
+            const ratingRank = RATING_RANK[bond.rating] ?? -100;
+            const maxRatingRank = RATING_RANK[filters.maxRating] ?? 100;
+            if (ratingRank > maxRatingRank) return false;
+        }
+
+        // Maturity
+        if (bounds.minDate && bond.maturity < bounds.minDate) return false;
+        if (bounds.maxDate && bond.maturity > bounds.maxDate) return false;
+
+        // Yield/Capital/SAY
+        if (filters.minYield !== null && bond.currYield < filters.minYield) return false;
+        if (filters.minCapitalAtMat !== null && bond.capitalAtMat < filters.minCapitalAtMat) return false;
+        if (filters.minSAY !== null && bond.say < filters.minSAY) return false;
+
+        return true;
+    }
+
+    function applyNormalFilters() {
+        const filters = getFilters();
+        var bounds = {minDate: new Date(filters.minMatYears), maxDate: new Date(filters.maxMatYears)};
+
+        bondIndex.forEach(bond => {
+            bond.row.style.display = bondMatchesFilters(bond, filters,bounds) ? "" : "none";
+        });
+    }
+
+    function filterBonds(bonds, filters) {
+        const bounds = resolveMaturityBounds(filters);
+
+        return bonds.filter(bond =>
+            bondMatchesFilters(bond, filters, bounds)
+        );
+    }
+
+    /* =========================
+       COMPOSITE FILTERING
+    ========================== */
+    function applyCompositeFilters(preset) {
+        const uiFilters = getFilters(); // let's read UI in case of overrides
+        const allBonds = [...bondIndex.values()];
+        const resultSet = new Set();
+
+        const overridableKeys = [
+            "isin",
+            "issuer",
+            "priceMin",
+            "priceMax",
+            "currency",
+            "minRating",
+            "minYield",
+            "minCapitalAtMat",
+            "minSAY"
+        ];
+
+        preset.filters.groups.forEach(group => {
+            // Store group filters
+            const mergedFilters = { ...group.filters };
+
+            // Override ad-hoc
+            overridableKeys.forEach(key => {
+                if (uiFilters[key] !== "" && uiFilters[key] !== null) {
+                    mergedFilters[key] = uiFilters[key];
+                }
+            });
+
+            let filtered = filterBonds(allBonds, mergedFilters);
+            filtered.sort((a, b) => b.currYield - a.currYield);
+            filtered.slice(0, group.top)
+                .forEach(bond => resultSet.add(bond));
+        });
+
+        bondIndex.forEach(bond => {
+            bond.row.style.display = resultSet.has(bond) ? "" : "none";
+        });
+    }
+
+    /* =========================
+       UI HELPERS
+    ========================== */
+    function postFilterUIUpdates() {
+        applyHeatmap();
+        syncBasketButtons();
+        checkWishlistAlerts();
+        syncWishlistButtons();
+    }
+
+    /* =========================
+       PUBLIC API
+    ========================== */
+    return {
+        init,
+        filterTable,
+        resolveMaturityBounds
+    };
+})();
+
+
+
 /* =======================
    COLUMN MAPPING
 ======================= */
@@ -92,8 +336,16 @@ function sortTable(col, initial) {
     ths[col].querySelector(".arrow").textContent = dir === "asc" ? "▲" : "▼";
 
     rows.sort((a, b) => {
-        const x = parseValue(a.cells[col].innerText);
-        const y = parseValue(b.cells[col].innerText);
+        let x = parseValue(a.cells[col].innerText);
+        let y = parseValue(b.cells[col].innerText);
+
+        // SPECIAL CASE: RATING COLUMN
+        if (col === COL.RATING) {
+            x = RATING_RANK[x] ?? -999;
+            y = RATING_RANK[y] ?? -999;
+            return dir === "asc" ? x - y : y - x;
+        }
+
         if (typeof x === "number" && typeof y === "number") {
             return dir === "asc" ? x - y : y - x;
         }
@@ -106,65 +358,10 @@ function sortTable(col, initial) {
     syncBasketButtons();
 }
 
-/* =======================
-   FILTERING
-======================= */
-function filterTable() {
-    const isin = document.getElementById("filterIsin").value.toLowerCase();
-    const issuer = document.getElementById("filterIssuer").value.toLowerCase();
-    const priceMin = parseFloat(document.getElementById("filterPriceMin").value || "0");
-    const priceMax = parseFloat(document.getElementById("filterPriceMax").value || "0");
-    const currency = document.getElementById("filterCurrency").value;
-    const minRating = document.getElementById("filterMinRating").value;
-    const minMat = document.getElementById("filterMinMat").value;
-    const maxMat = document.getElementById("filterMaxMat").value;
-    const minYield = parseFloat(document.getElementById("filterminYield").value || "0");
-    const minCapitalAtMat = parseFloat(document.getElementById("filterMinCapitalAtMat").value || "0");
-    const minSAY = parseFloat(document.getElementById("filterMinSAY").value || "0");
+function clearColumnFilters(fromButton=false) {
+    document.getElementById("filterMinMat").value = "";
+    document.getElementById("filterMaxMat").value = "";
 
-    const rows = document.querySelectorAll("#bondTable tbody tr");
-
-    rows.forEach(r => {
-        const isinCell = r.cells[COL.ISIN].innerText.toLowerCase();
-        const issuerCell = r.cells[COL.ISSUER].innerText.toLowerCase();
-        const priceCell = parseNum(r.cells[COL.PRICE].innerText);
-        const currencyCell = r.cells[COL.CURRENCY].innerText;
-        const ratingCell = r.cells[COL.RATING].innerText.trim();
-        const mat = r.cells[COL.MATURITY].innerText;
-        const currCoupon = parseNum(r.cells[COL.CURR_YIELD].innerText);
-        const capitalAtMat = parseNum(r.cells[COL.CAPITAL_AT_MAT].innerText);
-        const say = parseNum(r.cells[COL.SAY].innerText);
-
-        let ok = true;
-        if (isin && isinCell.indexOf(isin) === -1) ok = false;
-        if (issuer && issuerCell.indexOf(issuer) === -1) ok = false;
-        if (priceMin && priceMin > priceCell) ok = false;
-        if (priceMax && priceMax < priceCell) ok = false;
-        if (currency && currencyCell !== currency) ok = false;
-
-        // Rating: minimum rating filter (e.g., "≥ BBB" means rating must be BBB or better)
-        if (minRating) {
-            const ratingRank = RATING_RANK[ratingCell] || -100;
-            const minRatingRank = RATING_RANK[minRating] || -100;
-            if (ratingRank < minRatingRank) ok = false;
-        }
-
-        if (minMat && mat < minMat) ok = false;
-        if (maxMat && mat > maxMat) ok = false;
-        if (currCoupon < minYield) ok = false;
-        if (capitalAtMat < minCapitalAtMat) ok = false;
-        if (say < minSAY) ok = false;
-
-        r.style.display = ok ? "" : "none";
-    });
-
-    applyHeatmap();
-    syncBasketButtons();
-    checkWishlistAlerts();
-    syncWishlistButtons();
-}
-
-function clearColumnFilters() {
     document.getElementById("filterIsin").value = "";
     document.getElementById("filterIssuer").value = "";
     document.getElementById("filterPriceMin").value = "";
@@ -172,10 +369,12 @@ function clearColumnFilters() {
     document.getElementById("filterCurrency").value = "";
     document.getElementById("filterMinRating").value = "";
     document.getElementById("filterminYield").value = "";
+
     document.getElementById("filterMinCapitalAtMat").value = "";
     document.getElementById("filterMinSAY").value = "";
-    setDefaultMaturityFilters();
-    filterTable();
+
+    if(fromButton) BondFilteringEngine.filterTable("reset"); // remove all pre-filtering in Engine
+
     updatePresetButtons(null);
     document.getElementById("presetDesc").textContent = "";
 }
@@ -386,26 +585,16 @@ function updateLegend() {
     }
 }
 
-/* =======================
-   MATURITY DEFAULTS
-======================= */
-function setDefaultMaturityFilters() {
-    const today = new Date();
-    const min = new Date(today.getFullYear() + 5, today.getMonth(), today.getDate());
-    const max = new Date(today.getFullYear() + 30, today.getMonth(), today.getDate());
+function formatDate(date) {
+    if (!date) return "";
 
-    function formatDate(d) {
-        const y = d.getFullYear();
-        const m = ("0" + (d.getMonth() + 1)).slice(-2);
-        const day = ("0" + d.getDate()).slice(-2);
-        return y + "-" + m + "-" + day;
-    }
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
 
-    document.getElementById("filterMinMat").value = formatDate(min);
-    document.getElementById("filterMaxMat").value = formatDate(max);
+    return `${year}-${month}-${day}`;
 }
 
-        
 /* =======================
    PROFILE MANAGER  (v5.3)
    State lives in localStorage:
@@ -415,7 +604,7 @@ function setDefaultMaturityFilters() {
 ======================= */
 
 // ids of built-in profiles (order = YAML order, used as fallback)
-const BUILTIN_IDS = ["cashParking","ultraShortHigh","balancedCore","deepDiscount",
+const BUILTIN_IDS = ["retirement_32_35", "cashParking","ultraShortHigh","balancedCore","deepDiscount",
                      "maxIncome","fortressSafe","longQuality","retirementIncome"];
 
 function _profileOrder() {
@@ -468,7 +657,7 @@ function deleteCustomProfile(id) {
     _saveProfileOrder(_allProfileIds().filter(x => x !== id));
     const sel = _selectedSet(); sel.delete(id); _saveProfileSelected([...sel]);
     // remove from PRESETS
-    delete PRESETS[id];
+    delete getPresetById(id);
     renderProfileChips();
     renderProfileBar();
 }
@@ -485,7 +674,7 @@ function renderProfileChips() {
     container.innerHTML = '';
 
     ids.forEach(id => {
-        const preset  = PRESETS[id];
+        const preset  = getPresetById(id);
         if (!preset) return;
         const isSelected = sel.has(id);
         const isCustom   = customs.has(id);
@@ -503,7 +692,7 @@ function renderProfileChips() {
         // label (click = toggle)
         const label = document.createElement('span');
         label.className = 'profile-chip__label';
-        label.textContent = (preset.emoji || '') + ' ' + preset.name;
+        label.textContent = (preset.emoji || '') + ' ' + preset.label;
         label.title = preset.description || '';
         label.onclick = () => toggleProfileSelected(id);
 
@@ -586,13 +775,13 @@ function renderProfileBar() {
     const label = bar.querySelector('label');
 
     ids.filter(id => sel.has(id)).forEach(id => {
-        const preset = PRESETS[id];
+        const preset = getPresetById(id);
         if (!preset) return;
         const btn = document.createElement('button');
         btn.className = 'preset-button';
         btn.id = 'bar-' + id;
         btn.title = preset.description || '';
-        btn.textContent = (preset.emoji || '') + ' ' + preset.name;
+        btn.textContent = (preset.emoji || '') + ' ' + preset.label;
         btn.onclick = () => applyPreset(id);
         // insert before presetDesc
         bar.insertBefore(btn, desc);
@@ -623,25 +812,31 @@ function handleYamlImport(event) {
                 // merge into custom profiles (replace if same id)
                 const existing = _customProfiles().filter(p => !parsed.find(x => x.id === p.id));
                 const merged   = [...existing, ...parsed];
-                _saveCustomProfiles(merged);
+
                 // register in PRESETS
-                parsed.forEach(p => {
-                    PRESETS[p.id] = {
-                        name: p.name || p.id, emoji: p.emoji || '🎯',
-                        description: p.description || '',
-                        profileType: p.profileType || 'SAY',
-                        sortedBy: p.sortedBy || 'SAY',
-                        filters: p.filters || {}
-                    };
-                });
+                merged.map(normalizePreset)
+                  .forEach(p => {
+                      const index = PRESETS.findIndex(pr => pr.id === p.id);
+                      if (index !== -1) {
+                          PRESETS[index] = p;
+                      } else {
+                          PRESETS.push(p);
+                      }
+                  });
+
                 if (note) { note.textContent = '✅ ' + parsed.length + ' profile(s) imported.'; note.style.color = '#4CAF50'; }
+
+                _saveCustomProfiles(merged);
                 renderProfileChips();
                 renderProfileBar();
             } else {
                 if (note) { note.textContent = '⚠️ No valid profiles found.'; note.style.color = '#ff9800'; }
             }
         } catch(err) {
-            if (note) { note.textContent = '❌ Parse error: ' + err.message; note.style.color = '#f44336'; }
+            if (note) {
+                note.textContent = '❌ Parse error: ' + err.message; note.style.color = '#f44336';
+                console.log("❌ YAML Parse error: " + err.stack);
+            }
         }
         event.target.value = '';
     };
@@ -649,73 +844,19 @@ function handleYamlImport(event) {
 }
 
 function parseYamlProfiles(yamlText) {
-    // Simple YAML parser for the specific structure we expect
-    const profiles = [];
-    const lines = yamlText.split('\n');
-    let currentProfile = null;
-    let inFilters = false;
+     try {
+           const data = jsyaml.load(yamlText);
 
-    for (let line of lines) {
-        line = line.trim();
+           if (!data || !Array.isArray(data.profiles)) {
+               console.warn("No valid 'profiles' array found in YAML");
+               return [];
+           }
 
-        // Skip comments and empty lines
-        if (!line || line.startsWith('#')) continue;
-
-        // New profile
-        if (line.startsWith('- id:')) {
-            if (currentProfile) {
-                profiles.push(currentProfile);
-            }
-            currentProfile = {
-                id: line.split(':')[1].trim(),
-                filters: {}
-            };
-            inFilters = false;
-        }
-        // Profile properties
-        else if (currentProfile) {
-            if (line.startsWith('label:')) {
-                currentProfile.name = line.split(':')[1].trim().replace(/['"]/g, '');
-            }
-            else if (line.startsWith('emoji:')) {
-                currentProfile.emoji = line.split(':')[1].trim().replace(/['"]/g, '');
-            }
-            else if (line.startsWith('description:')) {
-                currentProfile.description = line.split(':')[1].trim().replace(/['"]/g, '');
-            }
-            else if (line.startsWith('profileType:')) {
-                currentProfile.profileType = line.split(':')[1].trim().replace(/['"]/g, '');
-            }
-            else if (line.startsWith('sortedBy:')) {
-                currentProfile.sortedBy = line.split(':')[1].trim().replace(/['"]/g, '');
-            }
-            else if (line.startsWith('filters:')) {
-                inFilters = true;
-            }
-            else if (inFilters && line.includes(':')) {
-                const parts = line.split(':');
-                const key = parts[0].trim();
-                let value = parts[1].trim();
-
-                // Parse numeric values
-                if (!isNaN(value)) {
-                    value = parseFloat(value);
-                } else {
-                    // Remove quotes from string values
-                    value = value.replace(/['"]/g, '');
-                }
-
-                currentProfile.filters[key] = value;
-            }
-        }
-    }
-
-    // Add last profile
-    if (currentProfile) {
-        profiles.push(currentProfile);
-    }
-
-    return profiles;
+           return data.profiles;
+       } catch (err) {
+           console.error("YAML parsing error:", err);
+           return [];
+       }
 }
 
 // mergeCustomProfiles replaced by new profile manager (v5.3)
@@ -735,23 +876,11 @@ function hideLoading() {
     }
 }
 
-function addYearsDecimal(date, yearsDecimal) {
-    const result = new Date(date);
-
-    const wholeYears = Math.floor(yearsDecimal);
-    const remainingMonths = Math.round((yearsDecimal - wholeYears) * 12);
-
-    result.setFullYear(result.getFullYear() + wholeYears);
-    result.setMonth(result.getMonth() + remainingMonths);
-
-    return result;
-}
-
 function applyPreset(presetName) {
     showLoading();
 
     setTimeout(() => {
-        const preset = PRESETS[presetName];
+        const preset = getPresetById(presetName);
         if (!preset) {
             hideLoading();
             return;
@@ -759,40 +888,36 @@ function applyPreset(presetName) {
 
         clearColumnFilters();
 
-        // Price
-        document.getElementById("filterPriceMin").value = preset.filters.minPrice || "";
-        document.getElementById("filterPriceMax").value = preset.filters.maxPrice || "";
-
-        // Rating
-        document.getElementById("filterMinRating").value = preset.filters.minRating || "";
-
-        // Maturity
-        const today = new Date();
-        const minMat = addYearsDecimal(today, preset.filters.minMatYears);
-        const maxMat = addYearsDecimal(today, preset.filters.maxMatYears);
-
-        function formatDate(d) {
-            const y = d.getFullYear();
-            const m = ("0" + (d.getMonth() + 1)).slice(-2);
-            const day = ("0" + d.getDate()).slice(-2);
-            return y + "-" + m + "-" + day;
-        }
-
-        document.getElementById("filterMinMat").value = formatDate(minMat);
-        document.getElementById("filterMaxMat").value = formatDate(maxMat);
-
-        // Mode-specific filters
-        document.getElementById("filterminYield").value = preset.filters.minYield || "";
-        document.getElementById("filterMinCapitalAtMat").value = preset.filters.minCapitalAtMat || "";
-        document.getElementById("filterMinSAY").value = preset.filters.minSAY || "";
-
-        // Apply profileType from preset (SAY or income)
         currentMode = preset.profileType ? preset.profileType.toLowerCase() : "say";
 
-        filterTable();
+        if (preset.filters?.mode !== "COMPOSITE") {
+            // Price
+            document.getElementById("filterPriceMin").value = preset.filters.minPrice || "";
+            document.getElementById("filterPriceMax").value = preset.filters.maxPrice || "";
+
+            // Rating
+            document.getElementById("filterMinRating").value = preset.filters.minRating || "";
+
+            // Dates
+            const { minDate, maxDate } = BondFilteringEngine.resolveMaturityBounds(preset.filters);
+            if(minDate) {
+                document.getElementById("filterMinMat").value = formatDate(minDate);
+            }
+            if(maxDate) {
+                document.getElementById("filterMaxMat").value = formatDate(maxDate);
+            }
+
+            // Mode-specific filters
+            document.getElementById("filterminYield").value = preset.filters.minYield || "";
+            document.getElementById("filterMinCapitalAtMat").value = preset.filters.minCapitalAtMat || "";
+            document.getElementById("filterMinSAY").value = preset.filters.minSAY || "";
+        }
+
+        // Just 1 entry point to filtering engine
+        BondFilteringEngine.filterTable(preset);
+
         updatePresetButtons(presetName);
         updateLegend();
-        applyHeatmap();
         document.getElementById("presetDesc").textContent = "✓ " + preset.description;
 
         // Apply sortedBy property: resolve column name to COL constant
@@ -1366,15 +1491,15 @@ function importSettings(event) {
             // Custom profiles
             if (Array.isArray(s.customProfiles)) {
                 _saveCustomProfiles(s.customProfiles);
-                s.customProfiles.forEach(p => {
-                    PRESETS[p.id] = {
-                        name: p.name || p.id, emoji: p.emoji || '🎯',
-                        description: p.description || '',
-                        profileType: p.profileType || 'SAY',
-                        sortedBy: p.sortedBy || 'SAY',
-                        filters: p.filters || {}
-                    };
-                });
+               s.customProfiles.forEach(p => {
+                   const normalized = normalizePreset(p);
+                   const index = PRESETS.findIndex(pr => pr.id === normalized.id);
+                   if (index !== -1) {
+                       PRESETS[index] = normalized;   // update
+                   } else {
+                       PRESETS.push(normalized);      // insert
+                   }
+               });
             }
 
             // Profile order & selection
@@ -1397,21 +1522,61 @@ function importSettings(event) {
     reader.readAsText(file);
 }
 
+function getPresetById(id) {
+    return PRESETS.find(p => p.id === id);
+}
+
+function normalizePreset(p) {
+
+    const base = {
+        id: p.id,
+        label: p.label || p.id,
+        emoji: p.emoji || '🎯',
+        description: p.description || '',
+        profileType: p.profileType || 'SAY',
+        sortedBy: p.sortedBy || (p.profileType === 'income' ? 'CURR_YIELD' : 'SAY')
+    };
+
+    const filters = p.filters || {};
+
+    // ---- COMPOSITE (auto-detected by groups) ----
+    if (Array.isArray(filters.groups)) {
+
+        return {
+            ...base,
+            filters: {
+                groups: filters.groups.map(g => ({
+                    filters: g.filters || {},
+                    top: typeof g.top === 'number' ? g.top : 999
+                }))
+            }
+        };
+    }
+
+    // ---- SIMPLE ----
+    return {
+        ...base,
+        filters
+    };
+}
+
 /* =======================
    INITIALIZATION
 ======================= */
 document.addEventListener("DOMContentLoaded", () => {
-    setDefaultMaturityFilters();
+    BondFilteringEngine.init();
 
     // v5.3 profile system: register custom profiles from localStorage into PRESETS
     _customProfiles().forEach(p => {
-        PRESETS[p.id] = {
-            name: p.name || p.id, emoji: p.emoji || '🎯',
-            description: p.description || '',
-            profileType: p.profileType || 'SAY',
-            sortedBy: p.sortedBy || 'SAY',
-            filters: p.filters || {}
-        };
+       const index = PRESETS.findIndex(pr => pr.id === p.id);
+
+           const normalized = normalizePreset(p);
+
+           if (index !== -1) {
+               PRESETS[index] = normalized;   // update
+           } else {
+               PRESETS.push(normalized);      // insert
+           }
     });
     renderProfileBar();    // populate homepage bar with selected profiles
     renderProfileChips();  // populate settings modal chips
@@ -1435,6 +1600,7 @@ document.addEventListener("DOMContentLoaded", () => {
                .forEach(el => twemoji.parse(el));
     }
 });
+
 // ─── INFO MODAL ──────────────────────────────────────────────────────────────
 function openInfoModal() {
     document.getElementById('infoModal').classList.add('open');
