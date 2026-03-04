@@ -497,18 +497,18 @@ profiles:
     sortedBy: CURR_YIELD
     filters:
       groups:
-        - top: 5
-          filters:
+        - filters:
             minMatYears: 20
             maxMatYears: 35
             minRating: BBB+
             minYield: 4.0
-        - top: 5
-          filters:
+          top: 5
+        - filters:
             minMatYears: 10
             maxMatYears: 20
             minRating: BBB-
             minYield: 5.0
+          top: 5
 ```
 
 Within each group, bonds are ranked by current yield (descending) before the `top` cap is applied. The final table shows
