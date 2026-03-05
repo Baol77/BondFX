@@ -115,10 +115,13 @@
     </div>
 </div>
 
-<div class="profile-presets" id="profilePresetsBar">
-    <label>Investor profiles:</label>
-    <!-- populated dynamically by renderProfileBar() -->
-    <span class="preset-description" id="presetDesc"></span>
+<div id="profilePresetsBar" class="profile-presets">
+    <div id="profile-buttons-area">
+        <label id="profilePresetsLabel" class="profile-presets-label" onclick="toggleProfiles()">▼ Investor profiles:</label>
+        <!-- populated dynamically by renderProfileBar() -->
+        <label id="presetDesc" class="preset-description"></label>
+    </div>
+    <div id="presetGroupFilters" class="preset-group-filters"></div>
 </div>
 
 <div class="controls">

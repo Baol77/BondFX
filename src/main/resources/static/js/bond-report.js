@@ -24,7 +24,7 @@ const BondFilteringEngine = (function () {
             const bond = {
                 row: r,
                 isin: r.cells[COL.ISIN].innerText.trim(),
-                issuer: r.cells[COL.ISSUER].innerText.toLowerCase(),
+                issuer: r.cells[COL.ISSUER].innerText.toLowerCase().trim().replace(/\s[^ ]*$/, ''), // remove country flag
                 price: parseNum(r.cells[COL.PRICE].innerText),
                 currency: r.cells[COL.CURRENCY].innerText,
                 rating: r.cells[COL.RATING].innerText.trim(),
@@ -128,6 +128,9 @@ const BondFilteringEngine = (function () {
 
         // Issuer
         if (filters.issuer && !bond.issuer.includes(filters.issuer)) return false; // partial research
+        // Issuers
+        if (filters.issuers && !filters.issuers.some(i => i.toLowerCase() === bond.issuer)) return false;
+        if (filters.excludeIssuers && filters.excludeIssuers.some(i => i.toLowerCase() === bond.issuer)) return false;
 
         // Price
         if (filters.minPrice !== null && bond.price < filters.minPrice) return false;
@@ -189,6 +192,8 @@ const BondFilteringEngine = (function () {
         const overridableKeys = [
             "isin",
             "issuer",
+            "issuers",
+            "excludeIssuers",
             "minPrice",
             "maxPrice",
             "currency",
@@ -204,7 +209,7 @@ const BondFilteringEngine = (function () {
 
             // Override ad-hoc
             overridableKeys.forEach(key => {
-                if (uiFilters[key] !== "" && uiFilters[key] !== null) {
+                if (uiFilters[key] !== "" && uiFilters[key] != null) { // includes != undefined
                     mergedFilters[key] = uiFilters[key];
                 }
             });
@@ -762,7 +767,9 @@ function _initChipDrag(container) {
 
 /* ── Render the homepage preset bar (only selected, in order) ── */
 function renderProfileBar() {
-    const bar = document.getElementById('profilePresetsBar');
+    const bar = document.getElementById('profile-buttons-area');
+    const desc = document.getElementById('presetDesc');
+
     if (!bar) return;
 
     const ids = _allProfileIds();
@@ -770,9 +777,6 @@ function renderProfileBar() {
 
     // remove all buttons (keep label and presetDesc)
     bar.querySelectorAll('.preset-button').forEach(b => b.remove());
-
-    const desc  = document.getElementById('presetDesc');
-    const label = bar.querySelector('label');
 
     ids.filter(id => sel.has(id)).forEach(id => {
         const preset = getPresetById(id);
@@ -876,6 +880,41 @@ function hideLoading() {
     }
 }
 
+function formatGroupsYAML(groups) {
+
+  function formatDate(ts){
+    const d = new Date(ts);
+    return d.toISOString().slice(0,10);
+  }
+
+  let out = "groups:\n";
+
+  groups.forEach(g => {
+    out += "  - filters:\n";
+
+    Object.entries(g.filters).forEach(([k,v]) => {
+
+      if(Array.isArray(v)){
+        out += `      ${k}:\n`;
+        v.forEach(x => out += `        - ${x}\n`);
+      }
+
+      else if(k==="fromDate" || k==="toDate"){
+        out += `      ${k}: ${formatDate(v)}\n`;
+      }
+
+      else{
+        out += `      ${k}: ${v}\n`;
+      }
+
+    });
+
+    out += `    top: ${g.top}\n`;
+  });
+
+  return out;
+}
+
 function applyPreset(presetName) {
     showLoading();
 
@@ -920,6 +959,16 @@ function applyPreset(presetName) {
         updateLegend();
         document.getElementById("presetDesc").textContent = "✓ " + preset.description;
 
+        const groupFilters = document.getElementById("presetGroupFilters");
+        if (preset.filters?.groups) {
+            const yaml = formatGroupsYAML(preset.filters.groups);
+            groupFilters.textContent = yaml;
+            groupFilters.style.display = "block";
+        } else {
+            groupFilters.textContent = "";
+            groupFilters.style.display = "none";
+        }
+
         // Apply sortedBy property: resolve column name to COL constant
         let sortColumn = COL.SAY; // default
         if (preset.sortedBy) {
@@ -949,6 +998,15 @@ function applyPreset(presetName) {
 
 // updatePresetButtons defined in profile manager (v5.3)
 
+function toggleProfiles() {
+    const bar = document.getElementById('profilePresetsBar');
+    const label = document.getElementById('profilePresetsLabel');
+
+    bar.classList.toggle('collapsed');
+    label.textContent = bar.classList.contains('collapsed')
+        ? "▶ Investor profiles:"
+        : "▼ Investor profiles:";
+}
 
 /* =======================
    BOND BASKET
@@ -1527,7 +1585,6 @@ function getPresetById(id) {
 }
 
 function normalizePreset(p) {
-
     const base = {
         id: p.id,
         label: p.label || p.id,

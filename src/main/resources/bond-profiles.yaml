@@ -130,6 +130,8 @@ profiles:
     filters:
       groups:
         - filters:
+            #issuers:
+            #  - FRANCIA
             minRating: A+
             maxPrice: 105
             currency: EUR
@@ -138,6 +140,8 @@ profiles:
             minSAY: 3.0
           top: 3
         - filters:
+            excludeIssuers:
+              - ROMANIA
             minRating: BBB-
             maxRating: BBB+
             maxPrice: 105
