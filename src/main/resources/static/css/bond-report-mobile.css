@@ -200,13 +200,6 @@
 ======================================== */
 
 @media (min-width: 1024px) {
-
-    .profile-presets {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-    }
-
     .controls {
         display: flex;
         flex-wrap: wrap;

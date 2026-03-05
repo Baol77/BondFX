@@ -963,10 +963,8 @@ function applyPreset(presetName) {
         if (preset.filters?.groups) {
             const yaml = formatGroupsYAML(preset.filters.groups);
             groupFilters.textContent = yaml;
-            groupFilters.style.display = "block";
         } else {
             groupFilters.textContent = "";
-            groupFilters.style.display = "none";
         }
 
         // Apply sortedBy property: resolve column name to COL constant
