@@ -142,6 +142,8 @@ profiles:
         - filters:
             excludeIssuers:
               - ROMANIA
+              - ITALIA
+              - GRECIA
             minRating: BBB-
             maxRating: BBB+
             maxPrice: 105
