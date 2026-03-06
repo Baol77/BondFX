@@ -24,7 +24,8 @@ const BondFilteringEngine = (function () {
             const bond = {
                 row: r,
                 isin: r.cells[COL.ISIN].innerText.trim(),
-                issuer: r.cells[COL.ISSUER].innerText.toLowerCase().trim().replace(/\s[^ ]*$/, ''), // remove country flag
+                // Consider only country name span and ignore flag span
+                issuer: r.cells[COL.ISSUER].querySelector('.issuer-name')?.innerText.trim().toLowerCase(),
                 price: parseNum(r.cells[COL.PRICE].innerText),
                 currency: r.cells[COL.CURRENCY].innerText,
                 rating: r.cells[COL.RATING].innerText.trim(),
