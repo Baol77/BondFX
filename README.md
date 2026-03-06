@@ -354,6 +354,10 @@ year. The amount is split across active (non-matured) bonds proportionally to th
 sum to 100%; the panel shows the running total in real time. When a bond matures mid-horizon, its allocation % is
 automatically redistributed to the remaining active bonds.
 
+> **Injection timing:** The annual injection is applied at the **beginning** of each year, before that year's coupon is
+> computed. This means injected capital earns a full year's coupon in the same year it is added — consistent with the
+> Excel reference model.
+
 ### Export / Import Scenarios
 
 Use **↑ Export** to save all scenarios (including portfolio snapshot and configuration) as a JSON file. Use **↓ Import**
@@ -371,9 +375,26 @@ Deselecting all bonds hides all chart lines. Selecting all is equivalent to no f
 
 ### Chart Views
 
-Click any year on the chart to open the **Year Detail modal** showing coupons, redemptions, reinvestment amounts, and
-per-bond breakdown for that year. For years with a maturity replacement activation, the modal highlights the source bond
-and the newly created synthetic replacement slot.
+Click any year on the chart to open the **Year Detail modal** showing per-scenario cash flow data and a per-bond
+breakdown for that year. For years with a maturity replacement activation, the modal highlights the source bond and the
+newly created synthetic replacement slot.
+
+#### Year Detail Modal columns
+
+| Column              | Description                                                                                   |
+|---------------------|-----------------------------------------------------------------------------------------------|
+| **Scenario**        | Scenario name with expand checkbox to show per-bond subrows                                   |
+| **Coupon**          | Net coupon income for that year, after withholding tax                                        |
+| **Portfolio Value** | Bond market value only — accumulated cash (coupons/redemptions not yet reinvested) is excluded |
+| **Δ**               | Change in total portfolio value vs the previous year                                          |
+
+> **Start year (e.g. 2026):** The first year of the simulation now shows the real coupon earned on the initial
+> portfolio, not zero. Portfolio Value in the start year reflects the initial market value of all bonds. Δ shows `—`
+> because there is no prior year to compare against.
+
+> **Maturity year:** When a bond matures, Portfolio Value in the header row shows the sum of individual bond market
+> values at redemption (matching the visible subrow values), not the post-redemption zero. The Δ column correctly
+> reflects the full final gain including the redemption proceeds.
 
 ### Benchmark Overlay
 
@@ -661,6 +682,13 @@ accordingly. This is the correct behavior.
 **Annual injection total shows 0% on first enable** — Click the checkbox to enable injection; the allocation table is
 initialized automatically with equal distribution across active bonds. The total will immediately show 100%.
 
+**Start year shows €0 coupon in Year Detail modal** — This was a bug in versions prior to v6.1. After deploying the
+latest `capital-growth.js`, the start year (e.g. 2026) correctly shows the coupon earned on the initial portfolio.
+
+**Maturity year shows €0 Portfolio Value in Year Detail modal** — This was a bug in versions prior to v6.1. The header
+row now shows the sum of individual bond market values at redemption, matching the per-bond subrow values, instead of
+the post-redemption zero.
+
 **Benchmark not loading in Capital Growth** — The ETF ticker may be temporarily unavailable on Yahoo Finance. Try
 reloading. Check that the ticker is valid at finance.yahoo.com.
 
@@ -722,6 +750,18 @@ order, selection, basket, wishlist, theme, and currency. Import it on any device
 
 The matured bond's allocation % is automatically redistributed proportionally among the remaining active bonds. The
 total injected amount per year stays the same — only the per-bond split changes.
+
+**When exactly is the annual injection applied?**
+
+At the **beginning** of each year, before that year's coupons are computed. This means injected capital is immediately
+part of the coupon base: a €1,000 injection on a 3% bond adds €30 to that year's coupon. This matches the Excel
+reference model.
+
+**Why does the start year (e.g. 2026) show a coupon in the Year Detail modal?**
+
+The simulation emits a real coupon event for the start year based on the initial portfolio. This coupon represents
+income earned during the first partial or full year of holding. Δ shows `—` for the start year because there is no
+prior year to compare against — this is correct behavior.
 
 **Can I combine coupon reinvestment with a maturity replacement in the same scenario?**
 
