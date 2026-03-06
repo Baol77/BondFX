@@ -404,7 +404,9 @@ public class CapitalGrowthRegressionBugsTest {
         public void bugC_injectionGrowsBondsVal_2028_absoluteValues() {
             assertNear(year(sc1, 2028).path("bondsVal").asLong(), 322490,
                 "BUG C: sc_1 bondsVal 2028 (baseline, no injection)");
-            assertNear(year(sc2, 2028).path("bondsVal").asLong(), 332206,
+            // NOTE: value updated from 332206 → 341922 after injection-timing fix
+            // (injection now applied before coupon calc, matching Excel begin-of-year model)
+            assertNear(year(sc2, 2028).path("bondsVal").asLong(), 341922,
                 "BUG C: sc_2 bondsVal 2028 (with injection)");
         }
 

@@ -301,12 +301,49 @@ function runScenario(slots, years, globalMode, globalPriceShift, globalReinvestY
     const dataPoints   = [pool.reduce((s, sl) => s + slotValue(sl, startYear, startYear, reportCcy), 0) + cash];
     const yearEvents   = [];
 
+    // Emit start-year event so year 2026 coupon + bondsVal appear in the modal/chart.
+    // Coupon is earned in the start year; portVal = initial market value; delta = 0 (no prior year).
+    {
+        const yr0 = years[0];
+        let y0Coupons = 0;
+        const y0PerSlot = [];
+        for (const sl of pool) {
+            if (sl.matYear < yr0) continue;
+            const fxC0 = sl.currency ? _fxCurveGet(sl.currency, reportCcy, yr0, startYear) : 1.0;
+            const couponCash0 = sl.unitsHeld * sl.couponPerUnit * fxC0;
+            y0Coupons += couponCash0;
+            if (!sl.isin?.startsWith('_')) {
+                const slRedemp0 = (sl.matYear === yr0) ? sl.unitsHeld * sl.facePerUnit * fxC0 : 0;
+                y0PerSlot.push({ isin: sl.isin, issuer: sl.issuer || '',
+                    coupon: couponCash0, redemption: slRedemp0,
+                    portVal: slotValue(sl, yr0, startYear, reportCcy), reinvested: 0 });
+            }
+        }
+        const y0BondsVal = pool.filter(sl => sl.matYear >= yr0)
+            .reduce((s, sl) => s + slotValue(sl, yr0, startYear, reportCcy), 0);
+        yearEvents.push({ yr: yr0, coupons: y0Coupons, redemptions: 0, cashIn: y0Coupons,
+            reinvested: 0, cash: 0, bondsVal: y0BondsVal, perSlot: y0PerSlot });
+    }
+
     for (let i = 1; i < years.length; i++) {
         const yr = years[i];
         const portfolioVal = () => pool.reduce((s, sl) => s + slotValue(sl, yr, startYear, reportCcy), 0) + cash;
         let yearCoupons = 0, yearRedemptions = 0, reinvested = 0;
         const alive = [];
         const perSlot = [];
+
+        // Apply annual injection at BEGIN of year (before coupon calculation) — matches Excel model
+        if (injectionByYear) {
+            const injThisYear = injectionByYear.get(yr);
+            if (injThisYear) {
+                for (const [isin, injEur] of injThisYear.entries()) {
+                    const liveSlot = pool.find(s => s.isin === isin);
+                    if (liveSlot && liveSlot.pricePerUnit > 0) {
+                        liveSlot.unitsHeld += injEur / liveSlot.pricePerUnit;
+                    }
+                }
+            }
+        }
 
         for (const sl of pool) {
             if (sl.matYear < yr) continue;
@@ -353,19 +390,6 @@ function runScenario(slots, years, globalMode, globalPriceShift, globalReinvestY
         // This matches perSlot.portVal which is also captured before reinvestment.
         const bondsVal = alive.reduce((s, sl) => s + slotValue(sl, yr, startYear, reportCcy), 0);
         pool = alive;
-
-        // Apply annual injection: buy new units of active bonds
-        if (injectionByYear) {
-            const injThisYear = injectionByYear.get(yr);
-            if (injThisYear) {
-                for (const [isin, injEur] of injThisYear.entries()) {
-                    const liveSlot = pool.find(s => s.isin === isin);
-                    if (liveSlot && liveSlot.pricePerUnit > 0) {
-                        liveSlot.unitsHeld += injEur / liveSlot.pricePerUnit;
-                    }
-                }
-            }
-        }
 
         const cashIn = yearCoupons + yearRedemptions;
 
@@ -507,6 +531,34 @@ function runMaturityReplacement(slots, years, matReplacementOrArray, injectionBy
     const dataPoints   = [pool.reduce((s, sl) => s + slotValue(sl, startYear, startYear, reportCcy), 0) + cash];
     const yearEvents   = [];
 
+    // Emit start-year event (year 2026) so coupon + bondsVal are visible in modal/chart.
+    {
+        const yr0 = allYears[0];
+        let y0Coupons = 0;
+        const y0PerSlot = [];
+        for (const sl of pool) {
+            if (sl.matYear < yr0) continue;
+            const fxC0 = sl.currency ? _fxCurveGet(sl.currency, reportCcy, yr0, startYear) : 1.0;
+            const couponCash0 = sl.unitsHeld * sl.couponPerUnit * fxC0;
+            y0Coupons += couponCash0;
+            if (!sl.isin?.startsWith('_') || sl._isReplacement) {
+                const displayIsin0   = sl._isReplacement ? ((sl._srcIsin ?? sourceBond.isin) + '_repl') : sl.isin;
+                const displayIssuer0 = sl._isReplacement ? (sl.issuer + ' → repl.') : (sl.issuer || '');
+                const slRedemp0 = (sl.matYear === yr0) ? sl.unitsHeld * sl.facePerUnit * fxC0 : 0;
+                y0PerSlot.push({ isin: displayIsin0, issuer: displayIssuer0,
+                    coupon: sl._isReplacement ? 0 : couponCash0,
+                    replCoupon: sl._isReplacement ? couponCash0 : 0,
+                    redemption: slRedemp0,
+                    portVal: slotValue(sl, yr0, startYear, reportCcy), reinvested: 0,
+                    _isReplacement: !!sl._isReplacement, matYear: sl._isReplacement ? sl.matYear : undefined });
+            }
+        }
+        const y0BondsVal = pool.filter(sl => sl.matYear >= yr0)
+            .reduce((s, sl) => s + slotValue(sl, yr0, startYear, reportCcy), 0);
+        yearEvents.push({ yr: yr0, coupons: y0Coupons, redemptions: 0, cashIn: y0Coupons,
+            reinvested: 0, replCoupons: 0, cash: 0, bondsVal: y0BondsVal, perSlot: y0PerSlot });
+    }
+
     for (let i = 1; i < allYears.length; i++) {
         const yr = allYears[i];
         const portfolioVal = () => pool.reduce((s, sl) => s + slotValue(sl, yr, startYear, reportCcy), 0) + cash;
@@ -514,6 +566,19 @@ function runMaturityReplacement(slots, years, matReplacementOrArray, injectionBy
         let replacementActivated = false;
         const alive = [];
         const perSlot = [];
+
+        // Apply annual injection at BEGIN of year (before coupon calculation) — matches Excel model
+        if (injectionByYear) {
+            const injThisYear = injectionByYear.get(yr);
+            if (injThisYear) {
+                for (const [isin, injEur] of injThisYear.entries()) {
+                    const liveSlot = pool.find(s => s.isin === isin);
+                    if (liveSlot && liveSlot.pricePerUnit > 0) {
+                        liveSlot.unitsHeld += injEur / liveSlot.pricePerUnit;
+                    }
+                }
+            }
+        }
 
         for (const sl of pool) {
             if (sl.matYear < yr) continue;
@@ -558,19 +623,6 @@ function runMaturityReplacement(slots, years, matReplacementOrArray, injectionBy
             }
         }
         pool = alive;
-
-        // Apply annual injection: buy new units of active bonds
-        if (injectionByYear) {
-            const injThisYear = injectionByYear.get(yr);
-            if (injThisYear) {
-                for (const [isin, injEur] of injThisYear.entries()) {
-                    const liveSlot = pool.find(s => s.isin === isin);
-                    if (liveSlot && liveSlot.pricePerUnit > 0) {
-                        liveSlot.unitsHeld += injEur / liveSlot.pricePerUnit;
-                    }
-                }
-            }
-        }
 
         const cashIn = yearCoupons + yearRedemptions;
         const maturedOrigSlots = slots.filter(sl => sl.matYear === yr);
@@ -2802,8 +2854,17 @@ function openYearDetailModal(yr, yearIdx, simResult, startCapital, allLabels) {
         // Portfolio Value = bondsVal + accumulated cash (same basis as sc.data and delta).
         // Showing only bondsVal would make no-reinvest scenarios appear artificially low
         // (their cash pile is hidden), making the reinvest scenario look always worse by comparison.
+        //
+        // Special case: in a maturity year bondsVal=0 (bonds redeemed, proceeds moved to cash).
+        // Instead show the sum of perSlot portVals — the face-value each bond was worth at redemption —
+        // so the header matches the visible subrow values and isn't a confusing €0.
         const cashAccum    = (ev?.cash ?? 0) * (sc.scale || 1);
-        const bondsOnlyVal = (ev?.bondsVal != null) ? ev.bondsVal * (sc.scale || 1) : val;
+        const hasMaturing  = ev?.perSlot?.some(s => s.redemption > 0);
+        const slotSumVal   = hasMaturing && ev?.bondsVal === 0
+            ? (ev.perSlot.reduce((s, sl) => s + (sl.portVal ?? 0), 0)) * (sc.scale || 1)
+            : null;
+        const bondsOnlyVal = slotSumVal != null ? slotSumVal
+            : (ev?.bondsVal != null) ? ev.bondsVal * (sc.scale || 1) : val;
         const totalPortVal = (ev?.bondsVal != null) ? bondsOnlyVal + cashAccum : val;
         const valDisplay   = totalPortVal != null ? `${sym}${Math.round(_cgToBase(totalPortVal)).toLocaleString(undefined,{maximumFractionDigits:0})}` : '—';
         const deltaDisplay = delta != null
@@ -2848,8 +2909,6 @@ function openYearDetailModal(yr, yearIdx, simResult, startCapital, allLabels) {
                             <span style="margin-left:6px;opacity:0.6;">mat.${matYr}</span>${replBadge}
                         </td>
                         <td style="padding:3px 10px;text-align:right;">${fs(couponVal)}</td>
-                        <td style="padding:3px 10px;text-align:right;">${s.redemption > 0 ? fs(s.redemption) : '<span style="color:#888">—</span>'}</td>
-                        <td style="padding:3px 10px;text-align:right;">${s.reinvested > 0 ? fs(s.reinvested) : '<span style="color:#888">—</span>'}</td>
                         <td style="padding:3px 10px;text-align:right;">${fs(s.portVal)}</td>
                         <td style="padding:3px 10px;text-align:right;color:#888;">—</td>
                     </tr>`;
@@ -2867,8 +2926,6 @@ function openYearDetailModal(yr, yearIdx, simResult, startCapital, allLabels) {
                             <span style="margin-left:6px;font-size:9px;opacity:0.7;">coupons + redemptions (not reinvested)</span>
                         </td>
                         <td style="padding:3px 10px;text-align:right;color:#888;">—</td>
-                        <td style="padding:3px 10px;text-align:right;color:#888;">—</td>
-                        <td style="padding:3px 10px;text-align:right;color:#888;">—</td>
                         <td style="padding:3px 10px;text-align:right;font-weight:600;color:${cashColor};">${fmtSmall(cashVal)}</td>
                         <td style="padding:3px 10px;text-align:right;color:#888;">—</td>
                     </tr>`;
@@ -2876,6 +2933,11 @@ function openYearDetailModal(yr, yearIdx, simResult, startCapital, allLabels) {
                 perBondRows = bondRows + cashRow;
             }
         }
+
+        // Portfolio Value = bonds market value only (Excel definition: no accumulated cash)
+        const bondsOnlyDisplay = bondsOnlyVal != null
+            ? `${sym}${Math.round(_cgToBase(bondsOnlyVal)).toLocaleString(undefined,{maximumFractionDigits:0})}`
+            : '—';
 
         return `<tr>
             <td style="padding:7px 10px;">
@@ -2892,9 +2954,7 @@ function openYearDetailModal(yr, yearIdx, simResult, startCapital, allLabels) {
                 </label>
             </td>
             <td style="padding:7px 10px;text-align:right;">${couponCell}</td>
-            <td style="padding:7px 10px;text-align:right;">${redempCell}</td>
-            <td style="padding:7px 10px;text-align:right;">${reinvestedCell}</td>
-            <td style="padding:7px 10px;text-align:right;font-weight:700;">${valDisplay}</td>
+            <td style="padding:7px 10px;text-align:right;font-weight:700;">${bondsOnlyDisplay}</td>
             <td style="padding:7px 10px;text-align:right;">${deltaDisplay}</td>
         </tr>${perBondRows}`;
     }).join('');
@@ -2933,8 +2993,6 @@ function openYearDetailModal(yr, yearIdx, simResult, startCapital, allLabels) {
                 </span>
             </td>
             <td style="padding:7px 10px;text-align:right;color:${isDark?'#8890b8':'#888'};">${bSc(bEv?.coupons)}</td>
-            <td style="padding:7px 10px;text-align:right;color:${isDark?'#8890b8':'#888'};">${bSc(bEv?.redemptions)}</td>
-            <td style="padding:7px 10px;text-align:right;color:${isDark?'#8890b8':'#888'};">—</td>
             <td style="padding:7px 10px;text-align:right;font-weight:600;color:${isDark?'#8890b8':'#888'};">${bValDisplay}</td>
             <td style="padding:7px 10px;text-align:right;">${bDeltaDisplay}</td>
         </tr>`;
@@ -2998,18 +3056,16 @@ function openYearDetailModal(yr, yearIdx, simResult, startCapital, allLabels) {
                 <table style="width:100%;border-collapse:collapse;font-size:12px;">
                     <thead><tr style="background:${thBg};color:${isDark?'#8890b8':'#666'};">
                         <th style="padding:7px 10px;text-align:left;">Scenario</th>
-                        <th style="padding:7px 10px;text-align:right;">Coupons (net)</th>
-                        <th style="padding:7px 10px;text-align:right;">Redemptions</th>
-                        <th style="padding:7px 10px;text-align:right;">Reinvested</th>
-                        <th style="padding:7px 10px;text-align:right;" title="Bonds + accumulated cash (coupons/redemptions not reinvested)">Portfolio Value</th>
-                        <th style="padding:7px 10px;text-align:right;">Δ vs prev yr</th>
+                        <th style="padding:7px 10px;text-align:right;" title="Net coupon income (after withholding tax)">Coupon</th>
+                        <th style="padding:7px 10px;text-align:right;" title="Bond market value only (excl. cash)">Portfolio Value</th>
+                        <th style="padding:7px 10px;text-align:right;" title="Gain vs previous year">Δ</th>
                     </tr></thead>
                     <tbody>${rows}${benchRow}</tbody>
                 </table>
                 ${matHtml}
                 <p style="font-size:10px;color:${isDark?'#5a6080':'#aaa'};margin-top:10px;">
-                    Coupons net of withholding tax. Redemptions = face value returned. Sudden growth = bond maturation + reinvestment.
-                    Subrow <em>Portfolio Value</em> = bond holding value. <em>Cash</em> row = accumulated coupons + redemptions not reinvested (shown when > 0).
+                    Coupon = net of withholding tax. Portfolio Value = bond market value only (coupons/redemptions held as cash are excluded).
+                    Δ = change vs previous year. Sudden jump = bond maturation + reinvestment.
                     All values in ${_cgBaseCcy()} &nbsp;·&nbsp;
                     <span style="opacity:0.7;">← → arrows or buttons to navigate years</span>
                 </p>

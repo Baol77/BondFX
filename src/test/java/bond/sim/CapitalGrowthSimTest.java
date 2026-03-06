@@ -371,7 +371,7 @@ public class CapitalGrowthSimTest {
             // BELGIO matures 2028: redemption > 0
             JsonNode be = slot(year(sc2, 2028), "BE0000291972");
             assertTrue("BELGIO redemption > 0", be.path("redemption").asLong() > 0);
-            assertNear(be.path("redemption").asLong(), 2054, "BELGIO redemption 2028");
+            assertNear(be.path("redemption").asLong(), 2175, "BELGIO redemption 2028");
         }
 
         @Test
@@ -439,7 +439,8 @@ public class CapitalGrowthSimTest {
             assertTrue("redemption (" + redemption + ") > portVal (" + portVal + ") for below-par bond",
                 redemption > portVal);
             // Sanity: redemption is in the right ballpark (injection accumulated ~46yr × €125)
-            assertNear(redemption, 52920, "IT redemption 2072 absolute value");
+            // NOTE: value updated from 52920 → 54605 after injection-timing fix
+            assertNear(redemption, 54605, "IT redemption 2072 absolute value");
         }
 
         @Test
