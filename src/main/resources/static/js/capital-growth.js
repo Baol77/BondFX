@@ -1577,6 +1577,33 @@ function renderSummaryStats(portfolio, simResult, startCapital) {
         </span>`;
     }).join('');
 
+    // XIRR: Newton-Raphson solver matching Excel's XIRR function.
+    // cfs = [{amount, date}], guess = 0.1
+    function _xirr(cfs, guess = 0.1) {
+        if (!cfs || cfs.length < 2) return null;
+        const DAYS_PER_YEAR = 365;
+        const t0 = cfs[0].date;
+        const times = cfs.map(cf => (cf.date - t0) / (DAYS_PER_YEAR * 86400000));
+        const vals  = cfs.map(cf => cf.amount);
+        let rate = guess;
+        for (let iter = 0; iter < 100; iter++) {
+            let f = 0, df = 0;
+            for (let i = 0; i < vals.length; i++) {
+                const t = times[i];
+                const v = vals[i];
+                const denom = Math.pow(1 + rate, t);
+                f  += v / denom;
+                df -= t * v / (denom * (1 + rate));
+            }
+            if (Math.abs(df) < 1e-12) break;
+            const next = rate - f / df;
+            if (Math.abs(next - rate) < 1e-9) { rate = next; break; }
+            rate = next;
+            if (rate <= -1) rate = -0.999;
+        }
+        return (isFinite(rate) && rate > -1) ? rate * 100 : null;
+    }
+
     // Stat cards: derive from active scenario's simResult entry
     function renderCards() {
         const portfolioCost = portfolio.reduce((s, b) => s + (b.totalEur || (b.priceEur || 0) * b.quantity), 0);
@@ -1591,17 +1618,14 @@ function renderSummaryStats(portfolio, simResult, startCapital) {
             maxHorizon  = Math.max(maxHorizon, simResult.years ? simResult.years.length - 1 : 0);
         });
 
-        // Total Net Coupons and Capital Returned: sum from active scenario's yearEvents
-        // so that injection / reinvestment effects are correctly reflected.
+        // Total Net Coupons: sum from active scenario's yearEvents
         if (activeSimSc?.yearEvents?.length) {
-            const sc      = activeSimSc;
-            const scScale = sc.scale || 1;
+            const scScale = activeSimSc.scale || 1;
             activeSimSc.yearEvents.forEach(ev => {
                 totCoupons += (ev.coupons ?? 0) * scScale;
                 totFace    += (ev.redemptions ?? 0) * scScale;
             });
         } else {
-            // Fallback: static cache (no scenario selected or no events yet)
             portfolio.forEach(b => {
                 const cached    = _cgComputeCache.get(b.isin);
                 const bondCost  = b.totalEur || (b.priceEur || 0) * b.quantity;
@@ -1621,24 +1645,73 @@ function renderSummaryStats(portfolio, simResult, startCapital) {
             totFinal = totStart + totCoupons + totFace;
         }
 
-        const cagr = (maxHorizon > 0 && totStart > 0 && totFinal > 0)
-            ? (Math.pow(totFinal / totStart, 1 / maxHorizon) - 1) * 100 : 0;
+        // ── XIRR ─────────────────────────────────────────────────────────────
+        // Matches Excel XIRR(cashflows, dates):
+        //   Each year: net_cf = coupons_yr - injection_yr
+        //   First year also subtracts initial capital
+        //   Last year adds terminal portfolio value (totFinal)
+        // Uses face-value space throughout (data[0] = face value at t=0) so that
+        // totFinal (from data[]) and totStart are in the same space as the engine.
+        let xirrPct = null;
+        if (activeSimSc?.yearEvents?.length && totFinal > 0) {
+            const activeSc   = _scenarios.find(s => s.id === activeScId);
+            const inj        = activeSc?.injection;
+            const injEnabled = inj?.enabled && (inj?.amountEur ?? 0) > 0;
+            const injFrom    = inj?.from  ?? 9999;
+            const injTo      = inj?.to    ?? 0;
+            const injAmt     = inj?.amountEur ?? 0;
+            const scScale    = activeSimSc.scale || 1;
+            const events     = activeSimSc.yearEvents;
+            // Use data[0] as initial face value (same space as totFinal from data.last)
+            // Falls back to totStart (sum of totalEur) if data is unavailable.
+            const faceStart  = (activeSimSc.data?.length > 0 && isFinite(activeSimSc.data[0]) && activeSimSc.data[0] > 0)
+                ? activeSimSc.data[0]
+                : totStart;
+
+            const cfs = [];
+            for (let i = 0; i < events.length; i++) {
+                const ev      = events[i];
+                const yr      = ev.yr;
+                const isFirst = (i === 0);
+                const isLast  = (i === events.length - 1);
+                const coupon  = (ev.coupons ?? 0) * scScale;
+                const injOut  = (injEnabled && yr >= injFrom && yr <= injTo) ? injAmt : 0;
+                // Net CF matching Excel's XIRR model:
+                //   Annual coupon is income (+), injection is outflow (−).
+                //   First year also subtracts the initial capital invested.
+                //   Last year: use totFinal ALONE (no coupon added) because totFinal
+                //   already reflects all reinvested coupons compounded into face value.
+                //   Adding coupon_last again would double-count it.
+                let cf;
+                if (isLast) {
+                    // Terminal CF = full portfolio value (coupons already reinvested into face)
+                    cf = totFinal - injOut;
+                    if (isFirst) cf -= faceStart;
+                } else {
+                    cf = coupon - injOut;
+                    if (isFirst) cf -= faceStart;
+                }
+                cfs.push({ amount: cf, date: new Date(yr, 0, 1) });
+            }
+
+            xirrPct = _xirr(cfs);
+        }
 
         const scenLabel = _scenarios.find(s => s.id === activeScId)?.label || 'No reinvestment';
 
-        const activeSc2 = _scenarios.find(s => s.id === activeScId);
-        const scColor2  = activeSc2?.color || '#888';
-        const statsHeader = `<div style="width:100%;font-size:10px;font-weight:600;color:#888;
+        const xirrLabel = xirrPct != null ? `${xirrPct.toFixed(2)}%` : '—';
+        const activeSc3 = _scenarios.find(s => s.id === activeScId);
+        const scColor2  = activeSc3?.color || '#888';
+        const statsHeader2 = `<div style="width:100%;font-size:10px;font-weight:600;color:#888;
             text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px;">
             Stats — <span style="color:${scColor2};font-size:11px;">${scenLabel}</span>
         </div>`;
-        return statsHeader +
+        return statsHeader2 +
             card('Initial Capital',   fmt(totStart)) +
             card('Final Value',       fmt(totFinal), 'at horizon') +
             card('Total Net Coupons', fmt(totCoupons), 'over full horizon') +
-            card('Capital Returned',  fmt(totFace), 'face value × qty') +
             card('Horizon',           `${maxHorizon} yrs`) +
-            card('CAGR',              `${cagr.toFixed(2)}%`, 'compound annual');
+            card('XIRR',              xirrLabel, 'annualised return');
     }
 
     el.innerHTML = `

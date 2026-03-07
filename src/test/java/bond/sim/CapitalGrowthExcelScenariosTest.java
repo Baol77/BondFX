@@ -358,8 +358,10 @@ public class CapitalGrowthExcelScenariosTest {
             // Replacement starts from original face units of Bond A (not coupon-reinvested units).
             // Verify it is present and > original face (5263) due to its own coupon reinvestment.
             assertTrue("Cas4: replacement portVal(" + replPortVal2030 + ") > 0", replPortVal2030 > 0);
-            assertTrue("Cas4: replacement portVal(" + replPortVal2030 + ") >= 5000 (≈ original Bond A face)",
-                replPortVal2030 >= 5000);
+            // Bond A original face = qty(40.05) × facePerUnit(100) ≈ 4005 EUR.
+            // Replacement starts from original face units, so portVal ≈ 4005–4200.
+            assertTrue("Cas4: replacement portVal(" + replPortVal2030 + ") >= 4000 (≈ original Bond A face)",
+                replPortVal2030 >= 4000);
         }
 
         /** sc_2 bondsVal in 2030 > sc_1 bondsVal (replacement keeps Bond A capital alive). */

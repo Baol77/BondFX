@@ -1,25 +1,25 @@
 {
-  "_comment": "Excel Cas#4 \u2014 2 bonds (A face=5263 mat=2029, B face=4545 mat=2031), WITH reinvest + injection \u20ac1000/50-50 in Excel-years 2026+2027 (engine from=2027 to=2028). Bond A redeems 2029 \u2192 proceeds reinvested into Bond B via maturityReplacement.",
+  "_comment": "Excel Cas#4 \u2014 FRANCIA (3.5%, 99.88, qty=40.05, mat=2029) + UNGHERIA (4.25%, 99.99, qty=40.0, mat=2031). Coupon reinvest + injection 1000 split 50/50 in 2026+2027. Bond A redeems 2029 \u2192 replacement.",
   "bondFxVersion": "5.0",
   "portfolioSnapshot": [
     {
       "isin": "EXCEL_A4",
-      "issuer": "BOND_A",
-      "investedEur": 5263,
-      "quantity": 52.63,
-      "priceEur": 100,
-      "coupon": 3.0,
+      "issuer": "BOND_A_FRANCIA",
+      "investedEur": 4000.19,
+      "quantity": 40.05,
+      "priceEur": 99.88,
+      "coupon": 3.5,
       "maturity": "2029-01-01",
       "taxRate": 0,
       "currency": "EUR"
     },
     {
       "isin": "EXCEL_B4",
-      "issuer": "BOND_B",
-      "investedEur": 4545,
-      "quantity": 45.45,
-      "priceEur": 100,
-      "coupon": 3.0,
+      "issuer": "BOND_B_UNGHERIA",
+      "investedEur": 3999.6,
+      "quantity": 40.0,
+      "priceEur": 99.99,
+      "coupon": 4.25,
       "maturity": "2031-01-01",
       "taxRate": 0,
       "currency": "EUR"
@@ -60,7 +60,7 @@
         "EXCEL_A4": {
           "enabled": true,
           "_matYear": 2029,
-          "netCouponPct": 3.0,
+          "netCouponPct": 4.25,
           "priceShift": 0,
           "maturityYear": 2032,
           "reinvestCoupons": true
