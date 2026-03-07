@@ -1,12 +1,12 @@
 {
-  "_comment": "Excel Cas#1 — 1 bond (face=10526, price=100≡par, coupon=3%, mat=2029), NO reinvest, NO injection. Engine yr=N maps to Excel yr=N-1. portVal=face (bonds-only, no cash).",
+  "_comment": "Excel Cas#1 \u2014 1 bond (face=10526, price=100\u2261par, coupon=3%, mat=2029), NO reinvest, NO injection. Engine yr=N maps to Excel yr=N-1. portVal=face (bonds-only, no cash).",
   "bondFxVersion": "5.0",
   "portfolioSnapshot": [
     {
       "isin": "EXCEL_A1",
       "issuer": "BOND_A",
       "investedEur": 10526,
-      "quantity": 10526,
+      "quantity": 105.26,
       "priceEur": 100,
       "coupon": 3.0,
       "maturity": "2029-01-01",
@@ -19,10 +19,24 @@
       "id": "sc_1",
       "label": "no reinvest",
       "color": "#9e9e9e",
-      "couponReinvest": { "enabled": false, "globalPriceShift": 0, "perIsin": {} },
+      "couponReinvest": {
+        "enabled": false,
+        "globalPriceShift": 0,
+        "perIsin": {}
+      },
       "maturityReplacement": {},
-      "injection": { "enabled": false, "amountEur": 0, "from": 2027, "to": 2027, "pct": {} }
+      "injection": {
+        "enabled": false,
+        "amountEur": 0,
+        "from": 2027,
+        "to": 2027,
+        "pct": {}
+      }
     }
   ],
-  "verifyYears": [2027, 2028, 2029]
+  "verifyYears": [
+    2027,
+    2028,
+    2029
+  ]
 }

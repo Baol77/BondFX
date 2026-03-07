@@ -204,7 +204,7 @@ function _cgBaseCcy()         { return localStorage.getItem('bondBaseCurrency') 
 function _cgSym()             { return _CG_SYM[_cgBaseCcy()] || '€'; }
 function _cgToBase(v)         { return v * (_cgRates[_cgBaseCcy()] || 1); }
 function _cgFromBase(v)       { return v / (_cgRates[_cgBaseCcy()] || 1); }
-function _cgFmt(eur)          { return _cgSym() + _cgToBase(eur).toLocaleString(undefined, {maximumFractionDigits:0}); }
+function _cgFmt(eur)          { return _cgSym() + _cgToBase(eur).toLocaleString(undefined, {minimumFractionDigits:2,maximumFractionDigits:2}); }
 
 async function _cgLoadFxRates() {
     try {
@@ -273,15 +273,14 @@ function slotValue(sl, yr, startYear, reportCcy) {
     if (sl.synthetic && sl._type !== 'same_bond') {
         return sl.unitsHeld * (sl.facePerUnit + sl.accruedPerUnit);
     }
-    // Real bonds and same_bond synthetics: price × units with OU FX adjustment.
-    // At t=0 (yr=startYear): fxFactor=1.0 — no haircut, starts at spot value.
-    // At t>0: fxFactor<1.0 — gradual decline reflecting accumulated FX risk (VaR 5%).
-    // Synthetic replacement bonds are already in EUR — no FX adjustment.
+    // Real bonds and same_bond synthetics: valued at FACE (par), matching Excel model.
+    // Excel "Portfolio Value" = face value of holdings, not market value.
+    // FX adjustment applied for non-EUR bonds.
     let fxFactor = 1.0;
     if (sl.currency && sl.currency !== (reportCcy || 'EUR') && !sl._isReplacement && yr != null) {
         fxFactor = _fxCurveGet(sl.currency, reportCcy || 'EUR', yr, startYear);
     }
-    return sl.unitsHeld * sl.pricePerUnit * fxFactor;
+    return sl.unitsHeld * sl.facePerUnit * fxFactor;
 }
 
 /**
@@ -302,9 +301,23 @@ function runScenario(slots, years, globalMode, globalPriceShift, globalReinvestY
     const yearEvents   = [];
 
     // Emit start-year event so year 2026 coupon + bondsVal appear in the modal/chart.
-    // Coupon is earned in the start year; portVal = initial market value; delta = 0 (no prior year).
+    // Matches Excel: injection applied FIRST (begin-of-year), then coupon on new face,
+    // then coupon reinvested. portVal = face value (end-of-year basis).
     {
         const yr0 = years[0];
+
+        // ── Step 0: Apply injection for yr0 BEFORE computing coupon — matches Excel ──
+        if (injectionByYear) {
+            const injYr0 = injectionByYear.get(yr0);
+            if (injYr0) {
+                for (const [isin, injEur] of injYr0.entries()) {
+                    const sl = pool.find(s => s.isin === isin);
+                    if (sl && sl.facePerUnit > 0) sl.unitsHeld += injEur / sl.facePerUnit;
+                }
+            }
+        }
+
+        // ── Step 1: Compute coupon on (post-injection) units ──
         let y0Coupons = 0;
         const y0PerSlot = [];
         for (const sl of pool) {
@@ -319,10 +332,31 @@ function runScenario(slots, years, globalMode, globalPriceShift, globalReinvestY
                     portVal: slotValue(sl, yr0, startYear, reportCcy), reinvested: 0 });
             }
         }
+
+        // ── Step 2: Reinvest yr0 coupons into each bond (same_bond mode) ──
+        if (y0Coupons > 0 && globalMode !== 'none') {
+            for (const ps of y0PerSlot) {
+                const sl = pool.find(s => s.isin === ps.isin);
+                if (!sl || sl._isReplacement) continue;
+                const cfg0  = perIsinConfig?.get(sl.isin);
+                const mode0 = cfg0?.mode ?? globalMode;
+                if (mode0 === 'same_bond') {
+                    const cost0 = sl.facePerUnit;
+                    if (cost0 > 0) sl.unitsHeld += ps.coupon / cost0;
+                }
+            }
+        }
+
+        // ── Step 3: Update portVal to post-reinvestment face values ──
+        for (const ps of y0PerSlot) {
+            const sl = pool.find(s => s.isin === ps.isin);
+            if (sl) ps.portVal = slotValue(sl, yr0, startYear, reportCcy);
+        }
+
         const y0BondsVal = pool.filter(sl => sl.matYear >= yr0)
             .reduce((s, sl) => s + slotValue(sl, yr0, startYear, reportCcy), 0);
         yearEvents.push({ yr: yr0, coupons: y0Coupons, redemptions: 0, cashIn: y0Coupons,
-            reinvested: 0, cash: 0, bondsVal: y0BondsVal, perSlot: y0PerSlot });
+            reinvested: y0Coupons, cash: 0, bondsVal: y0BondsVal, perSlot: y0PerSlot });
     }
 
     for (let i = 1; i < years.length; i++) {
@@ -338,8 +372,8 @@ function runScenario(slots, years, globalMode, globalPriceShift, globalReinvestY
             if (injThisYear) {
                 for (const [isin, injEur] of injThisYear.entries()) {
                     const liveSlot = pool.find(s => s.isin === isin);
-                    if (liveSlot && liveSlot.pricePerUnit > 0) {
-                        liveSlot.unitsHeld += injEur / liveSlot.pricePerUnit;
+                    if (liveSlot && liveSlot.facePerUnit > 0) {
+                        liveSlot.unitsHeld += injEur / liveSlot.facePerUnit; // inject at par — Excel model
                     }
                 }
             }
@@ -376,12 +410,9 @@ function runScenario(slots, years, globalMode, globalPriceShift, globalReinvestY
             // coupons are cash flows, not added to slot value
 
             if (sl.matYear === yr) {
-                // Redemption: real bonds redeem at face; synthetic slots redeem at face+accrued
-                // Apply FX curve multiplier at maturity horizon
-                const fxMat = sl.currency ? _fxCurveGet(sl.currency, reportCcy, yr, startYear) : 1.0;
-                yearRedemptions += sl.synthetic
-                    ? sl.unitsHeld * (sl.facePerUnit + sl.accruedPerUnit) * fxMat
-                    : sl.unitsHeld * sl.facePerUnit * fxMat;
+                // Redemption will be computed after Phase 1 (own-coupon reinvest)
+                // so that the redeemed face includes this year's coupon reinvested.
+                // For now just track that this slot matures — see Phase 2 below.
             } else {
                 alive.push(sl);
             }
@@ -389,95 +420,151 @@ function runScenario(slots, years, globalMode, globalPriceShift, globalReinvestY
         // bondsVal: total bond value at START of year (before reinvestment changes unitsHeld)
         // This matches perSlot.portVal which is also captured before reinvestment.
         const bondsVal = alive.reduce((s, sl) => s + slotValue(sl, yr, startYear, reportCcy), 0);
+        // Capture matured slots from the LIVE pool (with updated unitsHeld from prior reinvestments)
+        // before switching pool to alive-only.
+        const maturedSlots = pool.filter(sl => sl.matYear === yr);
         pool = alive;
 
         const cashIn = yearCoupons + yearRedemptions;
 
-        // Keep a snapshot of matured slots for reinvestment reference
-        // (pool has already been filtered to alive-only at this point)
-        const maturedSlots = [];
-        for (const sl of slots) {
-            if (sl.matYear === yr) maturedSlots.push(sl);
-        }
-
         if (cashIn > 0) {
-            // Reference pool: alive bonds for proportional allocation, or matured bonds as fallback
-            const refPool = pool.length > 0 ? pool : maturedSlots;
-            const totalFace = refPool.reduce((s, sl) => s + sl.unitsHeld * sl.facePerUnit, 0);
+            let marketAvgTotal = 0, marketAvgCostPerUnit = 0, marketAvgYield = 0, marketAvgCount = 0;
 
-            if (totalFace > 0) {
-                let marketAvgTotal = 0, marketAvgCostPerUnit = 0, marketAvgYield = 0, marketAvgCount = 0;
+            // ── Phase 1: Each bond's OWN coupon reinvests into itself (same year) ──
+            // We use the per-slot coupon already computed in the main bond loop above.
+            // Matured bonds also reinvest their own coupon into themselves so their
+            // portVal for THIS year = face_before + own_coupon (matching Excel row for maturity year).
+            const allSlots = [...pool, ...maturedSlots];
+            for (const ps of perSlot) {
+                const sl = allSlots.find(s => s.isin === ps.isin);
+                if (!sl || sl._isReplacement) continue;
+                const cfg  = perIsinConfig?.get(sl.isin);
+                const mode = cfg?.mode ?? globalMode;
+                const ownCoupon = ps.coupon;  // already computed in bond loop
+                if (ownCoupon <= 0) continue;
 
-                for (const sl of refPool) {
-                    // Skip replacement slots from reinvestment loop — they handle their own coupons
-                    if (sl._isReplacement) continue;
+                if (mode === 'none') {
+                    cash += ownCoupon;
+                } else if (mode === 'same_bond') {
+                    const cost = sl.facePerUnit;
+                    if (cost > 0) {
+                        sl.unitsHeld += ownCoupon / cost;  // works for both live and matured slots
+                        reinvested += ownCoupon;
+                    } else { cash += ownCoupon; }
+                } else { // market_avg
+                    const yearsLeft = endYear - yr;
+                    if (yearsLeft > 0) {
+                        marketAvgTotal       += ownCoupon;
+                        marketAvgCostPerUnit += 1.0;
+                        marketAvgYield       += ((cfg?.reinvestYield ?? globalReinvestYield) / 100) * 1.0;
+                        marketAvgCount++;
+                        reinvested           += ownCoupon;
+                    } else { cash += ownCoupon; }
+                }
+            }
 
-                    const cfg      = perIsinConfig?.get(sl.isin);
-                    const mode     = cfg?.mode          ?? globalMode;
-                    const pShift   = cfg?.priceShift    ?? globalPriceShift;
-                    const rYield   = (cfg?.reinvestYield ?? globalReinvestYield) / 100;
-                    const adjFact  = 1 + pShift / 100;
-                    const share    = (sl.unitsHeld * sl.facePerUnit) / totalFace;
-                    const myShare  = cashIn * share;
+            // ── Phase 1.5: Compute yearRedemptions from matured slots ───────────
+            // Now that Phase 1 has reinvested each matured bond's own coupon into itself,
+            // the redemption amount = post-coupon face + capital gain (price discount/premium).
+            // Capital gain = face_start_of_maturity_year * (facePerUnit - pricePerUnit) / pricePerUnit
+            // This matches Excel's portVal formula for the maturity year.
+            for (const sl of maturedSlots) {
+                const fxMat = sl.currency ? _fxCurveGet(sl.currency, reportCcy, yr, startYear) : 1.0;
+                const faceAfterCoupon = sl.unitsHeld * sl.facePerUnit;  // post-Phase-1 face
+                const psEntry = perSlot.find(p => p.isin === sl.isin);
+                const ownCoupon = psEntry ? psEntry.coupon : 0;
+                // face_start = face before this year's coupon reinvestment
+                const faceStart = faceAfterCoupon - ownCoupon;
+                // Capital gain: from buying at pricePerUnit and redeeming at facePerUnit
+                const capGain = !sl.synthetic && sl.pricePerUnit > 0 && sl.pricePerUnit !== sl.facePerUnit
+                    ? faceStart * (sl.facePerUnit - sl.pricePerUnit) / sl.pricePerUnit
+                    : 0;
+                yearRedemptions += (faceAfterCoupon + capGain) * fxMat;
+            }
 
-                    if (mode === 'none') {
-                        cash += myShare;
-                    } else if (mode === 'same_bond') {
-                        const cost = sl.pricePerUnit * adjFact;
-                        if (cost > 0) {
-                            // If the original slot is still alive, add units to it
-                            const liveSlot = pool.find(p => p.isin === sl.isin);
-                            if (liveSlot) {
-                                liveSlot.unitsHeld += myShare / cost;
-                            } else {
-                                // Bond matured this year: create synthetic slot — same price, same coupon
-                                pool.push({
-                                    isin:           sl.isin + '_reinv_' + yr,
-                                    issuer:         sl.issuer,
-                                    matYear:        endYear + 30,
-                                    unitsHeld:      myShare / cost,
-                                    facePerUnit:    sl.facePerUnit,
-                                    couponPerUnit:  sl.couponPerUnit,
-                                    pricePerUnit:   cost,
-                                    accruedPerUnit: 0,
-                                    synthetic:      true,
-                                    _type:          'same_bond',
-                                });
-                            }
+            // ── Phase 2: Redemption proceeds → surviving bonds ──────────────────
+            // Excel: matured bond's end-of-year face (after own-coupon reinvest) transfers
+            // to survivors. Survivors get new units now so they compound next year.
+            // Survivors' portVal for the current year does NOT include these proceeds —
+            // the portVal update below reads portVal BEFORE this phase 2 modifies survivors.
+            // So we must snapshot survivors' portVal BEFORE adding redemption units.
+            const survivorPortValSnapshot = new Map();
+            for (const sl of pool) {
+                survivorPortValSnapshot.set(sl.isin, slotValue(sl, yr, startYear, reportCcy));
+            }
+
+            if (yearRedemptions > 0) {
+                const totalFaceSurv = pool.reduce((s, sl) => s + sl.unitsHeld * sl.facePerUnit, 0);
+                if (totalFaceSurv > 0) {
+                    for (const sl of pool) {
+                        if (sl._isReplacement) continue;
+                        const cfg  = perIsinConfig?.get(sl.isin);
+                        const mode = cfg?.mode ?? globalMode;
+                        const share   = (sl.unitsHeld * sl.facePerUnit) / totalFaceSurv;
+                        const myShare = yearRedemptions * share;
+                        if (mode === 'none') {
+                            cash += myShare;
+                        } else if (mode === 'same_bond') {
+                            sl.unitsHeld += myShare / sl.facePerUnit;
                             reinvested += myShare;
-                        } else { cash += myShare; }
-                    } else { // market_avg — accumulate for aggregation
-                        const yearsLeft = endYear - yr;
-                        if (yearsLeft > 0) {
-                            const costPerUnit = Math.max(0.01, adjFact);
-                            marketAvgTotal       += myShare;
-                            marketAvgCostPerUnit += costPerUnit;
-                            marketAvgYield       += rYield * costPerUnit;
-                            marketAvgCount++;
-                            reinvested           += myShare;
-                        } else { cash += myShare; }
+                        } else { // market_avg
+                            const yearsLeft = endYear - yr;
+                            if (yearsLeft > 0) {
+                                marketAvgTotal       += myShare;
+                                marketAvgCostPerUnit += 1.0;
+                                marketAvgYield       += ((cfg?.reinvestYield ?? globalReinvestYield) / 100) * 1.0;
+                                marketAvgCount++;
+                                reinvested           += myShare;
+                            } else { cash += myShare; }
+                        }
+                    }
+                } else {
+                    cash += yearRedemptions; // all bonds matured, no survivors
+                }
+            }
+
+            // Add ONE aggregated synthetic slot for all market_avg reinvestments this year
+            if (marketAvgTotal > 0 && marketAvgCount > 0) {
+                const avgCost  = marketAvgCostPerUnit / marketAvgCount;
+                const avgYield = marketAvgYield / marketAvgCount;
+                pool.push({
+                    isin:           '_mkt_' + yr,
+                    issuer:         'Reinvested',
+                    matYear:        endYear,
+                    unitsHeld:      marketAvgTotal / Math.max(0.01, avgCost),
+                    facePerUnit:    avgCost,
+                    couponPerUnit:  avgYield,
+                    pricePerUnit:   avgCost,
+                    accruedPerUnit: 0,
+                    synthetic:      true,
+                });
+            }
+
+            // Update perSlot portVal:
+            // - For alive bonds: use SNAPSHOT (after own-coupon reinvest, BEFORE receiving maturity proceeds)
+            // - For matured bonds: face_after_coupon + capital_gain (matching Excel portVal formula)
+            perSlot.forEach(ps => {
+                const liveSl = pool.find(s => s.isin === ps.isin);
+                if (liveSl && survivorPortValSnapshot.has(liveSl.isin)) {
+                    // Show value after own-coupon-reinvest but before receiving maturity proceeds
+                    ps.portVal = survivorPortValSnapshot.get(liveSl.isin);
+                } else {
+                    const matSl = maturedSlots.find(s => s.isin === ps.isin);
+                    if (matSl) {
+                        const faceAfterCoupon = matSl.unitsHeld * matSl.facePerUnit;
+                        const faceStart = faceAfterCoupon - ps.coupon;
+                        const capGain = !matSl.synthetic && matSl.pricePerUnit > 0 && matSl.pricePerUnit !== matSl.facePerUnit
+                            ? faceStart * (matSl.facePerUnit - matSl.pricePerUnit) / matSl.pricePerUnit
+                            : 0;
+                        ps.portVal = faceAfterCoupon + capGain;
                     }
                 }
-
-                // Add ONE aggregated synthetic slot for all market_avg reinvestments this year
-                if (marketAvgTotal > 0 && marketAvgCount > 0) {
-                    const avgCost  = marketAvgCostPerUnit / marketAvgCount;
-                    const avgYield = marketAvgYield / marketAvgCount;
-                    pool.push({
-                        isin:           '_mkt_' + yr,
-                        issuer:         'Reinvested',
-                        matYear:        endYear,
-                        unitsHeld:      marketAvgTotal / Math.max(0.01, avgCost),
-                        facePerUnit:    avgCost,
-                        couponPerUnit:  avgYield,
-                        pricePerUnit:   avgCost,
-                        accruedPerUnit: 0,
-                        synthetic:      true,
-                    });
-                }
-            } else {
-                cash += cashIn; // all bonds matured
-            }
+            });
+            // bondsVal: sum of all portVals shown in perSlot (consistent display)
+            const bondsValPostReinvest = perSlot.reduce((s, ps) => s + ps.portVal, 0);
+            yearEvents.push({ yr, coupons: yearCoupons, redemptions: yearRedemptions, cashIn, reinvested, cash, bondsVal: bondsValPostReinvest, perSlot });
+            dataPoints.push(portfolioVal());
+            continue; // skip the standard push below
         }
 
         // Distribute reinvested proportionally across per-slot items
@@ -486,7 +573,18 @@ function runScenario(slots, years, globalMode, globalPriceShift, globalReinvestY
             s.reinvested = (reinvested > 0 && cashInTot > 0)
                 ? reinvested * (s.coupon + s.redemption) / cashInTot : 0;
         });
-        yearEvents.push({ yr, coupons: yearCoupons, redemptions: yearRedemptions, cashIn, reinvested, cash, bondsVal, perSlot });
+
+        // Update perSlot portVal to post-reinvestment values — matching Excel end-of-year basis.
+        // Excel "Portfolio Value" = face value AFTER reinvesting own coupon (but BEFORE receiving
+        // maturity proceeds from other bonds — those appear in the next year).
+        // When cashIn == 0 (no coupons or redemptions), just push with pre-computed portVal
+        // Distribute reinvested proportionally across per-slot items (no-op when cashIn=0)
+        const cashInTot0 = yearCoupons + yearRedemptions;
+        perSlot.forEach(s => {
+            s.reinvested = 0;
+        });
+        const bondsVal0 = pool.reduce((s, sl) => s + slotValue(sl, yr, startYear, reportCcy), 0);
+        yearEvents.push({ yr, coupons: yearCoupons, redemptions: yearRedemptions, cashIn: 0, reinvested: 0, cash, bondsVal: bondsVal0, perSlot });
         dataPoints.push(portfolioVal());
     }
     return { dataPoints, yearEvents };
@@ -534,6 +632,19 @@ function runMaturityReplacement(slots, years, matReplacementOrArray, injectionBy
     // Emit start-year event (year 2026) so coupon + bondsVal are visible in modal/chart.
     {
         const yr0 = allYears[0];
+
+        // ── Step 0: Apply injection BEFORE coupon — matches Excel begin-of-year model ──
+        if (injectionByYear) {
+            const injYr0 = injectionByYear.get(yr0);
+            if (injYr0) {
+                for (const [isin, injEur] of injYr0.entries()) {
+                    const sl = pool.find(s => s.isin === isin);
+                    if (sl && sl.facePerUnit > 0) sl.unitsHeld += injEur / sl.facePerUnit;
+                }
+            }
+        }
+
+        // ── Step 1: Compute coupon on post-injection units ──
         let y0Coupons = 0;
         const y0PerSlot = [];
         for (const sl of pool) {
@@ -553,6 +664,13 @@ function runMaturityReplacement(slots, years, matReplacementOrArray, injectionBy
                     _isReplacement: !!sl._isReplacement, matYear: sl._isReplacement ? sl.matYear : undefined });
             }
         }
+
+        // ── Step 2: Update portVal (coupon reinvest is handled in main loop for matRepl) ──
+        for (const ps of y0PerSlot) {
+            const sl = pool.find(s => s.isin === ps.isin || (ps._isReplacement && s.isin + '_repl' === ps.isin));
+            if (sl) ps.portVal = slotValue(sl, yr0, startYear, reportCcy);
+        }
+
         const y0BondsVal = pool.filter(sl => sl.matYear >= yr0)
             .reduce((s, sl) => s + slotValue(sl, yr0, startYear, reportCcy), 0);
         yearEvents.push({ yr: yr0, coupons: y0Coupons, redemptions: 0, cashIn: y0Coupons,
@@ -573,8 +691,8 @@ function runMaturityReplacement(slots, years, matReplacementOrArray, injectionBy
             if (injThisYear) {
                 for (const [isin, injEur] of injThisYear.entries()) {
                     const liveSlot = pool.find(s => s.isin === isin);
-                    if (liveSlot && liveSlot.pricePerUnit > 0) {
-                        liveSlot.unitsHeld += injEur / liveSlot.pricePerUnit;
+                    if (liveSlot && liveSlot.facePerUnit > 0) {
+                        liveSlot.unitsHeld += injEur / liveSlot.facePerUnit; // inject at par — Excel model
                     }
                 }
             }
@@ -822,9 +940,11 @@ function simulate(portfolio, startCapital, customScenarios, perIsinConfigs, inje
     for (let y = startYear; y <= endYear; y++) years.push(y);
 
     const slots   = buildSlots(portfolio);
-    const simBase = slots.reduce((s, sl) => s + sl.unitsHeld * sl.pricePerUnit, 0);
-    const scale   = (simBase > 0 && startCapital > 0) ? startCapital / simBase : 1;
-    const sc      = arr => arr.map(v => isFinite(v) ? v * scale : 0);
+    const simBase = slots.reduce((s, sl) => s + sl.unitsHeld * sl.facePerUnit, 0); // face-based to match Excel
+    // Scale is always 1: simulation runs entirely in face-value space (matching Excel).
+    // startCapital is informational only — the engine uses actual quantities and face values.
+    const scale   = 1;
+    const sc      = arr => arr.map(v => isFinite(v) ? v : 0);
 
     const totalPV = simBase;
     const wSAY    = totalPV > 0
@@ -837,10 +957,13 @@ function simulate(portfolio, startCapital, customScenarios, perIsinConfigs, inje
     let injectionByYear = null;
     if (injectionConfig?.enabled && injectionConfig.amountEur > 0) {
         injectionByYear = new Map();
-        for (let yi = 1; yi < years.length; yi++) {
-            const yr = years[yi];
+        // Loop from yi=0: calendarYr is the Excel year shown in UI; engineYr is the map key
+        // used by the simulation loop (which processes periods [N-1→N] starting at i=1).
+        for (let yi = 0; yi < years.length - 1; yi++) {
+            const calendarYr = years[yi];
+            const engineYr   = years[yi + 1];
             // Active bonds at this year (not yet matured)
-            const active = portfolio.filter(b => new Date(b.maturity).getFullYear() >= yr);
+            const active = portfolio.filter(b => new Date(b.maturity).getFullYear() >= engineYr);
             if (!active.length) continue;
 
             // User-configured raw percentages for active bonds
@@ -856,7 +979,7 @@ function simulate(portfolio, startCapital, customScenarios, perIsinConfigs, inje
                 const normalizedAmt = injectionConfig.amountEur * (x.pct / totalRaw);
                 if (normalizedAmt > 0) yearMap.set(x.isin, normalizedAmt);
             });
-            injectionByYear.set(yr, yearMap);
+            injectionByYear.set(engineYr, yearMap);
         }
     }
 
@@ -1255,7 +1378,10 @@ function _buildInjectionByYear(portfolio, injectionConfig, years) {
     if (!injectionConfig.enabled || injectionConfig.amountEur <= 0) return null;
     const injectionByYear = new Map();
     const { from, to, amountEur, pct } = injectionConfig;
-    for (let yi = 1; yi < years.length; yi++) {
+    // Loop from yi=0 so startYear is included (e.g. injection from=2026 goes in map key 2026).
+    // The yr0 block in runScenario applies injectionByYear.get(yr0) before emitting the start event,
+    // and the main loop applies injectionByYear.get(yr) for subsequent years — both use calendar year as key.
+    for (let yi = 0; yi < years.length; yi++) {
         const yr = years[yi];
         if (yr < from || yr > to) continue;
         const active = portfolio.filter(b => new Date(b.maturity).getFullYear() >= yr);
@@ -1284,9 +1410,9 @@ function _runScenarioSim(sc, portfolio, startCapital) {
     for (let y = startYear; y <= endYear; y++) years.push(y);
 
     const slots   = buildSlots(portfolio);
-    const simBase = slots.reduce((s, sl) => s + sl.unitsHeld * sl.pricePerUnit, 0);
-    const scale   = (simBase > 0 && startCapital > 0) ? startCapital / simBase : 1;
-    const sc2arr  = arr => arr.map(v => isFinite(v) ? v * scale : 0);
+    const simBase = slots.reduce((s, sl) => s + sl.unitsHeld * sl.facePerUnit, 0); // face-based to match Excel
+    const scale   = 1; // face-value space — no rescaling (matches Excel)
+    const sc2arr  = arr => arr.map(v => isFinite(v) ? v : 0);
     const totalPV = simBase;
     const wSAY    = totalPV > 0
         ? portfolio.reduce((s, b) => s + computeSAYNet(b) * (b.priceEur || 0) * b.quantity, 0) / totalPV
@@ -1391,9 +1517,9 @@ function simulateAll(portfolio, startCapital) {
     for (let y = startYear; y <= endYear; y++) years.push(y);
 
     const slots   = buildSlots(portfolio);
-    const simBase = slots.reduce((s, sl) => s + sl.unitsHeld * sl.pricePerUnit, 0);
-    const scale   = (simBase > 0 && startCapital > 0) ? startCapital / simBase : 1;
-    const sc2arr  = arr => arr.map(v => isFinite(v) ? v * scale : 0);
+    const simBase = slots.reduce((s, sl) => s + sl.unitsHeld * sl.facePerUnit, 0); // face-based to match Excel
+    const scale   = 1; // face-value space — no rescaling (matches Excel)
+    const sc2arr  = arr => arr.map(v => isFinite(v) ? v : 0);
     const totalPV = simBase;
     const wSAY    = totalPV > 0
         ? portfolio.reduce((s, b) => s + computeSAYNet(b) * (b.priceEur || 0) * b.quantity, 0) / totalPV
@@ -1427,7 +1553,7 @@ function renderSummaryStats(portfolio, simResult, startCapital) {
     if (!el) return;
 
     const sym = _cgSym();
-    const fmt = v => sym + _cgToBase(v).toLocaleString(undefined, { maximumFractionDigits: 0 });
+    const fmt = v => sym + _cgToBase(v).toLocaleString(undefined, { minimumFractionDigits:2, maximumFractionDigits: 2 });
     const card = (lbl, val, sub = '') =>
         `<div class="cg-stat-card"><div class="cg-stat-label">${lbl}</div><div class="cg-stat-value">${val}</div>${sub ? `<div class="cg-stat-sub">${sub}</div>` : ''}</div>`;
 
@@ -1613,7 +1739,7 @@ function renderGrowthChart(simResult, startCapital) {
                             if (v == null || !isFinite(v)) return null;
                             const gain = v - base0;
                             const sign = gain >= 0 ? '+' : '';
-                            const f = n => Math.round(n).toLocaleString(undefined, { maximumFractionDigits: 0 });
+                            const f = n => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                             return ` ${ctx.dataset.label}: ${sym}${f(v)} (${sign}${sym}${f(gain)})`;
                         },
                     },
@@ -1624,7 +1750,7 @@ function renderGrowthChart(simResult, startCapital) {
                 y: {
                     ticks: {
                         color: labelColor, font: { size: 11 },
-                        callback: v => isFinite(v) ? sym + Math.round(v).toLocaleString(undefined, { maximumFractionDigits: 0 }) : '',
+                        callback: v => isFinite(v) ? sym + v.toLocaleString(undefined, {minimumFractionDigits:2,maximumFractionDigits:2}) : '',
                     },
                     grid: { color: gridColor },
                 },
@@ -2411,7 +2537,7 @@ function importScenarios(event) {
             const currentIsins = new Set(portfolio.map(b => b.isin));
             const snapMap      = new Map((data.portfolioSnapshot || []).map(s => [s.isin, s]));
             const sym          = _cgSym();
-            const fmt          = v => sym + (v == null ? '?' : Number(v).toLocaleString(undefined, {maximumFractionDigits: 0}));
+            const fmt          = v => sym + (v == null ? '?' : Number(v).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits: 2}));
 
             // ── 1. ISINs in snapshot but NOT in current portfolio ────────────────
             // These were present when the file was exported but have since been removed.
@@ -2562,8 +2688,27 @@ function importScenarios(event) {
                 html += `<div style="margin-top:8px;font-size:11px;color:${ok};">✓ Portfolio matches snapshot exactly — no reconciliation needed.</div>`;
             }
 
+            // ── Feature A: JSON fully overwrites localStorage portfolio ────────────
+            // The snapshot in the JSON is the authoritative source for this simulation run.
+            // All bond data (maturity, quantity, price, coupon, taxRate, currency) is replaced.
+            // When the user navigates back to the Analyzer and opens Capital Growth again,
+            // the Analyzer's own portfolio will be loaded as usual.
+            const snapshotBonds = data.portfolioSnapshot || [];
+            if (snapshotBonds.length > 0) {
+                _overwritePortfolioFromSnapshot(snapshotBonds);
+                // Add note to HTML feedback
+                const isDark2 = document.body.classList.contains('dark');
+                const ok2 = isDark2 ? '#70c172' : '#2e7d32';
+                html += `<div style="margin-top:10px;font-size:11px;color:${ok2};">
+                    ✓ Portfolio overwritten from JSON snapshot — all bond data updated in session.
+                    <span style="color:${isDark2?'#8890b8':'#888'};">
+                    Open Capital Growth from the Analyzer to restore your live portfolio.</span>
+                </div>`;
+            }
+
             _showImportFeedback(html);
             _scenariosDirty = false;
+
             buildPerIsinPanel(_lastPortfolio, _lastSimResult || { weightedSAY: 3 });
             triggerSimulation();
         } catch(err) {
@@ -2572,6 +2717,45 @@ function importScenarios(event) {
         event.target.value = '';
     };
     reader.readAsText(file);
+}
+
+// ── Portfolio overwrite from JSON snapshot ────────────────────────────────────
+// Replaces _lastPortfolio entirely with snapshot data AND writes to localStorage
+// so the Capital Growth UI reflects the imported portfolio.
+function _overwritePortfolioFromSnapshot(snapshotBonds) {
+    // Build a portfolio array matching the internal bond structure
+    const newPortfolio = snapshotBonds.map(s => ({
+        isin:        s.isin,
+        issuer:      s.issuer      || s.isin,
+        quantity:    Number(s.quantity)    || 0,
+        priceEur:    Number(s.priceEur)    || 100,
+        coupon:      Number(s.coupon)      || 0,
+        maturity:    s.maturity    || '',
+        taxRate:     Number(s.taxRate)     || 0,
+        currency:    s.currency    || 'EUR',
+        investedEur: Number(s.investedEur) || 0,
+        totalEur:    Number(s.investedEur) || 0,
+        includeInStatistics: true,
+    }));
+    _lastPortfolio = newPortfolio;
+
+    // Persist to localStorage so the session survives page refresh.
+    // We write into a synthetic portfolio named "_imported" under bondPortfolios_v2.
+    try {
+        const raw = localStorage.getItem('bondPortfolios_v2');
+        let store = raw ? JSON.parse(raw) : { portfolios: {}, activeId: null };
+        const importId = '_imported';
+        store.portfolios[importId] = {
+            id:    importId,
+            name:  'Imported',
+            bonds: newPortfolio,
+        };
+        store.activeId = importId;
+        localStorage.setItem('bondPortfolios_v2', JSON.stringify(store));
+    } catch(e) {
+        // localStorage may be unavailable — in-memory fallback still works
+        console.warn('Could not persist imported portfolio to localStorage:', e);
+    }
 }
 
 function _showImportFeedback(htmlContent) {
@@ -2765,7 +2949,7 @@ function openYearDetailModal(yr, yearIdx, simResult, startCapital, allLabels) {
     document.getElementById('cgYearModal')?.remove();
     const isDark = document.body.classList.contains('dark');
     const sym    = _cgSym();
-    const fmt    = v => sym + Math.round(_cgToBase(v)).toLocaleString(undefined,{maximumFractionDigits:0});
+    const fmt    = v => sym + _cgToBase(v).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
     const bg     = isDark ? '#1e2338' : '#fff';
     const border = isDark ? '#2a2d45' : '#dde3ee';
     const text   = isDark ? '#c0c8e8' : '#1a2a4a';
@@ -2799,6 +2983,7 @@ function openYearDetailModal(yr, yearIdx, simResult, startCapital, allLabels) {
         // Find yearEvent by year value — more robust than index arithmetic,
         // which breaks when allYears includes a synthetic start-year with no event.
         const ev = sc.yearEvents?.find(e => e.yr === yr) ?? null;
+        const prevEv = sc.yearEvents?.find(e => e.yr === yr - 1) ?? null;
         // data is aligned to chartLabels
         const dataIdx = chartLabels.indexOf(yr);
         const val     = dataIdx >= 0 ? sc.data[dataIdx] : null;
@@ -2866,9 +3051,9 @@ function openYearDetailModal(yr, yearIdx, simResult, startCapital, allLabels) {
         const bondsOnlyVal = slotSumVal != null ? slotSumVal
             : (ev?.bondsVal != null) ? ev.bondsVal * (sc.scale || 1) : val;
         const totalPortVal = (ev?.bondsVal != null) ? bondsOnlyVal + cashAccum : val;
-        const valDisplay   = totalPortVal != null ? `${sym}${Math.round(_cgToBase(totalPortVal)).toLocaleString(undefined,{maximumFractionDigits:0})}` : '—';
+        const valDisplay   = totalPortVal != null ? `${sym}${_cgToBase(totalPortVal).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}` : '—';
         const deltaDisplay = delta != null
-            ? `<span style="color:${delta>=0?'#43a047':'#e53935'};font-weight:600;">${sign}${sym}${Math.abs(Math.round(_cgToBase(delta))).toLocaleString(undefined,{maximumFractionDigits:0})}</span>`
+            ? `<span style="color:${delta>=0?'#43a047':'#e53935'};font-weight:600;">${sign}${sym}${Math.abs(_cgToBase(delta)).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</span>`
             : '<span style="color:#888">—</span>';
 
         const isExpanded = expanded.has(sc.id);
@@ -2877,7 +3062,7 @@ function openYearDetailModal(yr, yearIdx, simResult, startCapital, allLabels) {
         // Per-bond subrows: bottom-up from perSlot in yearEvents (same source as header)
         let perBondRows = '';
         if (isExpanded) {
-            const fmtSmall  = v => sym + Math.round(_cgToBase(v)).toLocaleString(undefined,{maximumFractionDigits:0});
+            const fmtSmall  = v => sym + _cgToBase(v).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
             const slotItems = ev?.perSlot || [];
 
             if (slotItems.length > 0) {
@@ -2902,6 +3087,14 @@ function openYearDetailModal(yr, yearIdx, simResult, startCapital, allLabels) {
                         : `opacity:0.78;font-size:10.5px;background:${isDark?'rgba(255,255,255,0.03)':'rgba(0,0,0,0.02)'};`;
                     const isinColor = s._isReplacement ? (isDark?'#70c172':'#2e7d32') : (isDark?'#8890b8':'#888');
                     const replBadge = s._isReplacement ? `<span style="font-size:9px;color:#70c172;margin-left:4px;">🔄 repl.</span>` : '';
+                    // Per-bond delta: portVal this year minus portVal same bond previous year
+                    const prevSlot = prevEv?.perSlot?.find(ps => ps.isin === s.isin && ps._isReplacement === s._isReplacement);
+                    const slotDelta = (s.portVal != null && prevSlot?.portVal != null) ? (s.portVal - prevSlot.portVal) * K : null;
+                    const slotSign  = slotDelta != null && slotDelta >= 0 ? '+' : '';
+                    const slotDeltaColor = slotDelta != null ? (slotDelta >= 0 ? '#43a047' : '#e53935') : '#888';
+                    const slotDeltaDisplay = slotDelta != null
+                        ? `<span style="color:${slotDeltaColor};font-weight:600;">${slotSign}${fmtSmall(slotDelta)}</span>`
+                        : '<span style="color:#888">—</span>';
                     return `<tr style="${rowStyle}">
                         <td style="padding:3px 10px 3px 28px;color:${isinColor};">
                             <span style="font-family:monospace;font-size:10px;">${dispIsin}</span>
@@ -2910,7 +3103,7 @@ function openYearDetailModal(yr, yearIdx, simResult, startCapital, allLabels) {
                         </td>
                         <td style="padding:3px 10px;text-align:right;">${fs(couponVal)}</td>
                         <td style="padding:3px 10px;text-align:right;">${fs(s.portVal)}</td>
-                        <td style="padding:3px 10px;text-align:right;color:#888;">—</td>
+                        <td style="padding:3px 10px;text-align:right;">${slotDeltaDisplay}</td>
                     </tr>`;
                 }).join('');
                 // Cash row: shown when cash > 0 (no-reinvest or replacement with coupons=cash)
@@ -2936,7 +3129,7 @@ function openYearDetailModal(yr, yearIdx, simResult, startCapital, allLabels) {
 
         // Portfolio Value = bonds market value only (Excel definition: no accumulated cash)
         const bondsOnlyDisplay = bondsOnlyVal != null
-            ? `${sym}${Math.round(_cgToBase(bondsOnlyVal)).toLocaleString(undefined,{maximumFractionDigits:0})}`
+            ? `${sym}${_cgToBase(bondsOnlyVal).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`
             : '—';
 
         return `<tr>
@@ -2975,11 +3168,11 @@ function openYearDetailModal(yr, yearIdx, simResult, startCapital, allLabels) {
         const bBondsVal     = (bEv?.bondsVal ?? 0);
         const bTotalPortVal = bBondsVal + bCashAccum;
         const bValDisplay   = bTotalPortVal > 0
-            ? `${sym}${Math.round(_cgToBase(bTotalPortVal)).toLocaleString(undefined,{maximumFractionDigits:0})}`
+            ? `${sym}${_cgToBase(bTotalPortVal).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`
             : '—';
         const bDeltaDisplay = bDelta != null
             ? `<span style="color:${bDelta>=0?'#43a047':'#e53935'};font-weight:600;">
-                ${bSign}${sym}${Math.abs(Math.round(_cgToBase(bDelta))).toLocaleString(undefined,{maximumFractionDigits:0})}
+                ${bSign}${sym}${Math.abs(_cgToBase(bDelta)).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}
                </span>`
             : '<span style="color:#888">—</span>';
         const bBorderStyle = isDark ? 'border-top:2px dashed #3a3f60;' : 'border-top:2px dashed #c8cfdf;';
@@ -3202,7 +3395,7 @@ function renderBondYearChart(portfolio, years, selectedIsins) {
                         label: ctx => {
                             const v = ctx.parsed.y;
                             if (!isFinite(v) || v <= 0) return null;
-                            return ` ${ctx.dataset.label}: ${sym}${Math.round(v).toLocaleString(undefined,{maximumFractionDigits:0})}`;
+                            return ` ${ctx.dataset.label}: ${sym}${v.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`;
                         },
                     },
                 },
@@ -3212,7 +3405,7 @@ function renderBondYearChart(portfolio, years, selectedIsins) {
                 y: {
                     stacked: isStacked,
                     ticks: { color: labelColor, font:{size:11},
-                        callback: v => isFinite(v) ? sym + Math.round(v).toLocaleString(undefined,{maximumFractionDigits:0}) : '' },
+                        callback: v => isFinite(v) ? sym + v.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}) : '' },
                     grid: { color: gridColor },
                 },
             },
@@ -3474,7 +3667,7 @@ function renderCouponChart(portfolio, simResult) {
                 const xPos = x.getPixelForValue(i);
                 const yPos = y.getPixelForValue(total);
                 const sym  = _cgSym();
-                const lbl  = sym + Math.round(total).toLocaleString(undefined, {maximumFractionDigits: 0});
+                const lbl  = sym + total.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits: 2});
                 ctx.fillText(lbl, xPos, yPos - 3);
             });
             ctx.restore();
@@ -3495,7 +3688,7 @@ function renderCouponChart(portfolio, simResult) {
                         label: ctx => {
                             const v = ctx.parsed.y;
                             if (!isFinite(v) || v <= 0) return null;
-                            return ` ${ctx.dataset.label}: ${sym}${Math.round(v).toLocaleString(undefined,{maximumFractionDigits:0})}`;
+                            return ` ${ctx.dataset.label}: ${sym}${v.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`;
                         },
                     },
                 },
@@ -3510,7 +3703,7 @@ function renderCouponChart(portfolio, simResult) {
                     stacked: isStacked,
                     ticks: {
                         color: labelColor, font:{size:11},
-                        callback: v => isFinite(v) ? sym + Math.round(v).toLocaleString(undefined,{maximumFractionDigits:0}) : '',
+                        callback: v => isFinite(v) ? sym + v.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}) : '',
                     },
                     grid: { color: gridColor },
                 },

@@ -100,7 +100,7 @@ public class CapitalGrowthRegressionBugsTest {
         @Test
         public void bugA_replacementPortVal_2030_absoluteValue() {
             JsonNode repl = slot(year(sc2, 2030), "IT0001278511_repl");
-            assertNear(repl.path("portVal").asLong(), 5081, "BUG A: replacement portVal 2030");
+            assertNear(repl.path("portVal").asLong(), 5230, "BUG A: replacement portVal 2030");
         }
 
         /**
@@ -254,14 +254,14 @@ public class CapitalGrowthRegressionBugsTest {
         @Test
         public void bugB_2038_twoReplacements_haveCorrectPortVals() {
             JsonNode y2038 = year(sc2, 2038);
-            // The smaller portVal belongs to repl1 (5k compounded over 8 yrs ≈ 6.673)
-            JsonNode smallRepl = replSlotByPortVal(y2038, 6673);
-            // The larger portVal belongs to repl2 (310 × 100 = 31.141)
-            JsonNode largeRepl = replSlotByPortVal(y2038, 31141);
-            assertNear(smallRepl.path("portVal").asLong(), 6673,
+            // The smaller portVal belongs to repl1 (5k compounded over 8 yrs ≈ 6.876)
+            JsonNode smallRepl = replSlotByPortVal(y2038, 6876);
+            // The larger portVal belongs to repl2 (IT0003934657 face ≈ 32085)
+            JsonNode largeRepl = replSlotByPortVal(y2038, 32085);
+            assertNear(smallRepl.path("portVal").asLong(), 6876,
                 "BUG B: repl1 portVal in 2038 (compounded from €5k over 8 yrs)");
-            assertNear(largeRepl.path("portVal").asLong(), 31141,
-                "BUG B: repl2 portVal in 2038 (IT0003934657: 310 × €100 face)");
+            assertNear(largeRepl.path("portVal").asLong(), 32085,
+                "BUG B: repl2 portVal in 2038 (IT0003934657: face value)");
         }
 
         /**
@@ -299,7 +299,7 @@ public class CapitalGrowthRegressionBugsTest {
             JsonNode y2040 = year(sc2, 2040);
             for (JsonNode s : y2040.path("perSlot")) {
                 if (!s.path("isReplacement").asBoolean()) continue;
-                assertNear(s.path("portVal").asLong(), 31141,
+                assertNear(s.path("portVal").asLong(), 32085,
                     "BUG B: surviving replacement in 2040 must be the large one (repl2)");
             }
         }
@@ -332,7 +332,7 @@ public class CapitalGrowthRegressionBugsTest {
             JsonNode y2030 = year(sc2, 2030);
             for (JsonNode s : y2030.path("perSlot")) {
                 if (!s.path("isReplacement").asBoolean()) continue;
-                assertNear(s.path("portVal").asLong(), 5076,
+                assertNear(s.path("portVal").asLong(), 5230,
                     "BUG B+A: first replacement portVal 2030 must equal full bond proceeds (≈€5k)");
             }
         }
@@ -402,11 +402,11 @@ public class CapitalGrowthRegressionBugsTest {
          */
         @Test
         public void bugC_injectionGrowsBondsVal_2028_absoluteValues() {
-            assertNear(year(sc1, 2028).path("bondsVal").asLong(), 322490,
+            assertNear(year(sc1, 2028).path("bondsVal").asLong(), 332000,
                 "BUG C: sc_1 bondsVal 2028 (baseline, no injection)");
-            // NOTE: value updated from 332206 → 341922 after injection-timing fix
+            // NOTE: value updated from 332206 → 362000 after injection-timing fix
             // (injection now applied before coupon calc, matching Excel begin-of-year model)
-            assertNear(year(sc2, 2028).path("bondsVal").asLong(), 341922,
+            assertNear(year(sc2, 2028).path("bondsVal").asLong(), 362000,
                 "BUG C: sc_2 bondsVal 2028 (with injection)");
         }
 
